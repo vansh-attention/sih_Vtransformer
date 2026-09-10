@@ -59,6 +59,9 @@ section "Scorecard"
 run "tuned corpus"    $NODE bench/score.ts
 run "HOLDOUT corpus"  $NODE bench/score.ts --holdout
 
+section "User journeys"
+run "odd input, repeat runs, pathological content" $NODE bench/user-journey.ts
+
 section "Robustness"
 run "real websites survive the pipeline"  $NODE bench/realpages-drill.ts
 run "huge page stays in budget"           $NODE bench/huge-page-drill.ts

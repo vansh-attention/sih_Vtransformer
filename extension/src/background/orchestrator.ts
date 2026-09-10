@@ -317,11 +317,23 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
      * Failing closed costs visual context, which is recoverable. The alternative is not.
      */
     const unreadable: string[] = obs.closedShadowHosts ?? [];
-    const vision = unreadable.length > 0
-      ? { faces: 0, visionMs: 0,
-          error: `screenshot withheld: ${unreadable.join(', ')} could not be read, `
-               + 'so its on-screen contents cannot be redacted' }
-      : await captureAndRedact(windowId, tabId);
+    const piiOffPayload: boolean = obs.piiBeyondTextCap === true;
+
+    let vision;
+    if (unreadable.length > 0) {
+      vision = { faces: 0, visionMs: 0,
+        error: `screenshot withheld: ${unreadable.join(', ')} could not be read, `
+             + 'so its on-screen contents cannot be redacted' };
+    } else if (piiOffPayload) {
+      // Text was cut short and the discarded part held something PII-shaped. It is on
+      // screen, so a screenshot would carry it, and it is not in the payload for us to
+      // redact. Withhold the image.
+      vision = { faces: 0, visionMs: 0,
+        error: 'screenshot withheld: PII-shaped content sits beyond the text cap, '
+             + 'so it is visible on screen but not present in the payload to redact' };
+    } else {
+      vision = await captureAndRedact(windowId, tabId);
+    }
 
     const payload: SanitizedPayload = { ...obs.payload, screenshot: vision.screenshot };
 

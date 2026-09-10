@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!-- Fixture 11 — THE HARD Devanagari case.
+     Same form, but the attribute names are opaque (f1, f2...) so the ONLY thing
+     identifying each field is its Devanagari label. This is what a form built by a
+     vendor with generated field names actually looks like, and it is where a
+     Latin-only keyword list stops working. -->
+<html lang="hi"><head><meta charset="utf-8"><title>पेंशन आवेदन</title></head>
+<body>
+  <h1>पेंशन आवेदन प्रपत्र</h1>
+  <table>
+    <tr><td>आवेदक का नाम</td><td><input id="nm" name="f1" value="राजेश कुमार शर्मा"></td></tr>
+    <tr><td>आधार संख्या</td><td><input id="aad" name="f2" value="234567890124"></td></tr>
+    <tr><td>पैन कार्ड</td><td><input id="pan" name="f3" value="ABCPE1234F"></td></tr>
+    <tr><td>मोबाइल नंबर</td><td><input id="mob" name="f4" value="9845012345"></td></tr>
+    <tr><td>आवेदन क्रमांक</td><td><input id="appno" name="f5" value="789012345678"></td></tr>
+    <tr><td>कुल राशि</td><td><input id="amt" name="f6" value="999999999999"></td></tr>
+  </table>
+  <button id="sub">आवेदन जमा करें</button>
+</body></html>

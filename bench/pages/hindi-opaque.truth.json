@@ -1,0 +1,13 @@
+{
+  "name": "hindi-opaque",
+  "note": "Devanagari labels, opaque attribute names. Only the Hindi label identifies the field.",
+  "elements": [
+    { "id": "nm",    "kind": "NAME",    "redact": true },
+    { "id": "aad",   "kind": "AADHAAR", "redact": true },
+    { "id": "pan",   "kind": "PAN",     "redact": true },
+    { "id": "mob",   "kind": "PHONE",   "redact": true },
+    { "id": "appno", "kind": null,      "redact": false, "why": "DECOY: application number" },
+    { "id": "amt",   "kind": null,      "redact": false, "why": "DECOY: amount, Verhoeff-valid" }
+  ],
+  "mustFind": ["आवेदन जमा करें"]
+}

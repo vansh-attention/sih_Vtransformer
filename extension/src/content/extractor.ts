@@ -19,6 +19,7 @@ import type {
   BoundingBox, ElementId, ElementNode, ElementRole, PageStructure,
 } from '../contracts.ts';
 import { classifyField, type FieldSignals } from '../pii/dom.ts';
+import { scanText } from '../pii/patterns.ts';
 
 // ---------------------------------------------------------------------------
 // Stable element identity
@@ -106,6 +107,16 @@ function directText(el: Element): string {
  */
 let labelForId = new Map<string, string>();
 
+/**
+ * Text that exceeded the transmit cap, collected during one extraction.
+ *
+ * Module-scoped for the same reason as `labelForId`: `accessibleNameDetailed` is
+ * module-level and would otherwise need this threaded through every caller. Reset at
+ * the start of each `extractPage`. Held only long enough to check the DISCARDED tail
+ * for PII — never transmitted.
+ */
+let truncatedText: string[] = [];
+
 function buildLabelIndex(doc: Document): Map<string, string> {
   const map = new Map<string, string>();
   for (const label of doc.querySelectorAll('label[for]')) {
@@ -133,8 +144,22 @@ function accessibleNameDetailed(el: Element): { text: string; fromOwnText: boole
   const borrowed = borrowedName(el);
   if (borrowed) return { text: borrowed, fromOwnText: false };
   const own = directText(el);
-  // Cap: a name is a label, not a paragraph.
-  return own ? { text: own.slice(0, 200), fromOwnText: true } : undefined;
+  if (!own) return undefined;
+
+  /**
+   * The cap used to be 200 characters, which silently DESTROYED EVIDENCE.
+   *
+   * A paragraph is content, not a label. Truncating it at 200 meant a PAN or Aadhaar
+   * appearing later in a visible paragraph was never seen by the redactor — while the
+   * SCREENSHOT captured it in plain pixels and transmitted it. Same failure class as
+   * the shadow-DOM leak: unreadable to us, perfectly readable to the model.
+   *
+   * `TEXT_CAP` is now generous enough for real prose. Anything beyond it is reported
+   * via `truncatedText` so the caller can fail closed rather than assume it was safe.
+   */
+  const TEXT_CAP = 2000;
+  if (own.length > TEXT_CAP) truncatedText.push(own);
+  return { text: own.slice(0, TEXT_CAP), fromOwnText: true };
 }
 
 function accessibleName(el: Element): string | undefined {
@@ -410,6 +435,12 @@ export interface ExtractResult {
    * the caller must decide whether it is safe to transmit an image at all.
    */
   closedShadowHosts: string[];
+  /**
+   * True when text was cut short AND the discarded remainder contained something
+   * PII-shaped. The value is on screen and therefore in any screenshot, but is not in
+   * the payload for us to redact — so the screenshot must be withheld.
+   */
+  piiBeyondTextCap: boolean;
   /** True when the budget was hit. Surfaced to the server so it knows the view is partial. */
   truncated: boolean;
   nodeCount: number;
@@ -429,6 +460,7 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
 
   // One document scan for all label[for] associations, instead of one per element.
   labelForId = buildLabelIndex(doc);
+  truncatedText = [];
 
   let count = 0;
   let truncated = false;
@@ -598,5 +630,8 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
     nodeCount: count,
     visionQueue,
     closedShadowHosts: [...new Set(closedShadowHosts)],
+    // Check the DISCARDED tails only. Cheap, because truncation is rare, and it turns a
+    // silent leak into a visible decision.
+    piiBeyondTextCap: truncatedText.some((t) => scanText(t.slice(2000)).some((d) => d.verified)),
   };
 }

@@ -37,6 +37,19 @@ contribution never shows in the numbers.
 The holdout number is the honest prediction for the finale's unseen sites. Quote that
 one, not the tuned one.
 
+## Known coverage gaps
+
+- **Only Hindi among Indian languages.** The keyword lists cover English and Devanagari.
+  Tamil, Bengali, Telugu, Marathi and the rest follow the same pattern and are not yet
+  covered — a form labelled only in those scripts would behave the way Hindi did before
+  `bench/pages/hindi-opaque.html` was added: personal names unredacted, amounts redacted
+  as Aadhaar numbers.
+- **Devanagari names in prose.** Layer 3's tokeniser is Latin-only, so a Hindi name in a
+  paragraph (rather than in a labelled field) is not detected.
+- **Text beyond 2000 characters.** Reported via `piiBeyondTextCap`, and the orchestrator
+  withholds the screenshot when it fires — but the value is neither transmitted nor
+  redactable.
+
 ## The holdout rule
 
 `bench/holdout/` was written **before** the first scoring run and is **never tuned

@@ -1,0 +1,15 @@
+{
+  "name": "hindi",
+  "note": "Devanagari labels with Latin values, plus a Devanagari personal name.",
+  "elements": [
+    { "id": "nm",    "kind": "NAME",     "redact": true,  "why": "Devanagari name" },
+    { "id": "aad",   "kind": "AADHAAR",  "redact": true,  "why": "label is आधार संख्या" },
+    { "id": "pan",   "kind": "PAN",      "redact": true },
+    { "id": "mob",   "kind": "PHONE",    "redact": true },
+    { "id": "pw",    "kind": "PASSWORD", "redact": true },
+    { "id": "appno", "kind": null,       "redact": false, "why": "DECOY: application number" },
+    { "id": "amt",   "kind": null,       "redact": false, "why": "DECOY: amount, Verhoeff-valid" },
+    { "id": "note",  "kind": "EMAIL",    "redact": true,  "why": "email in Devanagari prose" }
+  ],
+  "mustFind": ["आवेदन जमा करें"]
+}

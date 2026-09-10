@@ -87,19 +87,40 @@ const AUTOCOMPLETE_MAP: Record<string, PiiKind> = {
  * that dominated extraction time completely (measured: 4.8s for a 120k-node page).
  * Compilation is not free and there is no reason to repeat it.
  */
+/**
+ * Field-purpose keywords, in English AND Hindi.
+ *
+ * An India-facing product cannot have an English-only vocabulary. Government portals
+ * routinely render labels in Devanagari while the values stay in Latin digits, and a
+ * form built by a vendor often has opaque attribute names (`f1`, `f2`), leaving the
+ * Hindi label as the ONLY thing identifying the field.
+ *
+ * Measured on `bench/pages/hindi-opaque.html`: without these, a personal name under
+ * "आवेदक का नाम" went out unredacted, and an amount under "कुल राशि" was redacted as an
+ * Aadhaar number. Both are exactly the failure a judge from an Indian ministry would
+ * think to try.
+ *
+ * Other Indian scripts follow the same pattern and are not yet covered — see
+ * bench/README.md.
+ */
 const KEYWORD_MAP: Array<{ kind: PiiKind; words: string[] }> = [
-  { kind: 'AADHAAR', words: ['aadhaar', 'aadhar', 'uidai', 'uid'] },
-  { kind: 'PAN', words: ['pan', 'permanent account'] },
-  { kind: 'GSTIN', words: ['gstin', 'gst'] },
-  { kind: 'IFSC', words: ['ifsc'] },
-  { kind: 'UPI', words: ['upi', 'vpa'] },
-  { kind: 'CARD', words: ['card number', 'cardno', 'creditcard', 'debitcard', 'cvv'] },
-  { kind: 'PHONE', words: ['mobile', 'phone', 'contact number'] },
-  { kind: 'EMAIL', words: ['email', 'e-mail'] },
-  { kind: 'NAME', words: ['name', 'firstname', 'lastname', 'surname'] },
-  { kind: 'ADDRESS', words: ['address', 'pincode', 'postal', 'street', 'city'] },
-  { kind: 'DOB', words: ['dob', 'birth', 'birthday'] },
-  { kind: 'PASSWORD', words: ['password', 'passwd', 'pwd', 'otp', 'pin'] },
+  { kind: 'AADHAAR', words: ['aadhaar', 'aadhar', 'uidai', 'uid', 'आधार'] },
+  { kind: 'PAN', words: ['pan', 'permanent account', 'पैन'] },
+  { kind: 'GSTIN', words: ['gstin', 'gst', 'जीएसटी'] },
+  { kind: 'IFSC', words: ['ifsc', 'आईएफएससी'] },
+  { kind: 'UPI', words: ['upi', 'vpa', 'यूपीआई'] },
+  { kind: 'CARD', words: ['card number', 'cardno', 'creditcard', 'debitcard', 'cvv',
+                          'कार्ड संख्या', 'कार्ड नंबर'] },
+  { kind: 'PHONE', words: ['mobile', 'phone', 'contact number',
+                           'मोबाइल', 'दूरभाष', 'फ़ोन', 'फोन'] },
+  { kind: 'EMAIL', words: ['email', 'e-mail', 'ईमेल', 'ई-मेल'] },
+  { kind: 'NAME', words: ['name', 'firstname', 'lastname', 'surname',
+                          'नाम', 'उपनाम'] },
+  { kind: 'ADDRESS', words: ['address', 'pincode', 'postal', 'street', 'city',
+                             'पता', 'पिनकोड', 'शहर', 'गाँव', 'गांव'] },
+  { kind: 'DOB', words: ['dob', 'birth', 'birthday', 'जन्म', 'जन्मतिथि'] },
+  { kind: 'PASSWORD', words: ['password', 'passwd', 'pwd', 'otp', 'pin',
+                              'पासवर्ड', 'ओटीपी'] },
 ];
 
 /**
@@ -119,13 +140,28 @@ const NON_PII_WORDS = [
   // fixture-specific: these label columns of numbers that look exactly like PII.
   'reference', 'cheque', 'check no', 'utr', 'narration', 'particulars',
   'debit', 'credit', 'closing', 'opening', 'statement', 'period', 'date',
+  // Hindi commercial vocabulary. Same reason as the positive list: without these an
+  // amount under "कुल राशि" is redacted as an Aadhaar number.
+  'राशि', 'कुल', 'क्रमांक', 'शुल्क', 'मूल्य', 'बिल', 'रसीद', 'भुगतान', 'शेष', 'लेनदेन',
 ];
 
-/** Word-boundary matchers, so "pan" does not fire on "company" or "japan". */
+/**
+ * Word-boundary matchers, so "pan" does not fire on "company" or "japan".
+ *
+ * ASCII keywords get the boundary treatment. Devanagari ones are matched as plain
+ * substrings: `[^a-z]` is not a word boundary for Devanagari (every Devanagari
+ * character satisfies it), so the guard would be meaningless there — and Hindi does not
+ * have the short-word-inside-longer-word collisions that made the guard necessary for
+ * English in the first place.
+ */
+const isAscii = (w: string) => /^[\x20-\x7e]+$/.test(w);
+
 const KEYWORD_PATTERNS: Array<{ kind: PiiKind; res: RegExp[] }> = KEYWORD_MAP.map(
   ({ kind, words }) => ({
     kind,
-    res: words.map((w) => new RegExp(`(^|[^a-z])${w}([^a-z]|$)`, 'i')),
+    res: words.map((w) => (isAscii(w)
+      ? new RegExp(`(^|[^a-z])${w}([^a-z]|$)`, 'i')
+      : new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'))),
   }),
 );
 

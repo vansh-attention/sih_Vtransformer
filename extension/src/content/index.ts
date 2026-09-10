@@ -106,6 +106,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       context: after,
       visionQueue: result.visionQueue,
       closedShadowHosts: result.closedShadowHosts,
+      piiBeyondTextCap: result.piiBeyondTextCap,
       nodeCount: result.nodeCount,
       truncated: result.truncated,
       timings: {
