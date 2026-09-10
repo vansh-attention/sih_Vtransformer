@@ -9,7 +9,16 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Windows is included because teammates may be on it and none of us can verify it
+    # locally. `shell: bash` uses Git Bash, which is what the README tells them to use.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
