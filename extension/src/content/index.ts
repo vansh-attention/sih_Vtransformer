@@ -112,6 +112,38 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  /**
+   * Downscale and re-encode a captured frame.
+   *
+   * Lives in the CONTENT SCRIPT, not the offscreen document, because offscreen
+   * documents are hidden and Chrome quantises their task scheduling to ~1 second: a
+   * 16x16 canvas measured 1004ms to encode there. The content script runs in a visible
+   * tab and is not throttled.
+   *
+   * This matters for more than bytes. A VLM tokenises an image by area, so shipping a
+   * 2400x1314 frame instead of 1024x561 made the MODEL step several times slower - by
+   * far the largest cost in the loop.
+   */
+  if (msg.type === 'downscale') {
+    (async () => {
+      const t0 = performance.now();
+      const bmp = await createImageBitmap(await (await fetch(msg.dataUrl)).blob());
+      const scale = Math.min(1, (msg.maxWidth ?? 1024) / bmp.width);
+      const w = Math.round(bmp.width * scale);
+      const h = Math.round(bmp.height * scale);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d')!.drawImage(bmp, 0, 0, w, h);
+      bmp.close();
+
+      const dataUrl = canvas.toDataURL('image/jpeg', msg.quality ?? 0.8);
+      return { dataUrl, width: w, height: h, bytes: dataUrl.length,
+               ms: Math.round(performance.now() - t0) };
+    })().then(sendResponse).catch((e) => sendResponse({ error: String(e) }));
+    return true;
+  }
+
   if (msg.type === 'execute') {
     (async () => {
       const results = [];

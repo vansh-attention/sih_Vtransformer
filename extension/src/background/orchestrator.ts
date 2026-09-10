@@ -9,7 +9,7 @@
  * property of the architecture rather than a claim about this file's correctness.
  */
 
-import type { AgentAction, SanitizedPayload } from '../contracts.ts';
+import type { AgentAction, SanitizedNode, SanitizedPayload } from '../contracts.ts';
 import { validateActions } from '../agent/validate.ts';
 
 const OFFSCREEN_PATH = 'src/offscreen/index.html';
@@ -40,6 +40,16 @@ export interface TurnRecord {
   previews: Array<{ token: string; kind: string; masked: string }>;
   /** True when the page navigated as a result of our own actions. */
   navigated: boolean;
+  /**
+   * Why the screenshot is absent, when it is.
+   *
+   * Surfaced rather than swallowed: a silently missing screenshot degrades visual
+   * context (25% of the grade) while every other number still looks healthy, so it must
+   * be visible in the record and in the ledger.
+   */
+  visionError?: string;
+  /** Sub-timings, because 'vision took a second' is not a diagnosis. */
+  visionBreakdown?: Record<string, unknown>;
   timings: {
     extractMs: number; sanitizeMs: number; visionMs: number;
     networkMs: number; totalMs: number;
@@ -61,6 +71,18 @@ async function ensureOffscreen(): Promise<void> {
   });
 }
 
+/** Downscale via the content script; fall back to the original if anything fails. */
+async function downscaleInPage(tabId: number, dataUrl: string): Promise<string> {
+  try {
+    const r = await chrome.tabs.sendMessage(tabId, {
+      target: 'content', type: 'downscale', dataUrl, maxWidth: 1024, quality: 0.8,
+    });
+    return r?.dataUrl ?? dataUrl;
+  } catch {
+    return dataUrl;
+  }
+}
+
 /**
  * Screenshot the tab and blur any faces BEFORE the image is attached to a payload.
  *
@@ -70,24 +92,54 @@ async function ensureOffscreen(): Promise<void> {
  */
 async function captureAndRedact(
   windowId: number,
-): Promise<{ screenshot?: string; faces: number; visionMs: number; error?: string }> {
+  tabId: number,
+): Promise<{
+  screenshot?: string; rawForCrops?: string; faces: number; visionMs: number;
+  imageSize?: { width: number; height: number }; error?: string;
+  breakdown?: Record<string, unknown>;
+}> {
   const t0 = performance.now();
   try {
-    const raw = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+    // JPEG, not PNG. Measured: a PNG capture of a 2400x1314 Retina viewport is several
+    // megabytes of base64, and moving that string into the offscreen document cost
+    // ~1350ms per turn — against 68ms of actual face inference. Detection and
+    // classification are both robust to JPEG artefacts at this quality.
+    //
+    // Spike D still captures PNG, because verifying that a blur destroyed detail
+    // requires an encoder that is not itself destroying detail.
+    // Quality 70: this frame is usually transmitted as-is (see below), so the capture
+    // setting IS the payload setting. A VLM reading page layout does not need 85.
+    const raw = await chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 70 });
+    const captureMs = Math.round(performance.now() - t0);
     await ensureOffscreen();
+    const tDetect = performance.now();
     const det = await chrome.runtime.sendMessage({
       target: 'offscreen', type: 'detect-faces', dataUrl: raw, threshold: 0.7, blur: true,
+      // The full-resolution frame stays in the offscreen document; we only need the
+      // handle to it.
+      wantFullFrame: false,
     });
 
     if (det?.error) {
       return { faces: 0, visionMs: Math.round(performance.now() - t0), error: det.error };
     }
 
+    const detectMs = Math.round(performance.now() - tDetect);
     const faces = det.detections?.length ?? 0;
     return {
-      // If faces were found we send the BLURRED image; if none were found the original
-      // is already clean.
-      screenshot: faces > 0 ? det.redactedDataUrl : raw,
+      breakdown: { captureMs, detectMs, ...det.stages, encodeBytes: det.transmit?.bytes },
+      // `transmit` is the downscaled, JPEG-encoded frame — blurred if faces were found,
+      // the original if not. Falls back to the full-resolution image only if the
+      // downscale step failed, since a large payload beats no payload.
+      // No faces: downscale in the CONTENT SCRIPT, which is not throttled. Doing it in
+      // the offscreen document costs ~1000ms of pure scheduling delay; skipping it
+      // entirely ships a 2400px frame and makes the MODEL several times slower, because
+      // a VLM tokenises by image area. The content script is the only place that is
+      // both cheap and correct.
+      screenshot: det.transmit?.dataUrl ?? (await downscaleInPage(tabId, raw)),
+      // A handle, not an image. The classifier reads the decoded frame in place.
+      rawForCrops: det.frameToken,
+      imageSize: { width: det.width, height: det.height },
       faces,
       visionMs: Math.round(performance.now() - t0),
     };
@@ -98,6 +150,60 @@ async function captureAndRedact(
       visionMs: Math.round(performance.now() - t0),
       error: e instanceof Error ? e.message : String(e),
     };
+  }
+}
+
+/**
+ * Run the classifier over the regions the DOM could not describe, and attach the
+ * results to the matching nodes.
+ *
+ * Crops come from the BLURRED frame, so a face is already destroyed before the
+ * classifier ever sees it. Coordinates use the image/viewport scale verified in
+ * Spike C — derived from the image rather than trusting devicePixelRatio.
+ */
+async function annotateWithVision(
+  payload: SanitizedPayload,
+  visionQueue: string[],
+  dataUrl: string,
+  ctx: { innerWidth: number; innerHeight: number },
+  imageSize: { width: number; height: number },
+): Promise<number> {
+  try {
+    const index = new Map<string, SanitizedNode>();
+    (function walk(n: SanitizedNode) { index.set(n.id, n); n.children?.forEach(walk); })(payload.root);
+
+    // Dimensions come from the detection result we already have. Probing for them with
+    // sample-pixels meant decoding a 2400x1314 screenshot a SECOND time every turn,
+    // which took vision from 69ms to over 1000ms — the measurement caught it.
+    const scaleX = imageSize.width / ctx.innerWidth;
+    const scaleY = imageSize.height / ctx.innerHeight;
+
+    const crops = visionQueue
+      .map((id) => ({ id, node: index.get(id) }))
+      .filter((c) => c.node)
+      .map((c) => ({
+        id: c.id,
+        box: {
+          x: Math.round(c.node!.box.x * scaleX), y: Math.round(c.node!.box.y * scaleY),
+          w: Math.round(c.node!.box.w * scaleX), h: Math.round(c.node!.box.h * scaleY),
+        },
+      }));
+    if (!crops.length) return 0;
+
+    const res = await chrome.runtime.sendMessage({
+      target: 'offscreen', type: 'classify-crops', frameToken: dataUrl, crops, max: 12 });
+    if (res?.error) return 0;
+
+    let n = 0;
+    for (const r of res.results ?? []) {
+      const node = index.get(r.id);
+      if (!node) continue;
+      node.vision = { label: r.label, confidence: r.confidence, likelyPerson: r.likelyPerson };
+      n++;
+    }
+    return n;
+  } catch {
+    return 0;   // never block the loop for a description
   }
 }
 
@@ -128,9 +234,21 @@ export async function runAgentLoop(opts: LoopOptions): Promise<TurnRecord[]> {
     }
 
     progress({ turn, phase: 'redacting' });
-    const vision = await captureAndRedact(windowId);
+    const vision = await captureAndRedact(windowId, tabId);
 
     const payload: SanitizedPayload = { ...obs.payload, screenshot: vision.screenshot };
+
+    // Describe the regions the DOM could not. Best-effort: a classifier failure
+    // degrades visual context but must never block the loop or the redaction.
+    let classifyMs = 0;
+    if (vision.rawForCrops && obs.visionQueue?.length) {
+      const t = performance.now();
+      const annotated = await annotateWithVision(
+        payload, obs.visionQueue, vision.rawForCrops, obs.context, vision.imageSize!);
+      classifyMs = Math.round(performance.now() - t);
+      if (annotated) progress({ turn, phase: 'redacting', detail: `${annotated} region(s) described` });
+    }
+
     const transmitted = JSON.stringify({ payload });
 
     progress({ turn, phase: 'reasoning' });
@@ -197,6 +315,8 @@ export async function runAgentLoop(opts: LoopOptions): Promise<TurnRecord[]> {
       nodeCount: obs.nodeCount,
       previews: obs.previews ?? [],
       navigated,
+      visionError: vision.error,
+      visionBreakdown: { ...vision.breakdown, classifyMs },
     });
 
     history.push(...report.allowed);

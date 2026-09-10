@@ -74,3 +74,67 @@ that touches the network — has never held a real value.
 "No PII leaves the machine" is therefore a property of the architecture, not a claim
 about any one function's correctness. A bug in the network layer *cannot* leak a PAN,
 because that layer has never seen one.
+
+---
+
+# Performance pass — 10 Sep 2026
+
+| | before | after |
+|---|---|---|
+| payload per turn | 156 KB | **47 KB** |
+| vision stage | 1083 ms | **65 ms** |
+| turn total | ~4900 ms | **~3730 ms** |
+
+## The finding: an offscreen document is TIMER-THROTTLED to ~1 second
+
+Vision was taking ~1080 ms per turn. I guessed at the cause three times — the message
+transfer, the image decode, the canvas downscale — and was wrong every time. Only
+instrumenting *inside* each stage produced the answer:
+
+```
+captureMs 27 | decodeMs 6 | detectMs 17 | blurAndEncodeMs 1021 | classifyMs 30
+  -> transmit stages: resizeMs 11 | drawMs 0 | encodeMs 1010 | dataUrlMs 0
+```
+
+`canvas.convertToBlob()` was taking 1010 ms. Suspiciously constant, so I probed it
+directly at three canvas sizes:
+
+```
+16px   1004ms      256px  1005ms
+1024px 1013ms      16px again  1003ms
+```
+
+**A 16x16 canvas takes 1004 ms to encode.** That is not work — offscreen documents are
+hidden by definition, and Chrome quantises hidden-document task scheduling to ~1 second.
+No amount of image optimisation could ever have fixed it.
+
+### Consequences for the architecture
+- **Never do async work in the offscreen document that could live elsewhere.** Inference
+  is fine (`session.run` resolved in 17 ms); anything resolving on a scheduled task is
+  not.
+- Downscaling now happens in the **content script**, which runs in a visible tab and is
+  not throttled.
+- Face blurring must stay in the offscreen document — it needs the model — so the rare
+  frames containing a face still pay the ~1 s. Correctness beats latency when the
+  alternative is transmitting an unblurred face.
+
+## Downscaling matters for MODEL time, not just bytes
+
+Skipping the downscale entirely also removes the 1 s, and that was tempting. But a VLM
+tokenises an image by **area**: shipping 2400x1314 instead of 1024x561 pushed one turn's
+model time to **25.9 s**. The downscale is worth far more than the bytes suggest.
+
+## Lesson
+
+Three wrong guesses in a row, each plausible, each costing a build-and-measure cycle.
+The instrumentation that found it took less time than any one of the guesses. **Measure
+the stage before optimising the stage.**
+
+## Two bugs this pass introduced and caught
+
+1. **`transferToImageBitmap()` detaches the canvas.** Caching the blurred frame that way
+   left `convertToBlob` encoding an empty surface — a blank "redacted" image. Spike D
+   caught it immediately as zero variance. `createImageBitmap()` copies instead.
+2. **Both spike harnesses share `onInstalled`,** so adding Spike E silently stopped
+   Spikes C and D from running at all. The background now dispatches on which collector
+   port is actually listening.

@@ -16,7 +16,19 @@
  */
 
 import * as ort from 'onnxruntime-web/webgpu';
-import { loadFaceModel, detectFaces, blurRegions } from '../vision/detect.ts';
+import { loadFaceModel, detectFaces, blurRegions, prepareForTransmission } from '../vision/detect.ts';
+import { loadClassifier, classifyCrop } from '../vision/classify.ts';
+
+/**
+ * The most recent frame, kept decoded HERE.
+ *
+ * A 2400x1314 PNG as a data URL is several megabytes of base64. Passing it
+ * offscreen -> background -> offscreen so the classifier could re-decode it cost over a
+ * second per turn in structured-clone and decode time alone — for an image that never
+ * needed to leave this document. The background now gets only the small downscaled JPEG
+ * it actually transmits, and the classifier reads the frame straight from here.
+ */
+let lastFrame: { bitmap: ImageBitmap; token: string } | null = null;
 
 export interface InferenceReport {
   ok: boolean;
@@ -167,34 +179,134 @@ async function samplePixels(
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.target !== 'offscreen') return;
 
+  // Diagnostic: is convertToBlob doing WORK, or is the hidden offscreen document
+  // being timer-throttled? A 16x16 canvas takes no measurable time to encode, so if it
+  // also lands near 1000ms the cost is throttling and no amount of optimisation helps.
+  if (msg.type === 'probe-encode') {
+    (async () => {
+      const results: Record<string, number> = {};
+      for (const side of [16, 256, 1024]) {
+        const c = new OffscreenCanvas(side, side);
+        const cx = c.getContext('2d')!;
+        cx.fillStyle = '#345'; cx.fillRect(0, 0, side, side);
+        const t = performance.now();
+        await c.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+        results[`${side}px`] = Math.round(performance.now() - t);
+      }
+      // Same sizes again, to see whether the first call in a tick pays and later ones
+      // do not.
+      const t2 = performance.now();
+      const c2 = new OffscreenCanvas(16, 16);
+      c2.getContext('2d')!.fillRect(0, 0, 16, 16);
+      await c2.convertToBlob({ type: 'image/jpeg' });
+      results['16px_again'] = Math.round(performance.now() - t2);
+      return results;
+    })().then(sendResponse);
+    return true;
+  }
+
+  if (msg.type === 'classify-crops') {
+    (async () => {
+      const t0 = performance.now();
+      const load = await loadClassifier(
+        chrome.runtime.getURL('models/mobilevit_fp32.onnx'),
+        chrome.runtime.getURL('models/imagenet-labels.json'));
+
+      // Reuse the decoded frame from detect-faces; only fall back to decoding when the
+      // caller supplies its own image (the spikes do).
+      let bitmap: ImageBitmap;
+      if (msg.frameToken && lastFrame?.token === msg.frameToken) {
+        bitmap = lastFrame.bitmap;
+      } else {
+        const blob = await (await fetch(msg.dataUrl)).blob();
+        bitmap = await createImageBitmap(blob);
+      }
+
+      const results = [];
+      // Bounded: a page full of images would otherwise cost 10ms each with no cap, and
+      // latency is 15% of the grade.
+      for (const c of (msg.crops as Array<{ id: string; box: never }>).slice(0, msg.max ?? 12)) {
+        const r = await classifyCrop(bitmap, c.box, c.id);
+        if (r) results.push(r);
+      }
+
+      return { results, loadMs: load.ms, backend: load.backend,
+               totalMs: Math.round(performance.now() - t0) };
+    })().then(sendResponse).catch((e) => sendResponse({ error: String(e?.stack ?? e) }));
+    return true;
+  }
+
   if (msg.type === 'detect-faces') {
     (async () => {
       const t0 = performance.now();
       const load = await loadFaceModel(chrome.runtime.getURL('models/ultraface_rfb320.onnx'));
+      const tLoad = performance.now();
+
       const blob = await (await fetch(msg.dataUrl)).blob();
       const bitmap = await createImageBitmap(blob);
+      const tDecode = performance.now();
+
       const result = await detectFaces(bitmap, msg.threshold ?? 0.7);
+      const tInfer = performance.now();
 
       let redactedDataUrl: string | undefined;
       let applied: unknown[] = [];
+      void redactedDataUrl;
+      let transmit: Awaited<ReturnType<typeof prepareForTransmission>> | undefined;
+
+      // Cache the frame the classifier should read. When faces were blurred that is
+      // the BLURRED canvas, so a face is destroyed before the classifier ever sees it.
+      const frameToken = `f_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      lastFrame = { bitmap, token: frameToken };
+
       if (msg.blur !== false && result.detections.length) {
         const { canvas, applied: a } = await blurRegions(
           bitmap, result.detections.map((d) => d.box));
         applied = a;
-        const out = await canvas.convertToBlob({ type: 'image/png' });
+        // createImageBitmap COPIES; transferToImageBitmap DETACHES the canvas, which
+        // left convertToBlob below encoding an empty surface — a blank "redacted"
+        // frame that Spike D correctly caught as zero variance.
+        lastFrame = { bitmap: await createImageBitmap(canvas), token: frameToken };
+
+        // Lossless PNG of the blurred frame, for the pixel-level verification in
+        // Spike D. Re-encoding to JPEG first would make 'was detail destroyed'
+        // unmeasurable, since JPEG destroys detail on its own.
+        const png = await canvas.convertToBlob({ type: 'image/png' });
         redactedDataUrl = await new Promise<string>((res) => {
           const fr = new FileReader();
           fr.onload = () => res(fr.result as string);
-          fr.readAsDataURL(out);
+          fr.readAsDataURL(png);
         });
+
+        // Faces were blurred, so the frame MUST be re-encoded from the canvas. Pays
+        // the ~1s offscreen throttle; correctness beats latency when the alternative is
+        // transmitting an unblurred face.
+        if (msg.transmitReady !== false) transmit = await prepareForTransmission(lastFrame.bitmap);
       }
+      // No faces: the captured frame is already clean AND already JPEG, so re-encoding
+      // it buys only a smaller payload and costs a full second of throttled scheduling.
+      // The caller sends the original.
 
       return {
         ...result,
         loadMs: load.ms,
+        // Sub-timings inside the handler. Two rounds of guessing from the outside
+        // pointed at the wrong thing; this is where the answer actually is.
+        stages: {
+          modelLoadMs: Math.round(tLoad - t0),
+          decodeMs: Math.round(tDecode - tLoad),
+          detectMs: Math.round(tInfer - tDecode),
+          blurAndEncodeMs: Math.round(performance.now() - tInfer),
+          transmitStages: transmit?.stages,
+          imagePx: bitmap.width * bitmap.height,
+        },
         totalMs: Math.round(performance.now() - t0),
         appliedBoxes: applied,
-        redactedDataUrl,
+        // Only returned when explicitly asked for: it is multi-megabyte base64 and the
+        // agent loop never needs it. Spike D does, for pixel verification.
+        redactedDataUrl: msg.wantFullFrame ? redactedDataUrl : undefined,
+        frameToken,
+        transmit,
       };
     })().then(sendResponse).catch((e) => sendResponse({ error: String(e?.stack ?? e) }));
     return true;

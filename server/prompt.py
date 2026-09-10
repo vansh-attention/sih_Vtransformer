@@ -40,6 +40,9 @@ WHAT YOU RECEIVE
 - The page origin (host only; path and query are stripped)
 - A tree of visible elements, each with a stable id like "el_42", a role, a label, and
   its on-screen box
+- [image: ...] annotations on regions the page structure could not describe, produced by
+  a small model on the user's machine. Where it says "low confidence" or "unrecognised",
+  treat it as a weak hint, not a fact.
 - Optionally a screenshot with faces blurred and sensitive regions masked
 - The user's goal
 - The actions already taken this session
@@ -83,6 +86,22 @@ def _describe(node: dict[str, Any], depth: int = 0, lines: list[str] | None = No
     if node.get("value"):
         parts.append(f"= {node['value']}")
 
+    # On-device vision output, for regions the DOM cannot describe. The confidence is
+    # rendered too: this is an ImageNet classifier looking at UI, so a 12% guess is
+    # noise and the model should be able to tell that from an 80% one rather than
+    # treating every label as fact.
+    vis = node.get("vision")
+    if vis:
+        conf = vis.get("confidence", 0)
+        if conf >= 0.35:
+            parts.append(f'[image: {vis["label"]}]')
+        elif conf >= 0.12:
+            parts.append(f'[image: possibly {vis["label"]}, low confidence]')
+        else:
+            parts.append("[image: contents unrecognised]")
+        if vis.get("likelyPerson"):
+            parts.append("[a person appears to be present; any face has been blurred]")
+
     flags = []
     if node.get("required"):
         flags.append("required")
@@ -98,6 +117,7 @@ def _describe(node: dict[str, Any], depth: int = 0, lines: list[str] | None = No
     interesting = (
         node.get("label")
         or node.get("value")
+        or node.get("vision")
         or role not in ("other", "form", "list", "table")
     )
     if interesting:

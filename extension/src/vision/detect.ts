@@ -116,6 +116,73 @@ export async function detectFaces(
 }
 
 /**
+ * Downscale and re-encode for transmission.
+ *
+ * Measured end to end: the payload was 156KB per turn and almost all of it was a
+ * full-resolution PNG screenshot. On a Retina display `captureVisibleTab` returns
+ * device pixels, so a 1200px viewport produces a 2400px image — twice the detail the
+ * model can use, on every single turn.
+ *
+ * Safe to do because actions reference element IDs and the boxes travel separately in
+ * CSS pixels. Nothing downstream reads image coordinates, so resolution is free to
+ * change. If that ever stops being true, this becomes a bug.
+ *
+ * Runs AFTER blurring, so the redaction is applied at full resolution and the
+ * downscale cannot smear a face back into legibility.
+ */
+export async function prepareForTransmission(
+  source: ImageBitmap | OffscreenCanvas,
+  maxWidth = 1024,
+  quality = 0.8,
+): Promise<{ dataUrl: string; width: number; height: number; bytes: number; stages: Record<string, number> }> {
+  const srcW = source.width;
+  const srcH = source.height;
+  const scale = Math.min(1, maxWidth / srcW);
+  const w = Math.round(srcW * scale);
+  const h = Math.round(srcH * scale);
+
+  // Resize via createImageBitmap, NOT canvas drawImage.
+  //
+  // Measured: `drawImage` with imageSmoothingQuality='high' from 2400x1314 down to
+  // 1024 took ~1010ms per turn — an order of magnitude more than the face detection it
+  // was feeding (17ms) and the dominant cost of the entire vision stage.
+  // createImageBitmap's resize path is implemented natively and is far cheaper.
+  const s0 = performance.now();
+  const resized = await createImageBitmap(source, {
+    resizeWidth: w, resizeHeight: h, resizeQuality: 'medium',
+  });
+  const s1 = performance.now();
+
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(resized, 0, 0);
+  resized.close();
+  const s2 = performance.now();
+
+  // JPEG, not PNG: a screenshot is photographic enough that lossless encoding buys
+  // nothing the model can use and costs several times the bytes.
+  const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality });
+  const s3 = performance.now();
+
+  const dataUrl = await new Promise<string>((res) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result as string);
+    fr.readAsDataURL(blob);
+  });
+  const s4 = performance.now();
+
+  return {
+    dataUrl, width: w, height: h, bytes: dataUrl.length,
+    stages: {
+      resizeMs: Math.round(s1 - s0),
+      drawMs: Math.round(s2 - s1),
+      encodeMs: Math.round(s3 - s2),
+      dataUrlMs: Math.round(s4 - s3),
+    },
+  };
+}
+
+/**
  * Blur the detected regions, in place, and return the redacted image.
  *
  * Uses canvas `filter: blur()` at a radius proportional to the face, so a small face is

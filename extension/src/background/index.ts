@@ -110,7 +110,23 @@ async function runSpikeC(pageUrl: string): Promise<Record<string, unknown>> {
 
   // DOM read first, screenshot immediately after. The content script reports whether
   // the viewport moved during extraction so skew is detectable rather than assumed away.
-  const extraction = await chrome.tabs.sendMessage(tabId, { target: 'content', type: 'extract' });
+  //
+  // Uses the production 'observe' path, not a spike-only shortcut: a spike that
+  // exercises a different code path proves nothing about what ships.
+  const extraction = await chrome.tabs.sendMessage(tabId, {
+    target: 'content', type: 'observe', goal: 'spike C alignment check', history: [],
+  });
+  // Flatten the sanitized tree; boxes are unchanged by sanitization.
+  extraction.flat = (() => {
+    const out: Array<{ id: string; role: string; label?: string; box: unknown; visible: boolean }> = [];
+    (function walk(n: { id: string; role: string; label?: string; box: unknown; visible: boolean; children?: unknown[] }) {
+      out.push({ id: n.id, role: n.role, label: n.label, box: n.box, visible: n.visible });
+      (n.children as typeof n[] | undefined)?.forEach(walk);
+    })(extraction.payload.root);
+    return out;
+  })();
+  extraction.extractMs = extraction.timings.extractMs;
+  extraction.nodeCount = extraction.nodeCount ?? extraction.flat.length;
   const captureStart = performance.now();
   const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId!, { format: 'png' });
   result.captureMs = Math.round(performance.now() - captureStart);
@@ -254,6 +270,7 @@ async function runSpikeD(imageUrl: string): Promise<Record<string, unknown>> {
 
   const det = await chrome.runtime.sendMessage({
     target: 'offscreen', type: 'detect-faces', dataUrl, threshold: 0.7, blur: true,
+    wantFullFrame: true,   // Spike D verifies actual pixels
   });
   if (det?.error) return { error: det.error };
 
@@ -437,14 +454,49 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
   return { records, phases, previews: records[0]?.previews ?? [] };
 }
 
+/** Is a spike collector listening on this port? */
+async function collectorUp(port: number): Promise<boolean> {
+  try {
+    await fetch(`http://127.0.0.1:${port}/`, { method: 'GET' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Spike entry point.
+ *
+ * Both spike harnesses launch the extension the same way, so `onInstalled` fires for
+ * both and whichever suite is hardcoded here wins — which silently stopped Spikes C and
+ * D from running at all when E was added. The port that is actually listening decides.
+ */
 chrome.runtime.onInstalled.addListener(() => {
   void (async () => {
     const out: Record<string, unknown> = { at: new Date().toISOString() };
-    try {
-      out.spikeE = await runSpikeE();
-    } catch (e) {
-      out.error = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e);
+
+    if (await collectorUp(8974)) {
+      try {
+        out.spikeC = await runSpikeC('http://127.0.0.1:8974/pages/alignment.html');
+        out.spikeD = await runSpikeD('http://127.0.0.1:8974/assets/face-test.jpg');
+      } catch (e) {
+        out.error = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e);
+      }
+      await reportTo('http://127.0.0.1:8974/result', out);
+      return;
     }
-    await reportTo('http://127.0.0.1:8976/result', out);
+
+    if (await collectorUp(8976)) {
+      try {
+        out.spikeE = await runSpikeE();
+        await ensureOffscreen();
+        out.encodeProbe = await chrome.runtime.sendMessage({
+          target: 'offscreen', type: 'probe-encode' });
+      } catch (e) {
+        out.error = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e);
+      }
+      await reportTo('http://127.0.0.1:8976/result', out);
+    }
   })();
 });
+

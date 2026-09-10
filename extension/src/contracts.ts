@@ -109,6 +109,12 @@ export interface SanitizedNode {
   focused?: boolean;
   /** Sanitized the same way `label` is — neighbouring text can carry PII too. */
   contextLabel?: string;
+  /**
+   * What the on-device classifier saw in this region, for elements the DOM cannot
+   * describe. Carries its confidence so the prompt can discount a weak guess rather
+   * than present it as fact.
+   */
+  vision?: { label: string; confidence: number; likelyPerson?: boolean };
   children?: SanitizedNode[];
 }
 
