@@ -4,6 +4,7 @@
 
 | file | what it is |
 |---|---|
+| `test-all.sh` | **Run everything.** `--full` adds real browsers + the live model. |
 | `ONBOARDING.md` | Send this to a teammate. Explains the project + `./setup.sh`. |
 | `RUNBOOK.md` | The demo. Print it. **Pre-warm the model.** |
 | `deck/` | The 6-slide SIH submission. `python3 deck/build.py` rebuilds it. |

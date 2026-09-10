@@ -311,9 +311,12 @@ function contextLabelFor(el: Element): string | undefined {
   //
   // Bounded to 4 levels: beyond that the ancestor describes a whole section rather
   // than this field, and borrowing its label would mislabel everything inside it.
+  // No isHidden() check on ancestors. This is only ever called for an element we have
+  // already established is visible, and CSS guarantees the descendants of a hidden
+  // element are hidden — so an ancestor of a visible element cannot be hidden. The
+  // check was pure cost: getComputedStyle on up to 4 ancestors per node.
   let parent = el.parentElement;
   for (let depth = 0; parent && depth < 4; depth++, parent = parent.parentElement) {
-    if (isHidden(parent)) return undefined;
     const aria = parent.getAttribute('aria-label')?.trim();
     if (aria) return aria.slice(0, 100);
   }
@@ -337,9 +340,12 @@ function contextLabelFor(el: Element): string | undefined {
  *
  * Evidence about a value has to come from somewhere OTHER than the value.
  */
-export function signalsFor(el: Element): FieldSignals {
+export function signalsFor(el: Element, knownContext?: string): FieldSignals {
   return {
-    contextLabel: contextLabelFor(el),
+    // Reuse the caller's value when it has one. `walk` already computes this for the
+    // node, and deriving it a second time doubled the sibling/ancestor scans — the
+    // single largest cost in extraction on a large page.
+    contextLabel: knownContext ?? contextLabelFor(el),
     tag: el.tagName.toLowerCase(),
     type: (el as HTMLInputElement).type?.toLowerCase(),
     autocomplete: el.getAttribute('autocomplete') ?? undefined,
@@ -475,7 +481,7 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
       // means anything on a control.
       fieldKind: INTERACTIVE_ROLES.has(role)
         ? (() => {
-            const hint = classifyField(signalsFor(el));
+            const hint = classifyField(signalsFor(el, context));
             return hint && hint.kind !== 'NON_PII' ? hint.kind : undefined;
           })()
         : undefined,

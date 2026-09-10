@@ -10,6 +10,7 @@ happened during development.
 ```bash
 cd sih_Vtransformer
 git pull && node build.mjs          # never demo a stale build
+./test-all.sh                       # 19/19 expected; do not demo on red
 ```
 
 **1. Start the local AI.**

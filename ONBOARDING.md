@@ -138,6 +138,8 @@ One verification passed while the extractor was returning *zero nodes*, because
 ## Useful commands
 
 ```bash
+./test-all.sh                                               # EVERYTHING (no browser needed)
+./test-all.sh --full                                        # + real browsers + live model
 node --experimental-strip-types bench/score.ts              # the scorecard
 node --experimental-strip-types bench/score.ts --holdout    # the unseen set
 node --experimental-strip-types bench/leak-test.ts          # the leak invariant
