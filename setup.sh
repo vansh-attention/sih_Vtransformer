@@ -62,10 +62,27 @@ fi
 step "3. Models and runtime (~230MB, not in git)"
 # Reproducible rather than committed: ONNX Runtime and the model weights together are
 # far too large for a repo, and setup.mjs fetches exactly the ones the spikes chose.
-node setup.mjs 2>&1 | sed 's/^/  /'
+# PIPESTATUS, not the pipeline's status: `node ... | sed` reports sed's exit code, so a
+# failed download was reported as a successful setup and surfaced much later as a
+# missing-file crash in the tests.
+set -o pipefail
+if node setup.mjs 2>&1 | sed 's/^/  /'; then
+  ok "models and runtime ready"
+else
+  bad "setup.mjs failed — see the error above"
+  exit 1
+fi
+set +o pipefail
 
 step "4. Building the extension"
-node build.mjs 2>&1 | grep -E "dist/|aligned" | sed 's/^/  /'
+if node build.mjs >/tmp/sih-build.log 2>&1; then
+  grep -E "dist/|aligned" /tmp/sih-build.log | sed 's/^/  /'
+  ok "extension built"
+else
+  bad "build failed:"
+  tail -20 /tmp/sih-build.log | sed 's/^/      /'
+  exit 1
+fi
 
 step "5. Python server"
 if [ -d server/.venv ]; then

@@ -30,8 +30,16 @@ const MODELS = [
   {
     // Face detection. 1.2MB, MIT, from the ONNX Model Zoo. Size was the deciding
     // factor: client resources are 20% of the grade.
+    //
+    // Two URLs because the primary is Git LFS, which is rate-limited and failed on CI
+    // runners while working fine locally. A single-source download is a single point of
+    // failure for every teammate's first run.
     name: 'ultraface_rfb320.onnx',
     url: 'https://media.githubusercontent.com/media/onnx/models/main/validated/vision/body_analysis/ultraface/models/version-RFB-320.onnx',
+    fallbacks: [
+      'https://github.com/onnx/models/raw/main/validated/vision/body_analysis/ultraface/models/version-RFB-320.onnx',
+      'https://huggingface.co/onnx-community/ultraface-RFB-320/resolve/main/version-RFB-320.onnx',
+    ],
     dests: ['extension/models'],
   },
   {
@@ -54,15 +62,39 @@ function vendorOrt(dest) {
   console.log(`  ${dest}: ${n} runtime files`);
 }
 
+/** Try each URL in turn, twice. Networks and CDNs fail transiently. */
+async function download(urls, dest, label) {
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    for (const url of urls) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) { lastError = new Error(`HTTP ${res.status}`); continue; }
+        await pipeline(Readable.fromWeb(res.body), createWriteStream(dest));
+        // A CDN error page saved as a .onnx is worse than a failed download, because
+        // it fails much later and much more confusingly.
+        if (statSync(dest).size < 10_000) {
+          lastError = new Error(`suspiciously small (${statSync(dest).size} bytes)`);
+          continue;
+        }
+        return;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    if (attempt === 1) await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw new Error(`could not download ${label}: ${lastError?.message ?? 'unknown'}\n`
+    + `  tried:\n${urls.map((u) => `    ${u}`).join('\n')}`);
+}
+
 async function fetchModel(m) {
   const first = `${m.dests[0]}/${m.name}`;
   mkdirSync(m.dests[0], { recursive: true });
 
   if (!existsSync(first)) {
     process.stdout.write(`  downloading ${m.name} ... `);
-    const res = await fetch(m.url);
-    if (!res.ok) throw new Error(`${m.name}: HTTP ${res.status}`);
-    await pipeline(Readable.fromWeb(res.body), createWriteStream(first));
+    await download([m.url, ...(m.fallbacks ?? [])], first, m.name);
     console.log(`${(statSync(first).size / 1048576).toFixed(1)}MB`);
   } else {
     console.log(`  ${m.name} already present`);
