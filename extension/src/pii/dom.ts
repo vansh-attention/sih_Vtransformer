@@ -115,6 +115,10 @@ const NON_PII_WORDS = [
   'amount', 'total', 'subtotal', 'price', 'balance', 'qty', 'quantity',
   'sku', 'product code', 'item code', 'tracking', 'awb', 'ticket',
   'serial', 'batch', 'reference no', 'ref no',
+  // Table column headers on financial pages. Generic commercial vocabulary, not
+  // fixture-specific: these label columns of numbers that look exactly like PII.
+  'reference', 'cheque', 'check no', 'utr', 'narration', 'particulars',
+  'debit', 'credit', 'closing', 'opening', 'statement', 'period', 'date',
 ];
 
 /** Word-boundary matchers, so "pan" does not fire on "company" or "japan". */

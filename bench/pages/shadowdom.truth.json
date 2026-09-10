@@ -1,0 +1,11 @@
+{
+  "name": "shadowdom",
+  "note": "Web components. Values live inside open shadow roots, invisible to ordinary traversal.",
+  "elements": [
+    { "id": "pan",    "kind": "PAN",      "redact": true,  "why": "inside a shadow root" },
+    { "id": "holder", "kind": "NAME",     "redact": true,  "why": "inside a shadow root" },
+    { "id": "pw",     "kind": "PASSWORD", "redact": true,  "why": "inside a shadow root" },
+    { "id": "mail",   "kind": "EMAIL",    "redact": true,  "why": "light DOM" }
+  ],
+  "mustFind": ["Save profile", "Permanent Account Number"]
+}

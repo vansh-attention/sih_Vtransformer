@@ -284,40 +284,71 @@ function isInteresting(el: Element, role: ElementRole): boolean {
  * Pure structural markup, so it does not breach the no-site-specific-logic rule.
  */
 function contextLabelFor(el: Element): string | undefined {
-  // Borrowed text must come from something the USER CAN SEE.
-  //
-  // Without this check a `display:none` block adjacent to a visible element had its
-  // text lifted into that element's contextLabel and shipped to the model — a working
-  // prompt-injection channel that bypassed the visibility pruning entirely, because the
-  // hidden node itself was correctly dropped while its text travelled anyway.
-  // Found by bench/injection-test.ts.
+  /**
+   * Borrowed text must come from something the USER CAN SEE.
+   *
+   * Without this a `display:none` block adjacent to a visible element had its text
+   * lifted into that element's contextLabel and shipped to the model — a working
+   * prompt-injection channel that bypassed visibility pruning entirely, because the
+   * hidden node was correctly dropped while its text travelled anyway.
+   * Found by bench/injection-test.ts.
+   */
   const visibleText = (node: Element | null | undefined): string => {
     if (!node || isHidden(node)) return '';
     return directText(node);
   };
 
+  /**
+   * TABLE CELLS FIRST, before the sibling fallback.
+   *
+   * A cell's meaning comes from its COLUMN, not from whatever sits to its left. On a
+   * bank statement the previous sibling is the date, so taking it meant transaction
+   * references and balances were redacted as Aadhaar and card numbers. The <th> above
+   * them says "Reference" and "Balance" and settles it.
+   *
+   * Order matters: checking the sibling first makes this branch unreachable, and the
+   * fix then appears to do nothing at all.
+   */
+  const cell = el.closest('td, th');
+  const row = cell?.parentElement;
+  if (cell && row && row.tagName.toLowerCase() === 'tr') {
+    let index = 0;
+    for (let c = row.firstElementChild; c && c !== cell; c = c.nextElementSibling) index++;
+
+    const headerRow = row.closest('table')?.querySelector('tr');
+    if (headerRow && headerRow !== row) {
+      let i = 0;
+      for (let h = headerRow.firstElementChild; h; h = h.nextElementSibling, i++) {
+        if (i === index) {
+          const text = visibleText(h);
+          if (text) return text.slice(0, 100);
+          break;
+        }
+      }
+    }
+
+    const firstCell = row.firstElementChild;
+    if (firstCell && firstCell !== cell) {
+      const text = visibleText(firstCell);
+      if (text) return text.slice(0, 100);
+    }
+  }
+
   const prevText = visibleText(el.previousElementSibling);
   if (prevText) return prevText.slice(0, 100);
 
-  // Table cells: fall back to the first cell of the row.
-  const row = el.closest('tr');
-  const firstCell = row?.firstElementChild;
-  if (firstCell && firstCell !== el) {
-    const text = visibleText(firstCell);
-    if (text) return text.slice(0, 100);
-  }
-
-  // Finally, the nearest LABELLED ANCESTOR. A <div role="group" aria-label="Legal
-  // name"> wrapping a bare <span>Priya Raghunathan</span> is standard SPA markup, and
-  // the value has no label, no sibling and no row to describe it. Without this the
-  // name reaches the server unredacted, because nothing ever looks upward.
-  //
-  // Bounded to 4 levels: beyond that the ancestor describes a whole section rather
-  // than this field, and borrowing its label would mislabel everything inside it.
-  // No isHidden() check on ancestors. This is only ever called for an element we have
-  // already established is visible, and CSS guarantees the descendants of a hidden
-  // element are hidden — so an ancestor of a visible element cannot be hidden. The
-  // check was pure cost: getComputedStyle on up to 4 ancestors per node.
+  /**
+   * Finally, the nearest LABELLED ANCESTOR. A <div role="group" aria-label="Legal
+   * name"> wrapping a bare <span>Priya Raghunathan</span> is standard SPA markup, and
+   * the value has no label, no sibling and no row to describe it. Without this the name
+   * reaches the server unredacted, because nothing ever looks upward.
+   *
+   * Bounded to 4 levels: beyond that the ancestor describes a whole section rather than
+   * this field, and borrowing its label would mislabel everything inside it.
+   *
+   * No isHidden() check on ancestors: this is only called for an element already known
+   * to be visible, and CSS guarantees descendants of a hidden element are hidden.
+   */
   let parent = el.parentElement;
   for (let depth = 0; parent && depth < 4; depth++, parent = parent.parentElement) {
     const aria = parent.getAttribute('aria-label')?.trim();
@@ -373,6 +404,12 @@ export interface ExtractOptions {
 
 export interface ExtractResult {
   structure: PageStructure;
+  /**
+   * Custom elements with no readable shadow root. If this is non-empty, part of the
+   * page is visible to the user and to the screenshot but invisible to the redactor —
+   * the caller must decide whether it is safe to transmit an image at all.
+   */
+  closedShadowHosts: string[];
   /** True when the budget was hit. Surfaced to the server so it knows the view is partial. */
   truncated: boolean;
   nodeCount: number;
@@ -396,6 +433,9 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
   let count = 0;
   let truncated = false;
   const visionQueue: ElementId[] = [];
+  // Custom elements whose contents we could not read. Reported, never ignored: their
+  // values may be on screen and therefore in the screenshot.
+  const closedShadowHosts: string[] = [];
 
   function walk(el: Element): ElementNode | null {
     if (count >= maxNodes) { truncated = true; return null; }
@@ -417,6 +457,32 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
 
     const role = roleOf(el);
     const children: ElementNode[] = [];
+
+    /**
+     * SHADOW DOM. Traversed FIRST, because a custom element's real content lives here
+     * and its light-DOM children are usually empty.
+     *
+     * This is a privacy fix, not just a feature. Without it a form built from web
+     * components reports almost no fields — but the SCREENSHOT still captures every
+     * value in plain pixels. So the PAN inside a shadow root was never redacted while
+     * remaining perfectly readable in the image we transmit.
+     *
+     * Only `mode: 'open'` roots are reachable. A closed root cannot be read by any
+     * extension, so it is flagged for the caller rather than silently ignored.
+     */
+    const shadow = (el as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot;
+    if (shadow) {
+      for (let sc = shadow.firstElementChild; sc; sc = sc.nextElementSibling) {
+        const node = walk(sc);
+        if (node) children.push(node);
+        if (count >= maxNodes) { truncated = true; break; }
+      }
+    } else if (el.tagName.includes('-')) {
+      // A custom element with no reachable shadow root: either not yet upgraded, or
+      // closed. Either way its contents may be on screen and unredactable.
+      closedShadowHosts.push(el.tagName.toLowerCase());
+    }
+
     // Sibling iteration, NOT Array.from(el.children). `children` is a live
     // HTMLCollection and snapshotting it allocates on every node visited; on a
     // 120,000-node page that measured 8644ms against 4ms for this loop.
@@ -531,5 +597,6 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
     truncated,
     nodeCount: count,
     visionQueue,
+    closedShadowHosts: [...new Set(closedShadowHosts)],
   };
 }

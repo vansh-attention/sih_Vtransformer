@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<!-- Fixture 09 — the smallest possible sensitive page. Two fields, no labels at all,
+     placeholder-only, plus a remembered email. Tests that minimal markup still works. -->
+<html lang="en"><head><meta charset="utf-8"><title>Sign in</title></head>
+<body>
+  <h1>Sign in</h1>
+  <form>
+    <input id="user" name="username" placeholder="Email address" value="arjun.nair@example.in" autocomplete="username">
+    <input id="pass" name="password" type="password" placeholder="Password" value="Tr0ub4dor">
+    <input id="otp" name="otp" placeholder="6-digit OTP" value="483920">
+    <label><input id="remember" type="checkbox" checked> Keep me signed in</label>
+    <button id="signin">Sign in</button>
+  </form>
+  <p id="help">Trouble signing in? Call 1800 200 3333.</p>
+</body></html>

@@ -306,7 +306,22 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
     }
 
     progress({ turn, phase: 'redacting' });
-    const vision = await captureAndRedact(windowId, tabId);
+
+    /**
+     * If part of the page is unreadable, do NOT transmit a picture of it.
+     *
+     * A closed shadow root cannot be read by any extension, so its contents are never
+     * seen by the redactor — but they are on screen, and a screenshot captures them in
+     * plain pixels. Sending the image would leak exactly the values we could not check.
+     *
+     * Failing closed costs visual context, which is recoverable. The alternative is not.
+     */
+    const unreadable: string[] = obs.closedShadowHosts ?? [];
+    const vision = unreadable.length > 0
+      ? { faces: 0, visionMs: 0,
+          error: `screenshot withheld: ${unreadable.join(', ')} could not be read, `
+               + 'so its on-screen contents cannot be redacted' }
+      : await captureAndRedact(windowId, tabId);
 
     const payload: SanitizedPayload = { ...obs.payload, screenshot: vision.screenshot };
 

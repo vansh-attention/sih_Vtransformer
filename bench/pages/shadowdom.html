@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!--
+  Fixture 07 — WEB COMPONENTS / SHADOW DOM.
+
+  Modern sites build forms out of custom elements whose real inputs live inside a shadow
+  root. `querySelectorAll` and ordinary child traversal do not cross that boundary, so a
+  naive extractor reports a page with no fields at all — and, far worse, PII sitting
+  inside a shadow root is never seen by the redactor while still being visible to the
+  screenshot.
+
+  Two components here, one open shadow root each, holding a PAN and a password.
+-->
+<html lang="en"><head><meta charset="utf-8"><title>Profile — web components</title></head>
+<body>
+  <h1>Update your profile</h1>
+
+  <identity-card id="idcard"></identity-card>
+  <secure-field id="secure"></secure-field>
+
+  <p id="plain">Plain light-DOM text: contact <span id="mail">ravi.k@example.org</span></p>
+  <button id="save">Save profile</button>
+
+<script>
+class IdentityCard extends HTMLElement {
+  connectedCallback() {
+    const r = this.attachShadow({ mode: 'open' });
+    r.innerHTML = `
+      <label for="pan">Permanent Account Number</label>
+      <input id="pan" name="pan" value="ABCPE1234F">
+      <label for="holder">Account holder</label>
+      <input id="holder" name="holder" value="Vikram Sharma">
+      <p id="note">Reference GRV-100234 issued to Vikram Sharma.</p>`;
+  }
+}
+class SecureField extends HTMLElement {
+  connectedCallback() {
+    const r = this.attachShadow({ mode: 'open' });
+    r.innerHTML = `
+      <label for="pw">Password</label>
+      <input id="pw" type="password" value="hunter2">
+      <button id="reveal">Reveal</button>`;
+  }
+}
+customElements.define('identity-card', IdentityCard);
+customElements.define('secure-field', SecureField);
+</script>
+</body></html>

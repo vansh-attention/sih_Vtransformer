@@ -1,0 +1,15 @@
+{
+  "name": "bankstatement",
+  "note": "Numeric noise. Only the header fields are PII; every table number is a decoy.",
+  "elements": [
+    { "id": "holder", "kind": "NAME",  "redact": true },
+    { "id": "mob",    "kind": "PHONE", "redact": true },
+    { "id": "ifsc",   "kind": "IFSC",  "redact": true },
+    { "id": "period", "kind": null,    "redact": false, "why": "date range, 8 digits each" },
+    { "id": "r1",     "kind": null,    "redact": false, "why": "DECOY: txn ref, 12 digits, Verhoeff-valid" },
+    { "id": "r3",     "kind": null,    "redact": false, "why": "DECOY: txn ref, 16 digits, Luhn-valid" },
+    { "id": "b1",     "kind": null,    "redact": false, "why": "DECOY: balance in paise, 12 digits" },
+    { "id": "c1",     "kind": null,    "redact": false, "why": "cheque number" }
+  ],
+  "mustFind": ["Download PDF"]
+}

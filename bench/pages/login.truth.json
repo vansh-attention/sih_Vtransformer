@@ -1,0 +1,10 @@
+{
+  "name": "login",
+  "elements": [
+    { "id": "user", "kind": "EMAIL",    "redact": true },
+    { "id": "pass", "kind": "PASSWORD", "redact": true },
+    { "id": "otp",  "kind": "PASSWORD", "redact": true, "why": "OTP is a secret" },
+    { "id": "help", "kind": null,       "redact": false, "why": "toll-free number, not personal" }
+  ],
+  "mustFind": ["Sign in"]
+}

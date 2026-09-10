@@ -105,6 +105,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       withheld,
       context: after,
       visionQueue: result.visionQueue,
+      closedShadowHosts: result.closedShadowHosts,
       nodeCount: result.nodeCount,
       truncated: result.truncated,
       timings: {

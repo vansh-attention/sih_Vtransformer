@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!-- Fixture 08 — a numeric table. Dense with digits that LOOK like PII and are not:
+     transaction refs, balances, cheque numbers, IFSC-shaped codes. The account holder's
+     real details sit in the header. Tests precision under numeric noise. -->
+<html lang="en"><head><meta charset="utf-8"><title>Account statement</title></head>
+<body>
+  <h2>Statement of account</h2>
+  <dl>
+    <dt>Account holder</dt><dd id="holder">Lakshmi Narayanan</dd>
+    <dt>Registered mobile</dt><dd id="mob">9845067890</dd>
+    <dt>Branch IFSC</dt><dd id="ifsc">HDFC0001234</dd>
+    <dt>Statement period</dt><dd id="period">01042026 to 30062026</dd>
+  </dl>
+  <table>
+    <tr><th>Date</th><th>Reference</th><th>Cheque no.</th><th>Amount</th><th>Balance</th></tr>
+    <tr><td>02/04/2026</td><td id="r1">234567890124</td><td id="c1">000123</td><td>12,500.00</td><td id="b1">245670000000</td></tr>
+    <tr><td>07/04/2026</td><td id="r2">445566778899</td><td id="c2">000124</td><td>3,200.00</td><td id="b2">242470000000</td></tr>
+    <tr><td>15/04/2026</td><td id="r3">4539578763621486</td><td id="c3">000125</td><td>899.00</td><td id="b3">241571000000</td></tr>
+  </table>
+  <button id="download">Download PDF</button>
+</body></html>

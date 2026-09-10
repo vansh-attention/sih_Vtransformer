@@ -73,7 +73,12 @@ function flatten(root: SanitizedNode): SanitizedNode[] {
 
 function scorePage(file: string, truth: Truth): PageScore {
   const html = readFileSync(new URL(`./${DIR}/${file}`, import.meta.url), 'utf8');
-  const dom = new JSDOM(html, { url: `https://fixture.example.com/${truth.name}` });
+  // `runScripts` so custom elements upgrade and attach their shadow roots. Without it
+  // a web-component fixture is just three empty tags and proves nothing.
+  const dom = new JSDOM(html, {
+    url: `https://fixture.example.com/${truth.name}`,
+    runScripts: 'dangerously',
+  });
   const { window } = dom;
 
   // jsdom has no layout, so every rect would be 0x0 and everything would read as
