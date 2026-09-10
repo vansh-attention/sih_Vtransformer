@@ -85,28 +85,41 @@ cd server && .venv/bin/uvicorn main:app --port 8975      # reasoning server
 node --experimental-strip-types bench/agent-loop.ts "Submit the payment form"
 ```
 
-### ⚠ THE OPEN PROBLEM — the model re-fills already-populated fields
+### The redaction scheme WORKS — measured, not asserted
 
 A token means *"this field is filled in with a valid value of that type."* If the model
-reads it as empty-or-broken, it tries to re-fill it — **overwriting the user's real data
-with a guess.** That is the central failure mode of this entire design.
+reads it as empty-or-broken it tries to re-fill it, **overwriting the user's real data
+with a guess**. That is the central failure mode of this entire design, so
+`bench/agent-loop.ts` asserts against it directly.
 
-`bench/agent-loop.ts` asserts it and the assertion currently **FAILS**:
+| model | re-fills a populated field? | warm latency |
+|---|---|---|
+| `llama3.1:latest` (text-only 8B) | ❌ **YES** — "Fill in your full name" on an already-filled field | 2.6 s |
+| `qwen2.5vl:7b` | ✅ **NO** | **2.5 s** |
 
-```
-FAIL  model did not try to re-fill an already-populated field
-      tried to overwrite: el_13 ("Fill in your full name.")
-```
+Qwen also passes the discriminating case. Asked *"check whether every required field is
+filled in, and tell me what is missing"* — the exact prompt that baits a model into
+"filling" the redacted PAN — it instead scrolled to look for more fields. It understood
+that the tokens meant DONE.
 
-Measured against `llama3.1:latest` — a text-only 8B standing in while `qwen2.5vl:7b`
-downloads. Do not read this as a verdict on the real model. **Re-run against
-qwen2.5vl:7b before drawing any conclusion**, and if it still fails, the fix is the
-prompt or the model, not the assertion.
+**This is the PS's "server aware of the redaction scheme" requirement, demonstrated
+end to end.** The model directed the agent correctly while structurally unable to see a
+single real value.
 
-Defence in depth held: the validator refused the action twice over (no value, and
-"refusing to overwrite redacted value with literal text"). But a model that keeps
-producing these has not understood the redaction scheme, and the PS requires that it
-does.
+The validator held throughout regardless: it refused llama3.1's bad action twice over
+(no value, and "refusing to overwrite redacted value with literal text"). Defence in
+depth is not decorative here — a weaker model on the day would still be safe.
+
+### ⚠ Pre-warm the model before any demo
+
+**Cold: 17.0 s. Warm: 2.5 s.** The first request pays for loading 6 GB into unified
+memory. A judge timing a cold first request sees 17 seconds and stops watching.
+
+Fire one throwaway request before the demo starts. This goes in the M6 runbook.
+
+Latency budget today: extract 45 ms + sanitize 6 ms + **model 2.5 s**. The model is
+~98% of end-to-end time, so latency work means model work — vLLM on a real GPU for the
+finale — not client micro-optimisation.
 
 ### Still to build
 - Vision layer: MobileViT on crops, face detection, visibility verification
