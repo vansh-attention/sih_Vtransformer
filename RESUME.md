@@ -39,6 +39,19 @@ Third: **the internal hackathon date**. That is the real deadline and it is earl
 30 Sep. Fallback if IIM Mumbai has no SPOC — he is also enrolled at **IITM BS**, and IIT
 Madras reliably participates.
 
+**The two official forms are already downloaded** — `~/Downloads/`,
+`College-Consent-Letter-for-SPOC-SIH2026.docx` and
+`College-Authorization-letter-SIH2026.docx`. Both are blank templates, so nothing has
+been started. Read from them:
+
+- A SPOC is appointed by the **Principal/Dean**, one per institute, and that SPOC
+  nominates the college's **top 50 teams** (45 + 5 waitlist). So a registered SPOC is
+  necessary but not sufficient — the team still has to be nominated.
+- The nomination letter is **one per team**, on college letterhead, signed and stamped
+  by the Principal, and needs the college's **AICTE/UGC number**.
+- **Do not restyle either form.** The template says in as many words that a team whose
+  format has been changed is likely to be disqualified.
+
 ---
 
 ## What it is
