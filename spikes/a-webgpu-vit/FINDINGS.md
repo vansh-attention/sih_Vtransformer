@@ -67,3 +67,79 @@ at.
    `[1,3,224,224]` while its exported graph contains a reshape hard-coded for 256².
    Feeding 224 fails deep inside with an opaque `OrtRun` error that names neither the
    input nor the expected size. Always print the full error, never a truncated one.
+
+---
+
+# Spike A2 — does any of this survive Manifest V3?
+
+Run: 10 Sep 2026 · **Chrome for Testing 153** headless · Apple Silicon
+Reproduce: `CHROME="…/Google Chrome for Testing" ./run-a2.sh`
+
+This was the remaining architectural risk. If the answer had been no, the entire client
+half would have needed a different runtime.
+
+## Result: ✅ PASS
+
+```json
+{
+  "offscreenCreated": true,
+  "offscreenCreateMs": 14,
+  "inference": {
+    "ok": true,
+    "cspAllowedWasm": true,
+    "webgpuInOffscreen": true,
+    "adapter": { "vendor": "apple", "architecture": "metal-3" },
+    "backendUsed": "webgpu",
+    "sessionCreateMs": 369,
+    "warmupMs": 303,
+    "medianMs": 14.2
+  }
+}
+```
+
+**All three unknowns resolved:**
+
+1. **MV3's CSP permits the WebAssembly compile** — with
+   `"script-src 'self' 'wasm-unsafe-eval'"` declared under
+   `content_security_policy.extension_pages`, and every `.wasm`/`.onnx` shipped locally.
+   Without `wasm-unsafe-eval` this fails; with it, ORT loads cleanly.
+2. **WebGPU IS available inside an offscreen document.** This was the genuine unknown.
+   The service worker has neither a DOM nor a GPU context, so the offscreen document was
+   the only candidate host — and it works, with a real `metal-3` adapter.
+3. **Offscreen document creation costs 14 ms.** Negligible, and it is once per session.
+
+## Cost of the extension environment
+
+14.2 ms median inside the extension vs **10.0 ms** on a plain page (Spike A1). ~4 ms of
+overhead, which is noise against a latency budget worth 15% of the grade. The extension
+environment is not a meaningful tax.
+
+## A trap that cost real time
+
+**Branded Google Chrome silently refuses to load unpacked extensions from the CLI.**
+
+```
+WARNING: --disable-extensions-except is not allowed in Google Chrome, ignoring.
+```
+
+Google removed `--load-extension` support from branded Chrome as an abuse mitigation.
+The extension simply never loads, the spike times out, and nothing in the log says why —
+the only clue is that one warning buried among hundreds of unrelated
+`CVDisplayLinkCreateWithCGDisplay` errors.
+
+**Use Chrome for Testing for all automated extension runs.** It is the official Google
+build intended for automation and honours the flags:
+
+```
+https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json
+```
+
+Branded Chrome is still fine for loading the extension by hand via
+`chrome://extensions` → Developer mode → Load unpacked.
+
+## Still open
+
+- **Spike B — Firefox.** Firefox is now installed on this machine. Its WebGPU trails
+  Chrome's, so the expectation is the WASM path at ~45 ms. Needs measuring, not assuming.
+- **Spike C — capture/DOM alignment.** `captureVisibleTab` pixels and the content-script
+  structure must share an instant and a coordinate space.
