@@ -17,7 +17,8 @@ PORT=8979
 PASS=0; FAIL=0
 
 SERVER_PID=""
-FAULT_FILE="${TMPDIR:-/tmp}/sih-drill-fault"
+# Fixed path the server computes independently — no environment involved.
+FAULT_FILE="$ROOT/server/.drill-fault"
 rm -f "$FAULT_FILE"
 
 start_server() {   # $1 = fault mode ("" for healthy)
@@ -29,7 +30,7 @@ start_server() {   # $1 = fault mode ("" for healthy)
   # through the environment looked correct and silently failed on CI.
   if [ -n "$1" ]; then printf '%s' "$1" > "$FAULT_FILE"; else rm -f "$FAULT_FILE"; fi
 
-  ( cd server && exec env AGENT_MODEL=qwen2.5vl:7b AGENT_FAULT_FILE="$FAULT_FILE" \
+  ( cd server && exec env AGENT_MODEL=qwen2.5vl:7b \
       "$UVICORN" main:app --port $PORT --log-level error >/tmp/drill-server.log 2>&1 ) &
   SERVER_PID=$!
   disown "$SERVER_PID" 2>/dev/null || true
@@ -66,7 +67,8 @@ stop_server() {
   if [ -n "$SERVER_PID" ]; then
     kill "$SERVER_PID" 2>/dev/null || true
     SERVER_PID=""
-FAULT_FILE="${TMPDIR:-/tmp}/sih-drill-fault"
+# Fixed path the server computes independently — no environment involved.
+FAULT_FILE="$ROOT/server/.drill-fault"
 rm -f "$FAULT_FILE"
   fi
   if command -v pkill >/dev/null 2>&1; then

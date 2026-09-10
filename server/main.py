@@ -140,7 +140,16 @@ class ActRequest(BaseModel):
 # A file is unambiguous, inspectable, and settable only by something with filesystem
 # access — so a hostile page still cannot reach it, which was the point of avoiding a
 # request parameter.
-FAULT_FILE = os.environ.get("AGENT_FAULT_FILE", "")
+# A FIXED path next to this file, with no environment involved at all.
+#
+# Three mechanisms for telling the server which fault to inject have now failed on CI
+# while working locally: bare assignments before exec, env(1), and passing the file PATH
+# through env. The common factor is the environment, so the environment is removed:
+# server/.drill-fault is a location both sides can compute independently.
+FAULT_FILE = os.environ.get(
+    "AGENT_FAULT_FILE",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), ".drill-fault"),
+)
 
 
 def current_fault() -> str:
