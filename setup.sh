@@ -47,6 +47,9 @@ fi
 
 [ "$PROBLEMS" -gt 0 ] && { echo; bad "fix the above first"; exit 1; }
 
+# CI has no Ollama and no GPU; the build and the whole test suite still must work.
+[ -n "${CI:-}" ] && warn "CI detected — skipping anything that needs a GPU or Ollama"
+
 step "2. Node dependencies"
 if [ -d node_modules ]; then
   ok "node_modules present (delete it and re-run to refresh)"

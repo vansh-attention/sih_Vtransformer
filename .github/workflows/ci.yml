@@ -26,16 +26,21 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Fetch models and build the gazetteer
-        run: node setup.mjs
+      # THE REAL TEST: run what a teammate actually runs, not a hand-rolled
+      # equivalent. setup.sh and test-all.sh are shell scripts and are far likelier to
+      # break on Windows than any of the TypeScript.
+      - name: ./setup.sh — the teammate path
+        run: ./setup.sh
 
-      - name: Build the extension
-        run: node build.mjs
+      - name: ./test-all.sh — the teammate path
+        run: ./test-all.sh
 
-      - name: Run the suite
+      - name: Individual suites (detail on failure)
+        if: failure()
         run: |
           set -e
           for f in extension/src/pii/*.test.ts \
