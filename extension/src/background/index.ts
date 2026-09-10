@@ -394,10 +394,20 @@ chrome.action?.onClicked.addListener((tab) => {
   if (tab.windowId !== undefined) void chrome.sidePanel.open({ windowId: tab.windowId });
 });
 
+/** Set by the panel's Stop button; cleared at the start of each run. */
+let stopRequested = false;
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.target !== 'background') return false;
 
+  if (msg.type === 'stop-agent') {
+    stopRequested = true;
+    sendResponse({ ok: true });
+    return true;
+  }
+
   if (msg.type === 'run-agent') {
+    stopRequested = false;
     (async () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) return { error: 'no active tab' };
@@ -410,6 +420,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         windowId: tab.windowId!,
         goal: msg.goal,
         serverUrl: await serverUrl(),
+        shouldStop: () => stopRequested,
         onProgress: (event) => {
           // Best-effort: the panel may be closed, and a rejected sendMessage here
           // would abort the whole run for the sake of a status line.

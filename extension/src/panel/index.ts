@@ -37,8 +37,15 @@ function renderTurn(rec: any, previews: Map<string, Preview>): string {
     `<div class="row"><span class="mask">${esc(p.masked)}</span> &rarr; <span class="tok">${esc(p.token)}</span></div>`
   ).join('');
 
+  // A withheld screenshot is a PROTECTION FIRING, not an error. It was recorded and
+  // never shown, so the user saw "vision 0ms" and no explanation at all.
+  const withheldShot = rec.visionError
+    ? `<div class="withheld-note">🛡 screenshot withheld — ${esc(String(rec.visionError))}</div>`
+    : '';
+
   return `<div class="turn">
     <h2>Turn ${rec.turn} &middot; ${esc(rec.origin)}</h2>
+    ${withheldShot}
     <div class="row">${chips}${faces}</div>
     ${masked}
     ${actions}
@@ -91,13 +98,49 @@ $('server').addEventListener('change', async (e) => {
   void checkServer(url);
 });
 
+/**
+ * Say which page will be acted on.
+ *
+ * The agent acts on the ACTIVE TAB, not on whatever the user was last looking at. With
+ * several tabs open there is nothing on screen telling them which one — and this is an
+ * agent that clicks buttons.
+ */
+async function showTarget(): Promise<void> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const el = $('target');
+    if (!tab?.url) { el.textContent = 'no page selected'; return; }
+    if (/^(chrome|about|edge|moz-extension|chrome-extension):/.test(tab.url)) {
+      el.innerHTML = '<span class="deny">this page cannot be read</span> '
+        + '— browser-internal pages are off-limits to extensions';
+      return;
+    }
+    el.innerHTML = `will act on <b>${esc(new URL(tab.url).host)}</b>`;
+  } catch {
+    $('target').textContent = '';
+  }
+}
+void showTarget();
+chrome.tabs?.onActivated.addListener(() => void showTarget());
+chrome.tabs?.onUpdated.addListener(() => void showTarget());
+
+$('stop').addEventListener('click', () => {
+  void chrome.runtime.sendMessage({ target: 'background', type: 'stop-agent' });
+  $('phase').innerHTML = '<span class="deny">stopping after this turn…</span>';
+  ($('stop') as HTMLButtonElement).disabled = true;
+});
+
 $('run').addEventListener('click', async () => {
   const btn = $('run') as HTMLButtonElement;
+  const stopBtn = $('stop') as HTMLButtonElement;
   const goal = ($('goal') as HTMLInputElement).value.trim();
   if (!goal) return;
 
   btn.disabled = true;
+  stopBtn.hidden = false;
+  stopBtn.disabled = false;
   $('ledger').innerHTML = '';
+  $('phase').className = 'phase working';
   $('phase').textContent = 'starting…';
 
   try {
@@ -121,6 +164,7 @@ $('run').addEventListener('click', async () => {
         'server-timeout': 'the model did not respond in time',
         'page-unavailable': 'this page cannot be read',
         'unstable-viewport': 'the page kept moving while being read',
+        'stopped-by-user': 'stopped',
       };
       const reason = res.stopReason as string;
       const cls = GOOD.has(reason) ? 'allow' : 'deny';
@@ -136,11 +180,14 @@ $('run').addEventListener('click', async () => {
     $('phase').innerHTML = `<span class="deny">error:</span> ${esc(String(e))}`;
   } finally {
     btn.disabled = false;
+    stopBtn.hidden = true;
+    $('phase').className = 'phase';
   }
 });
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.target === 'panel' && msg.type === 'progress') {
+    $('phase').className = 'phase working';
     $('phase').textContent = `turn ${msg.event.turn}: ${msg.event.phase}…`;
   }
 });

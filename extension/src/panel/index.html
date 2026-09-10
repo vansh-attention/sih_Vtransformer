@@ -16,10 +16,23 @@
   h1{font-size:15px;margin:0;font-weight:650;letter-spacing:-.01em}
   .sub{color:#7d8590;font-size:11px}
   input,button{font:inherit}
+  .target{font-size:11px;color:#7d8590;padding:0 2px 6px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .target b{color:#e6edf3;font-weight:600}
+  .btns{display:flex;gap:8px}
+  #stop{flex:0 0 auto;padding:10px 14px;background:#21262d;border:1px solid #30363d;
+        border-radius:8px;color:#f85149;cursor:pointer;font-weight:600;font-size:13px}
+  #stop:hover{background:#2d2126;border-color:#f85149}
+  /* A static line during a 3-second wait reads as a freeze. */
+  .working::after{content:'';display:inline-block;width:6px;height:6px;margin-left:6px;
+                  border-radius:50%;background:#58a6ff;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+  .withheld-note{margin:0;padding:8px 12px;background:#241a10;
+                 border-top:1px solid #30363d;font-size:11px;color:#f0883e}
   #goal{width:100%;padding:10px 12px;background:#161b22;border:1px solid #30363d;
         border-radius:8px;color:#e6edf3;margin-bottom:8px;font-size:13px}
   #goal:focus{outline:none;border-color:#2b3a8f;box-shadow:0 0 0 3px #2b3a8f33}
-  #run{width:100%;padding:10px;background:#238636;border:0;border-radius:8px;
+  #run{flex:1;padding:10px;background:#238636;border:0;border-radius:8px;
        color:#fff;cursor:pointer;font-weight:600;font-size:13px;
        transition:background .12s}
   #run:hover:not(:disabled){background:#2ea043}
@@ -69,8 +82,12 @@
       <div class="sub">Nothing personal leaves this machine</div>
     </div>
   </header>
-  <input id="goal" placeholder="What should the agent do?" value="Submit the payment form">
-  <button id="run">Run agent on this tab</button>
+  <div class="target" id="target">checking this tab…</div>
+  <input id="goal" placeholder="e.g. Fill in the form and submit it">
+  <div class="btns">
+    <button id="run">Run on this tab</button>
+    <button id="stop" hidden>Stop</button>
+  </div>
   <details id="settings">
     <summary>Settings</summary>
     <label for="server">Reasoning server</label>

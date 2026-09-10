@@ -22,12 +22,21 @@ export interface LoopOptions {
   maxTurns?: number;
   /** Give up on the model rather than hang forever. A stalled demo looks like a crash. */
   timeoutMs?: number;
+  /**
+   * Lets the user stop the agent mid-run.
+   *
+   * This is an agent that CLICKS BUTTONS on real pages. Without a stop control the only
+   * way to halt it is to close the tab, which is not a safety mechanism. Checked between
+   * turns and before any action is executed — never mid-click, so the page is never left
+   * in a half-acted state.
+   */
+  shouldStop?: () => boolean;
   onProgress?: (event: ProgressEvent) => void;
 }
 
 /** Why the loop stopped. Always reported — a run that ends silently is a bug report. */
 export type StopReason =
-  | 'goal-complete' | 'max-turns' | 'nothing-executable'
+  | 'goal-complete' | 'max-turns' | 'nothing-executable' | 'stopped-by-user'
   | 'server-unreachable' | 'server-error' | 'server-timeout'
   | 'page-unavailable' | 'unstable-viewport';
 
@@ -275,7 +284,10 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
   const history: AgentAction[] = [];
   const records: TurnRecord[] = [];
 
+  const stopped = () => opts.shouldStop?.() === true;
+
   for (let turn = 1; turn <= maxTurns; turn++) {
+    if (stopped()) return { records, stopReason: 'stopped-by-user' };
     const turnStart = performance.now();
 
     // Re-injected every turn. A submit or a link click replaces the document and takes
@@ -362,6 +374,8 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
 
     progress({ turn, phase: 'validating' });
     const report = validateActions(actions, payload);
+
+    if (stopped()) return { records, stopReason: 'stopped-by-user' };
 
     progress({ turn, phase: 'acting', detail: report.allowed });
     let execResults: Array<{ executed: boolean; error?: string }> = [];
