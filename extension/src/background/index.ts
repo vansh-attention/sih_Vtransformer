@@ -7,7 +7,10 @@
  * unsanitized" an auditable claim rather than a hopeful one.
  */
 
+import { runAgentLoop } from './orchestrator.ts';
+
 const OFFSCREEN_PATH = 'src/offscreen/index.html';
+const SERVER_URL = 'http://127.0.0.1:8975';
 
 /**
  * Chrome allows exactly one offscreen document per extension, and createDocument()
@@ -356,5 +359,92 @@ async function runAll(): Promise<void> {
   await reportTo('http://127.0.0.1:8974/result', out);
 }
 
-chrome.runtime.onInstalled.addListener(() => { void runAll(); });
-chrome.runtime.onStartup.addListener(() => { void runAll(); });
+chrome.action?.onClicked.addListener((tab) => {
+  if (tab.windowId !== undefined) void chrome.sidePanel.open({ windowId: tab.windowId });
+});
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.target !== 'background') return false;
+
+  if (msg.type === 'run-agent') {
+    (async () => {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.id) return { error: 'no active tab' };
+      if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
+        return { error: 'cannot run on a browser-internal page; open a normal site first' };
+      }
+
+      const records = await runAgentLoop({
+        tabId: tab.id,
+        windowId: tab.windowId!,
+        goal: msg.goal,
+        serverUrl: SERVER_URL,
+        onProgress: (event) => {
+          // Best-effort: the panel may be closed, and a rejected sendMessage here
+          // would abort the whole run for the sake of a status line.
+          chrome.runtime.sendMessage({ target: 'panel', type: 'progress', event })
+            .catch(() => {});
+        },
+      });
+
+      // Masks were captured at observe time inside the content script - the only place
+      // real values ever exist. Reading them from the turn record also survives the
+      // agent navigating the page, which asking the tab afterwards does not.
+      return { records, previews: records[0]?.previews ?? [] };
+    })()
+      .then(sendResponse)
+      .catch((e) => sendResponse({ error: e instanceof Error ? e.message : String(e) }));
+    return true;
+  }
+  return false;
+});
+
+/**
+ * Spike E — the whole product, end to end, in a real browser.
+ *
+ * Everything up to here was verified in pieces: the loop in a Node harness, the vision
+ * in the offscreen document, the alignment against pixels. This runs the actual
+ * extension against an actual page through the actual agent loop, which is the only
+ * configuration a judge will ever see.
+ */
+async function runSpikeE(): Promise<Record<string, unknown>> {
+  const url = 'http://127.0.0.1:8976/pages/checkout.html';
+  const tab = await chrome.tabs.create({ url, active: true });
+  const tabId = tab.id!;
+
+  await new Promise<void>((resolve) => {
+    const l = (id: number, info: chrome.tabs.TabChangeInfo) => {
+      if (id === tabId && info.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(l); resolve();
+      }
+    };
+    chrome.tabs.onUpdated.addListener(l);
+  });
+  await new Promise((r) => setTimeout(r, 500));
+
+  const phases: string[] = [];
+  const records = await runAgentLoop({
+    tabId,
+    windowId: tab.windowId!,
+    goal: 'Submit the payment form',
+    serverUrl: SERVER_URL,
+    maxTurns: 2,
+    onProgress: (e) => phases.push(`${e.turn}:${e.phase}`),
+  });
+
+  // Previews come from the turn records, captured at observe time. Asking the page now
+  // would fail: the agent may well have navigated it.
+  return { records, phases, previews: records[0]?.previews ?? [] };
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  void (async () => {
+    const out: Record<string, unknown> = { at: new Date().toISOString() };
+    try {
+      out.spikeE = await runSpikeE();
+    } catch (e) {
+      out.error = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e);
+    }
+    await reportTo('http://127.0.0.1:8976/result', out);
+  })();
+});

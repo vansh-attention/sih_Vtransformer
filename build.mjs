@@ -38,4 +38,10 @@ await esbuild.build({
   format: 'iife',
 });
 
+await esbuild.build({
+  ...common,
+  entryPoints: ['extension/src/panel/index.ts'],
+  outfile: 'extension/dist/panel.js',
+});
+
 console.log('built extension/dist/');

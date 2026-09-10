@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Privacy Agent</title>
+<style>
+  :root{color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;padding:14px;background:#0d1117;color:#e6edf3;
+       font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+  h1{font-size:14px;margin:0 0 2px}
+  .sub{color:#7d8590;font-size:11px;margin-bottom:14px}
+  input,button{font:inherit}
+  #goal{width:100%;padding:8px;background:#161b22;border:1px solid #30363d;
+        border-radius:6px;color:#e6edf3;margin-bottom:8px}
+  #run{width:100%;padding:8px;background:#238636;border:0;border-radius:6px;
+       color:#fff;cursor:pointer;font-weight:600}
+  #run:disabled{background:#21262d;color:#7d8590;cursor:default}
+  .phase{margin:12px 0;padding:8px 10px;background:#161b22;border:1px solid #30363d;
+         border-radius:6px;font-size:11px;color:#7d8590}
+  .turn{border:1px solid #30363d;border-radius:6px;margin-bottom:10px;overflow:hidden}
+  .turn h2{font-size:11px;margin:0;padding:7px 10px;background:#161b22;
+           border-bottom:1px solid #30363d;font-weight:600}
+  .row{padding:6px 10px;border-bottom:1px solid #1c2128;font-size:11px}
+  .row:last-child{border-bottom:0}
+  .chip{display:inline-block;background:#21262d;border:1px solid #30363d;
+        border-radius:999px;padding:1px 8px;font-size:10px;margin:2px 3px 2px 0}
+  .chip b{color:#f0883e}
+  .allow{color:#3fb950}.deny{color:#f85149}
+  .mask{color:#f85149;letter-spacing:1px}.tok{color:#3fb950}
+  .t{color:#7d8590;font-size:10px}
+  .t b{color:#e6edf3}
+  .note{margin-top:12px;padding:8px 10px;border-left:3px solid #f0883e;
+        background:#161b22;font-size:10px;color:#8b949e}
+  pre{margin:6px 0 0;padding:8px;background:#010409;border-radius:4px;
+      font-size:10px;color:#8b949e;max-height:200px;overflow:auto;white-space:pre-wrap}
+  summary{cursor:pointer;color:#58a6ff;font-size:11px;padding:6px 10px}
+</style></head>
+<body>
+  <h1>Privacy Agent</h1>
+  <div class="sub">SIH26171 &middot; nothing personal leaves this machine</div>
+  <input id="goal" placeholder="What should the agent do?" value="Submit the payment form">
+  <button id="run">Run agent on this tab</button>
+  <div class="phase" id="phase">idle</div>
+  <div id="ledger"></div>
+  <div class="note"><b>Everything below is checkable.</b> The "withheld" chips are
+    counts of values that were destroyed before any network request. Open the raw bytes
+    to confirm no real value left the machine.</div>
+  <script type="module" src="../../dist/panel.js"></script>
+</body></html>

@@ -33,6 +33,17 @@ const KNOWN_KINDS = new Set([
 /** Roles the agent may never type into, whatever the model says. */
 const NEVER_TYPE_ROLES = new Set(['password']);
 
+/**
+ * Roles that can actually accept typed text.
+ *
+ * Found end to end: the model returned `type` against a BUTTON, the validator allowed
+ * it (a button is neither a password field nor disabled), and it only failed at
+ * execution with "not a text field". A refusal belongs at validation time — that is the
+ * layer that is supposed to know what is safe, and an action that reaches the page and
+ * fails leaves the loop unsure whether the page changed.
+ */
+const TYPEABLE_ROLES = new Set(['textbox']);
+
 const TOKEN_RE = /^<PII_[A-Z]+_\d+>$/;
 
 /**
@@ -112,6 +123,9 @@ export function validateAction(
   if (action.kind === 'type') {
     if (NEVER_TYPE_ROLES.has(node.role)) {
       return deny(`refusing to type into a ${node.role} field (${action.target})`);
+    }
+    if (!TYPEABLE_ROLES.has(node.role)) {
+      return deny(`${action.target} is a ${node.role}, not a text field`);
     }
 
     if (typeof action.value !== 'string' || action.value.length === 0) {

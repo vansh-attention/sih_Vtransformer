@@ -189,9 +189,36 @@ That needs **PII layer 3 (NER)**.
 Adding "raised by" to the keyword list would fix the number and fix nothing real. That
 is tuning against the holdout, and the finale will not use our keywords.
 
+## The extension WORKS end to end — Spike E
+
+`spikes/e-e2e/FINDINGS.md`. Real extension, real page, real loop, in a real browser.
+
+```
+observing -> redacting -> reasoning -> validating -> acting -> re-observing
+TURN 1: clicked "Pay now", page navigated. 9 values withheld.
+        extract 3ms | sanitize 7ms | vision 473ms | model 3032ms | TOTAL 3541ms
+TURN 2: vision 69ms (warm) | model 3952ms
+```
+
+**Demo it:** click the toolbar icon → side panel → type a goal → Run.
+Server must be up: `cd server && .venv/bin/uvicorn main:app --port 8975`.
+**Pre-warm the model first** (17s cold, 2.5s warm).
+
+Where the time goes: the model is ~85% of a turn. Vision is 69ms warm. Extract +
+sanitize are under 10ms combined. Latency work means the model, not the client.
+
+⚠ Payload is **156KB, almost all screenshot**. Downscale before the finale.
+
+### The architecture claim, stated precisely
+The **vault lives in the content script**. The background service worker — the only part
+that touches the network — has never held a real value. "No PII leaves the machine" is a
+property of the architecture, not a claim about one function's correctness. A bug in the
+network layer *cannot* leak a PAN, because that layer has never seen one.
+
 ### Still to build
-- **PII layer 3 (NER)** — the measured gap above
+- **PII layer 3 (NER)** — the one red holdout test
 - MobileViT on crops for non-face visual context (images, canvas, iframes)
+- Downscale the screenshot before transmission
 - Wire the loop into the extension itself (it currently runs through the bench harness)
 - Screenshot into the payload (the prompt already supports it; nothing sends one yet)
 - Phase 3: benchmark harness + the holdout run

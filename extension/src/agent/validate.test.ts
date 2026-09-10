@@ -48,6 +48,7 @@ const cases: Array<[string, AgentAction, boolean]> = [
   ['server echoes a raw card number',        A({ kind: 'type', target: 'el_6', value: '4111 1111 1111 1111' }), false],
   ['server echoes a raw email',              A({ kind: 'type', target: 'el_6', value: 'hb@example.com' }), false],
 
+  ['type into a BUTTON (not a text field)',   A({ kind: 'type', target: 'el_2', value: 'hello' }), false],
   ['scroll a sane amount',                   A({ kind: 'scroll', scrollDelta: 400 }), true],
   ['scroll an absurd amount',                A({ kind: 'scroll', scrollDelta: 999999 }), false],
   ['done needs no target',                   A({ kind: 'done' }), true],

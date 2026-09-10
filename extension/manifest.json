@@ -7,7 +7,8 @@
     "offscreen",
     "activeTab",
     "scripting",
-    "tabs"
+    "tabs",
+    "sidePanel"
   ],
   "host_permissions": [
     "http://127.0.0.1/*",
@@ -30,5 +31,11 @@
         "<all_urls>"
       ]
     }
-  ]
+  ],
+  "action": {
+    "default_title": "Privacy Agent (SIH26171)"
+  },
+  "side_panel": {
+    "default_path": "src/panel/index.html"
+  }
 }
