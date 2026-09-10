@@ -101,7 +101,19 @@ function redactValue(
   // The field is labelled sensitive but nothing in the value parsed. Trust the label
   // and replace the whole thing — an unrecognised format in a field called "Aadhaar"
   // is still somebody's Aadhaar.
-  if (spans.length === 0 && hint && hint.kind !== 'NON_PII') {
+  //
+  // ONLY FOR SHORT VALUES. A form field holds a value; a paragraph holds prose. On a
+  // real Wikipedia article this rule replaced entire paragraphs with a single token
+  // because some nearby text mentioned a name — destroying the page content the server
+  // needs to read. Long text gets span-level redaction or nothing.
+  // AND only for actual form controls. A label vouches for the value of a FIELD; a
+  // paragraph has no label vouching for it, and a nearby name-ish heading is not
+  // permission to replace an article's prose with a token.
+  const FIELD_VALUE_MAX = 120;
+  const isFormControl = signals !== undefined
+    && ['input', 'textarea', 'select'].includes(signals.tag);
+  if (spans.length === 0 && isFormControl && text.length <= FIELD_VALUE_MAX
+      && hint && hint.kind !== 'NON_PII') {
     const resolved = reconcile(hint, null);
     if (resolved?.redact) {
       const token = vault.mint(resolved.kind, text);

@@ -98,6 +98,10 @@ const ORG_MARKERS = new Set([
   'industries', 'enterprises', 'services', 'solutions', 'technologies', 'systems',
   'university', 'institute', 'college', 'school', 'hospital', 'trust', 'foundation',
   'department', 'ministry', 'authority', 'board', 'council', 'bureau', 'commission',
+  // Institutions and civic bodies. Found on real government and encyclopedia pages,
+  // where "Lok Sabha", "Rajya Sabha" and "<X> Programme" were being redacted as people.
+  'sabha', 'parliament', 'assembly', 'court', 'tribunal', 'programme', 'program',
+  'scheme', 'mission', 'yojana', 'act', 'bill', 'committee', 'agency', 'corporation',
 ]);
 
 /** Does an organisation marker sit within a couple of tokens of this span? */
@@ -186,19 +190,28 @@ export function detectNames(text: string): NameSpan[] {
     }
 
     if (aGiven) {
-      // A lone given name. Real, but far more collision-prone than a full name.
+      // A lone Title-Case token that happens to be in a name list. Deliberately BELOW
+      // the redaction threshold on its own.
+      //
+      // Real pages made this unavoidable: "For", "Not", "Bill" and "Justice" are all
+      // real given names AND ordinary English words, and at 0.65 every one of them was
+      // being redacted out of running prose. A single token is not evidence of a
+      // person; it needs the field context to agree before it counts.
       push({
         start: a.start, end: a.end, text: a.text,
-        confidence: 0.65, reason: 'given name in gazetteer',
+        confidence: 0.45, reason: 'lone given name in gazetteer (weak on its own)',
       });
       i += 1;
       continue;
     }
 
     if (adjacent && aFamily && bFamily) {
+      // Two surname-list hits with no given name. Kept BELOW the threshold: the surname
+      // list is 82,000 entries and collides heavily with ordinary words, so "Not
+      // Pressed" and similar pairs were being redacted out of real pages.
       push({
         start: a.start, end: b!.end, text: text.slice(a.start, b!.end),
-        confidence: 0.6, reason: 'two surnames in gazetteer',
+        confidence: 0.5, reason: 'two surnames, no given name (weak)',
       });
       i += 2;
       continue;
