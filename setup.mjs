@@ -7,7 +7,7 @@
  *
  *   npm install && node setup.mjs
  */
-import { mkdirSync, copyFileSync, existsSync, readdirSync, statSync, createWriteStream } from 'node:fs';
+import { mkdirSync, copyFileSync, existsSync, readdirSync, statSync, createWriteStream, writeFileSync } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 
@@ -85,6 +85,80 @@ vendorOrt('spikes/a-webgpu-vit/ort');
 
 console.log('fetching models:');
 for (const m of MODELS) await fetchModel(m);
+
+// ---------------------------------------------------------------------------
+// PII layer 3's name gazetteer, built from public datasets.
+//
+// Generated rather than committed: it is ~1MB of derived data. It is also NOT optional
+// — without it layer 3 silently detects nothing, and a fresh clone fails two test files
+// with no obvious cause. (Which is exactly what happened the first time setup.sh was
+// run on a clean checkout.)
+//
+// Sources are taken WHOLESALE. No entry is ever added because it appears in
+// bench/holdout/ — that would be tuning against the holdout.
+// ---------------------------------------------------------------------------
+
+const GAZETTEER = 'extension/models/name-gazetteer.json';
+const NAME_SOURCES = {
+  given: [
+    'https://raw.githubusercontent.com/smashew/NameDatabases/master/NamesDatabases/first%20names/all.txt',
+  ],
+  family: [
+    'https://raw.githubusercontent.com/smashew/NameDatabases/master/NamesDatabases/surnames/all.txt',
+  ],
+  // The general-purpose lists are Western-skewed; this product serves Indian users.
+  givenCsv: [
+    'https://raw.githubusercontent.com/laxmimerit/indian-names-dataset/master/Indian-Female-Names.csv',
+    'https://raw.githubusercontent.com/laxmimerit/indian-names-dataset/master/Indian-Male-Names.csv',
+  ],
+};
+
+async function buildGazetteer() {
+  if (existsSync(GAZETTEER)) {
+    console.log('  name gazetteer already present');
+    return;
+  }
+  process.stdout.write('  building name gazetteer ... ');
+
+  const clean = (s) => s.trim().toLowerCase();
+  const valid = (s) => /^[a-z][a-z'-]*$/.test(s);
+
+  const given = new Set();
+  const family = new Set();
+
+  for (const url of NAME_SOURCES.given) {
+    const text = await (await fetch(url)).text();
+    for (const line of text.split('\n')) {
+      const n = clean(line);
+      if (n.length >= 3 && valid(n)) given.add(n);
+    }
+  }
+  for (const url of NAME_SOURCES.family) {
+    const text = await (await fetch(url)).text();
+    for (const line of text.split('\n')) {
+      const n = clean(line);
+      if (n.length >= 4 && valid(n)) family.add(n);
+    }
+  }
+  for (const url of NAME_SOURCES.givenCsv) {
+    const text = await (await fetch(url)).text();
+    for (const line of text.split('\n').slice(1)) {
+      const first = line.split(',')[0] ?? '';
+      for (const tok of clean(first).split(/[\s.]+/)) {
+        if (tok.length >= 3 && valid(tok)) given.add(tok);
+      }
+    }
+  }
+
+  mkdirSync('extension/models', { recursive: true });
+  writeFileSync(GAZETTEER, JSON.stringify(
+    { given: [...given].sort(), family: [...family].sort() }, null, 0));
+  console.log(`${given.size} given, ${family.size} family, `
+    + `${(statSync(GAZETTEER).size / 1024).toFixed(0)}KB`);
+}
+
+console.log('name gazetteer:');
+await buildGazetteer();
 
 // Test assets. Deliberately NOT committed: a repo should not carry third-party
 // images, and this one is a real person's likeness.
