@@ -33,6 +33,15 @@ stop_server() {
   sleep 1
 }
 
+# Some drills need a live model behind the server. A machine without Ollama should
+# still get a clean run of everything else rather than one red line it cannot fix.
+OLLAMA_UP=0
+curl -s --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && OLLAMA_UP=1
+[ "$OLLAMA_UP" -eq 0 ] && echo "  (ollama not reachable — model-dependent drills will be skipped)" && echo
+
+skip_drill() { echo "  ${DIM:-}– $1 (needs ollama)${OFF:-}"; SKIP=$((SKIP+1)); }
+SKIP=0
+
 drill() {   # $1 = name, $2 = expected substring, $3 = actual output
   if grep -qi "$2" <<<"$3"; then
     echo "  ok    $1"; PASS=$((PASS+1))
@@ -76,10 +85,15 @@ OUT=$(curl -s -X POST "http://127.0.0.1:$PORT/act" -H 'content-type: application
 drill "server refuses an un-redacted PAN in the payload" "unredacted PII" "$OUT"
 
 # 6. And accepts it once the client has acknowledged the decision.
-OUT=$(curl -s -X POST "http://127.0.0.1:$PORT/act" -H 'content-type: application/json' \
-  -d '{"payload":{"root":{"id":"el_1","role":"textbox","value":"ABCPE1234F","box":{"x":0,"y":0,"w":1,"h":1},"visible":true,"enabled":true},"origin":"https://x.test","title":"t","capturedAt":0,"viewport":{"w":1,"h":1,"scrollX":0,"scrollY":0},"placeholders":[],"acknowledged":[{"id":"el_1","kind":"PAN","reason":"drill"}],"goal":"g","history":[]}}' \
-  --max-time 120)
-drill "acknowledged detection is accepted" "actions" "$OUT"
+#    This one reaches the MODEL, so it needs Ollama.
+if [ "$OLLAMA_UP" -eq 1 ]; then
+  OUT=$(curl -s -X POST "http://127.0.0.1:$PORT/act" -H 'content-type: application/json' \
+    -d '{"payload":{"root":{"id":"el_1","role":"textbox","value":"ABCPE1234F","box":{"x":0,"y":0,"w":1,"h":1},"visible":true,"enabled":true},"origin":"https://x.test","title":"t","capturedAt":0,"viewport":{"w":1,"h":1,"scrollX":0,"scrollY":0},"placeholders":[],"acknowledged":[{"id":"el_1","kind":"PAN","reason":"drill"}],"goal":"g","history":[]}}' \
+    --max-time 180)
+  drill "acknowledged detection is accepted" "actions" "$OUT"
+else
+  skip_drill "acknowledged detection is accepted"
+fi
 
 stop_server
 
@@ -89,5 +103,5 @@ drill "huge page stays within the node budget" "budget respected" "$OUT"
 drill "huge page extracts in reasonable time" "within time budget" "$OUT"
 
 echo
-echo "$PASS passed, $FAIL failed"
+echo "$PASS passed, $FAIL failed$([ "$SKIP" -gt 0 ] && echo ", $SKIP skipped")"
 [ "$FAIL" -eq 0 ] || exit 1
