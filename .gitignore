@@ -12,3 +12,5 @@ extension/models/
 spikes/**/ort/
 *.onnx
 bench/assets/
+deck/*.pdf
+deck/slide-*.jpg

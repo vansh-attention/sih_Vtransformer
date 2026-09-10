@@ -2,6 +2,18 @@
 
 **READ THIS FIRST.**
 
+| file | what it is |
+|---|---|
+| `ONBOARDING.md` | Send this to a teammate. Explains the project + `./setup.sh`. |
+| `RUNBOOK.md` | The demo. Print it. **Pre-warm the model.** |
+| `deck/` | The 6-slide SIH submission. `python3 deck/build.py` rebuilds it. |
+| `bench/README.md` | The scorecard and the holdout rule. |
+| `spikes/*/FINDINGS.md` | Why the architecture is what it is, with measurements. |
+
+**Before uploading the deck, three fields must come from the SIH portal** — they are
+rendered in amber with «guillemets» so they cannot be missed: Theme, Team ID, Team Name.
+Re-export the PDF from PowerPoint after filling them, not from the copy in `deck/`.
+
 ISRO / Department of Space · Software · Smart Automation
 Idea submission deadline: **30 September 2026** · Grand finale: **December 2026**
 
