@@ -71,12 +71,48 @@ done
 **Measured:** the Aadhaar checksum gate drops random 12-digit strings from 100% to
 **8.08%** — a ~12x false-positive reduction at zero recall cost.
 
+## Phase 2 — the loop is CLOSED, with one test honestly RED
+
+`real page -> extract -> sanitize -> server -> validate -> actions` runs end to end.
+
+**Local model, no cloud.** Ollama on this M5's Metal GPU serves an open-weight VLM, so
+the whole system demonstrates with the network off — which is a much stronger answer to
+the PS's offline-deployable requirement than a URL into somebody's cloud. Same code
+targets vLLM for the finale; only `OLLAMA_URL`/`AGENT_MODEL` change.
+
+```bash
+cd server && .venv/bin/uvicorn main:app --port 8975      # reasoning server
+node --experimental-strip-types bench/agent-loop.ts "Submit the payment form"
+```
+
+### ⚠ THE OPEN PROBLEM — the model re-fills already-populated fields
+
+A token means *"this field is filled in with a valid value of that type."* If the model
+reads it as empty-or-broken, it tries to re-fill it — **overwriting the user's real data
+with a guess.** That is the central failure mode of this entire design.
+
+`bench/agent-loop.ts` asserts it and the assertion currently **FAILS**:
+
+```
+FAIL  model did not try to re-fill an already-populated field
+      tried to overwrite: el_13 ("Fill in your full name.")
+```
+
+Measured against `llama3.1:latest` — a text-only 8B standing in while `qwen2.5vl:7b`
+downloads. Do not read this as a verdict on the real model. **Re-run against
+qwen2.5vl:7b before drawing any conclusion**, and if it still fails, the fix is the
+prompt or the model, not the assertion.
+
+Defence in depth held: the validator refused the action twice over (no value, and
+"refusing to overwrite redacted value with literal text"). But a model that keeps
+producing these has not understood the redaction scheme, and the PS requires that it
+does.
+
 ### Still to build
-- **Spike A2** — ORT Web + WebGPU under MV3 CSP in an offscreen document
-- **Spike C** — `captureVisibleTab` pixels aligned with the DOM snapshot
-- The extension shell itself (manifest, service worker, offscreen document, content script)
 - Vision layer: MobileViT on crops, face detection, visibility verification
-- Phase 2 (server + closed loop) and Phase 3 (benchmark + holdout)
+- Wire the loop into the extension itself (it currently runs through the bench harness)
+- Screenshot into the payload (the prompt already supports it; nothing sends one yet)
+- Phase 3: benchmark harness + the holdout run
 
 ### Five findings already paid for — do not regress them
 1. **A positive PII keyword must beat negative context.** The label

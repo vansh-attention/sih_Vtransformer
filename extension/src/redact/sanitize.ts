@@ -12,7 +12,7 @@
  */
 
 import type {
-  AgentAction, ElementId, ElementNode, PageStructure, PiiKind,
+  Acknowledgement, AgentAction, ElementId, ElementNode, PageStructure, PiiKind,
   Placeholder, SanitizedNode, SanitizedPayload,
 } from '../contracts.ts';
 import { classifyField, reconcile, type FieldSignals } from '../pii/dom.ts';
@@ -46,6 +46,7 @@ function redactValue(
   text: string,
   signals: FieldSignals | undefined,
   vault: Vault,
+  kept?: Array<{ kind: PiiKind; reason: string }>,
 ): { text: string; placeholders: Placeholder[] } {
   const hint = signals ? classifyField(signals) : null;
   const placeholders: Placeholder[] = [];
@@ -64,7 +65,11 @@ function redactValue(
 
   for (const det of detections) {
     const resolved = reconcile(hint, det);
-    if (!resolved?.redact) continue;
+    if (!resolved?.redact) {
+      // Detected, examined, deliberately kept. Record WHY so the server can trust it.
+      if (resolved) kept?.push({ kind: resolved.kind, reason: resolved.rationale });
+      continue;
+    }
     spans.push({ start: det.start, end: det.end, kind: resolved.kind });
     placeholders.push({
       token: '', // filled in below, once the token is minted
@@ -112,6 +117,7 @@ function redactLabel(
   text: string,
   signals: FieldSignals | undefined,
   vault: Vault,
+  kept?: Array<{ kind: PiiKind; reason: string }>,
 ): { text: string; placeholders: Placeholder[] } {
   // Demotion-only use of the hint. A commercial-context hint may SUPPRESS a match
   // (the "Order Total 999999999999" case), but a positive hint may never promote or
@@ -126,7 +132,10 @@ function redactLabel(
 
   for (const det of detections) {
     const resolved = reconcile(demotingHint, det);
-    if (!resolved?.redact) continue;
+    if (!resolved?.redact) {
+      if (resolved) kept?.push({ kind: resolved.kind, reason: resolved.rationale });
+      continue;
+    }
     spans.push({ start: det.start, end: det.end, kind: resolved.kind });
     placeholders.push({
       token: '', kind: resolved.kind, source: 'pattern',
@@ -189,20 +198,23 @@ function sweepVaultLeaks(
 export function sanitize(structure: PageStructure, opts: SanitizeOptions): SanitizeResult {
   const { vault, signals } = opts;
   const allPlaceholders: Placeholder[] = [];
+  const acknowledged: Acknowledgement[] = [];
 
   function walk(node: ElementNode): SanitizedNode {
     const sig = signals(node.id);
 
+    const kept: Array<{ kind: PiiKind; reason: string }> = [];
+
     let value = node.value;
     if (value) {
-      const r = redactValue(value, sig, vault);
+      const r = redactValue(value, sig, vault, kept);
       value = r.text;
       allPlaceholders.push(...r.placeholders);
     }
 
     let label = node.label;
     if (label) {
-      const r = redactLabel(label, sig, vault);
+      const r = redactLabel(label, sig, vault, kept);
       label = r.text;
       allPlaceholders.push(...r.placeholders);
     }
@@ -210,10 +222,12 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
     // Neighbouring text is still text on the user's screen and can carry PII.
     let contextLabel = node.contextLabel;
     if (contextLabel) {
-      const r = redactLabel(contextLabel, undefined, vault);
+      const r = redactLabel(contextLabel, undefined, vault, kept);
       contextLabel = r.text;
       allPlaceholders.push(...r.placeholders);
     }
+
+    for (const k of kept) acknowledged.push({ id: node.id, kind: k.kind, reason: k.reason });
 
     return {
       id: node.id,
@@ -269,6 +283,7 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
       root,
       screenshot: opts.screenshot,
       placeholders: allPlaceholders,
+      acknowledged,
       goal: opts.goal,
       history: opts.history ?? [],
     },

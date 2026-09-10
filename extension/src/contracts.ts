@@ -112,6 +112,14 @@ export interface SanitizedNode {
   children?: SanitizedNode[];
 }
 
+/** A detection the client examined and chose not to redact. Never carries a value. */
+export interface Acknowledgement {
+  id: ElementId;
+  kind: PiiKind;
+  /** Human-readable, straight from `reconcile()`. Shown in the Privacy Ledger. */
+  reason: string;
+}
+
 export interface SanitizedPayload {
   /** Never the raw URL — host kept for context, path and query stripped. */
   origin: string;
@@ -123,6 +131,16 @@ export interface SanitizedPayload {
   screenshot?: string;
   /** Tokens only. The token -> value vault NEVER appears in this object. */
   placeholders: Placeholder[];
+  /**
+   * Matches the client detected and DELIBERATELY kept, with the reason.
+   *
+   * Without this the server cannot tell "the client never looked" from "the client
+   * looked and concluded this is an order number". Its own tripwire has no DOM context,
+   * so it would re-flag every legitimate decoy and refuse valid requests.
+   *
+   * Carries ids and kinds only — never the values.
+   */
+  acknowledged: Acknowledgement[];
   /** What the user asked for. */
   goal: string;
   /** Prior actions this session, so the server has continuity without extra state. */
