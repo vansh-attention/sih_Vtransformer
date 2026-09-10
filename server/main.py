@@ -23,6 +23,7 @@ WHAT THIS SERVER MUST NEVER DO
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -31,6 +32,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 import httpx
 
@@ -124,6 +126,33 @@ class ActRequest(BaseModel):
     allow_leaky_payload: bool = False
 
 
+# ---------------------------------------------------------------------------
+# Fault injection — for the failure drills only
+# ---------------------------------------------------------------------------
+
+# Set via AGENT_FAULT. Deliberately env-driven rather than a request parameter, so a
+# hostile page cannot ask the server to misbehave, and so it is impossible to leave
+# switched on by accident in a demo.
+FAULT = os.environ.get("AGENT_FAULT", "")
+
+
+async def _inject_fault() -> Any:
+    """Simulate the ways this server actually fails in the field."""
+    if FAULT == "500":
+        raise HTTPException(status_code=500, detail={"error": "injected server fault"})
+    if FAULT == "hang":
+        # Longer than any sane client timeout: proves the client gives up rather than
+        # waiting forever with a frozen UI.
+        await asyncio.sleep(600)
+    if FAULT == "garbage":
+        # A 200 carrying non-JSON. This is what a captive portal or misrouted proxy
+        # looks like, and it is far more confusing than an honest 500.
+        return PlainTextResponse("<html>200 OK but not JSON</html>", status_code=200)
+    if FAULT == "empty":
+        return {"actions": []}
+    return None
+
+
 @app.get("/health")
 async def health() -> dict[str, Any]:
     """Reports whether the backend is reachable AND the model is actually present."""
@@ -133,6 +162,7 @@ async def health() -> dict[str, Any]:
         names = [m["name"] for m in tags.get("models", [])]
         return {
             "ok": MODEL in names,
+            "fault": FAULT or None,
             "model": MODEL,
             "modelPresent": MODEL in names,
             "available": names,
@@ -143,7 +173,11 @@ async def health() -> dict[str, Any]:
 
 
 @app.post("/act")
-async def act(req: ActRequest) -> dict[str, Any]:
+async def act(req: ActRequest) -> Any:
+    injected = await _inject_fault()
+    if injected is not None:
+        return injected
+
     payload = req.payload
 
     leaks = detect_inbound_leak(payload)

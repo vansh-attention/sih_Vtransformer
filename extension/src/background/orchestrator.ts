@@ -20,7 +20,22 @@ export interface LoopOptions {
   serverUrl: string;
   /** Hard cap. Without it a confused model loops until the user closes the tab. */
   maxTurns?: number;
+  /** Give up on the model rather than hang forever. A stalled demo looks like a crash. */
+  timeoutMs?: number;
   onProgress?: (event: ProgressEvent) => void;
+}
+
+/** Why the loop stopped. Always reported — a run that ends silently is a bug report. */
+export type StopReason =
+  | 'goal-complete' | 'max-turns' | 'nothing-executable'
+  | 'server-unreachable' | 'server-error' | 'server-timeout'
+  | 'page-unavailable' | 'unstable-viewport';
+
+export interface LoopResult {
+  records: TurnRecord[];
+  stopReason: StopReason;
+  /** Human-readable, shown to the user. Never a raw stack trace. */
+  detail?: string;
 }
 
 export interface ProgressEvent {
@@ -194,9 +209,68 @@ async function annotateWithVision(
   }
 }
 
-export async function runAgentLoop(opts: LoopOptions): Promise<TurnRecord[]> {
+/**
+ * Ask the model, with a timeout and typed failures.
+ *
+ * Everything here is a normal operating condition rather than an exception: the server
+ * may be down, the model may be cold and slow, a proxy may return HTML. A demo that
+ * throws a stack trace at a judge because Ollama was not started has failed at the one
+ * moment it needed to explain itself.
+ */
+async function askModel(
+  serverUrl: string, body: string, timeoutMs: number,
+): Promise<{ ok: true; reply: Record<string, unknown>; ms: number }
+         | { ok: false; reason: StopReason; detail: string; ms: number }> {
+  const started = performance.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(`${serverUrl}/act`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body,
+      signal: controller.signal,
+    });
+    const ms = Math.round(performance.now() - started);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      let detail = `server returned ${res.status}`;
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed?.detail?.error) detail = `${detail}: ${parsed.detail.error}`;
+      } catch { /* not JSON — a proxy or error page; the status is enough */ }
+      return { ok: false, reason: 'server-error', detail, ms };
+    }
+
+    const text = await res.text();
+    try {
+      return { ok: true, reply: JSON.parse(text), ms };
+    } catch {
+      // A 200 carrying non-JSON usually means something sits between us and the model.
+      return { ok: false, reason: 'server-error', ms,
+               detail: 'server returned a 200 that is not JSON; is something proxying the port?' };
+    }
+  } catch (e) {
+    const ms = Math.round(performance.now() - started);
+    if (e instanceof Error && e.name === 'AbortError') {
+      return { ok: false, reason: 'server-timeout', ms,
+               detail: `no response in ${Math.round(timeoutMs / 1000)}s — is the model still loading? `
+                     + 'A cold model takes ~17s on first use; pre-warm it.' };
+    }
+    return { ok: false, reason: 'server-unreachable', ms,
+             detail: `cannot reach ${serverUrl} — start it with: `
+                   + 'cd server && .venv/bin/uvicorn main:app --port 8975' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
   const { tabId, windowId, goal, serverUrl } = opts;
   const maxTurns = opts.maxTurns ?? 5;
+  const timeoutMs = opts.timeoutMs ?? 60_000;
   const progress = opts.onProgress ?? (() => {});
   const history: AgentAction[] = [];
   const records: TurnRecord[] = [];
@@ -207,13 +281,24 @@ export async function runAgentLoop(opts: LoopOptions): Promise<TurnRecord[]> {
     // Re-injected every turn. A submit or a link click replaces the document and takes
     // the previous content script - and its vault - with it. Re-injecting is both the
     // fix and the correct security behaviour: the new page gets a new, empty vault.
-    await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/content.js'] });
+    let obs;
+    try {
+      await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/content.js'] });
+      progress({ turn, phase: 'observing' });
+      obs = await chrome.tabs.sendMessage(tabId, {
+        target: 'content', type: 'observe', goal, history,
+      });
+    } catch (e) {
+      // The tab was closed, navigated to a browser-internal page, or is otherwise not
+      // scriptable. Not an exception — just the end of this run.
+      return { records, stopReason: 'page-unavailable',
+               detail: 'cannot read this page. Browser-internal pages (chrome://, about:) '
+                     + 'and the extension gallery are off-limits to extensions.' };
+    }
 
-    progress({ turn, phase: 'observing' });
-    const obs = await chrome.tabs.sendMessage(tabId, {
-      target: 'content', type: 'observe', goal, history,
-    });
-    if (!obs?.ok) throw new Error('observation failed');
+    if (!obs?.ok) {
+      return { records, stopReason: 'page-unavailable', detail: 'the page could not be observed' };
+    }
     if (!obs.stable) {
       // Geometry is stale; retry rather than act on boxes that have moved.
       progress({ turn, phase: 'observing', detail: 'viewport moved during extraction; retrying' });
@@ -239,21 +324,14 @@ export async function runAgentLoop(opts: LoopOptions): Promise<TurnRecord[]> {
     const transmitted = JSON.stringify({ payload });
 
     progress({ turn, phase: 'reasoning' });
-    const netStart = performance.now();
-    const res = await fetch(`${serverUrl}/act`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: transmitted,
-    });
-    const networkMs = Math.round(performance.now() - netStart);
-
-    if (!res.ok) {
-      const detail = await res.json().catch(() => ({}));
-      progress({ turn, phase: 'error', detail });
-      throw new Error(`server ${res.status}: ${JSON.stringify(detail)}`);
+    const asked = await askModel(serverUrl, transmitted, timeoutMs);
+    if (!asked.ok) {
+      progress({ turn, phase: 'error', detail: asked.detail });
+      return { records, stopReason: asked.reason, detail: asked.detail };
     }
-    const reply = await res.json();
-    const actions: AgentAction[] = reply.actions ?? [];
+    const networkMs = asked.ms;
+    const reply = asked.reply;
+    const actions: AgentAction[] = (reply.actions as AgentAction[]) ?? [];
 
     progress({ turn, phase: 'validating' });
     const report = validateActions(actions, payload);
@@ -310,7 +388,7 @@ export async function runAgentLoop(opts: LoopOptions): Promise<TurnRecord[]> {
 
     if (report.allowed.some((a) => a.kind === 'done')) {
       progress({ turn, phase: 'done' });
-      break;
+      return { records, stopReason: 'goal-complete' };
     }
     if (navigated) {
       // Let the new document load before the next observe.
@@ -321,11 +399,17 @@ export async function runAgentLoop(opts: LoopOptions): Promise<TurnRecord[]> {
     // refusals, so stop rather than spin.
     if (report.allowed.length === 0) {
       progress({ turn, phase: 'error', detail: report.denied });
-      break;
+      return {
+        records, stopReason: 'nothing-executable',
+        detail: report.denied.length
+          ? `every proposed action was refused: ${report.denied.map((d) => d.reason).join('; ')}`
+          : 'the model proposed no actions',
+      };
     }
 
     await new Promise((r) => setTimeout(r, 600));   // let the page settle
   }
 
-  return records;
+  return { records, stopReason: 'max-turns',
+           detail: `stopped after ${maxTurns} turns without reaching the goal` };
 }

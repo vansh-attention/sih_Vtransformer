@@ -392,7 +392,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         return { error: 'cannot run on a browser-internal page; open a normal site first' };
       }
 
-      const records = await runAgentLoop({
+      const result = await runAgentLoop({
         tabId: tab.id,
         windowId: tab.windowId!,
         goal: msg.goal,
@@ -408,7 +408,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       // Masks were captured at observe time inside the content script - the only place
       // real values ever exist. Reading them from the turn record also survives the
       // agent navigating the page, which asking the tab afterwards does not.
-      return { records, previews: records[0]?.previews ?? [] };
+      return {
+        records: result.records,
+        stopReason: result.stopReason,
+        detail: result.detail,
+        previews: result.records[0]?.previews ?? [],
+      };
     })()
       .then(sendResponse)
       .catch((e) => sendResponse({ error: e instanceof Error ? e.message : String(e) }));
@@ -441,7 +446,7 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
   await new Promise((r) => setTimeout(r, 500));
 
   const phases: string[] = [];
-  const records = await runAgentLoop({
+  const result = await runAgentLoop({
     tabId,
     windowId: tab.windowId!,
     goal: 'Submit the payment form',
@@ -449,10 +454,12 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
     maxTurns: 2,
     onProgress: (e) => phases.push(`${e.turn}:${e.phase}`),
   });
+  const records = result.records;
 
   // Previews come from the turn records, captured at observe time. Asking the page now
   // would fail: the agent may well have navigated it.
-  return { records, phases, previews: records[0]?.previews ?? [] };
+  return { records, phases, previews: records[0]?.previews ?? [],
+           stopReason: result.stopReason, detail: result.detail };
 }
 
 /**

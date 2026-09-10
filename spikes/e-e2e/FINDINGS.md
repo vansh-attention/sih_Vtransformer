@@ -138,3 +138,55 @@ the stage before optimising the stage.**
 2. **Both spike harnesses share `onInstalled`,** so adding Spike E silently stopped
    Spikes C and D from running at all. The background now dispatches on which collector
    port is actually listening.
+
+---
+
+# Failure drills — 10 Sep 2026
+
+`./bench/failure-drills.sh` · 8/8 pass
+
+Every one of these will happen, and several will happen on demo day: the server not
+started, a cold model taking 17 s, a stale process on the port. The question is not
+whether the system fails but whether it **explains itself** when it does. A stack trace
+in front of a judge is a worse failure than the outage that caused it.
+
+The loop no longer throws. It returns a typed `stopReason` — `server-unreachable`,
+`server-timeout`, `server-error`, `page-unavailable`, `nothing-executable`,
+`max-turns`, `goal-complete` — and the panel renders it in words the user can act on.
+`server-unreachable` prints the exact command to start the server.
+
+Faults are injected by env var (`AGENT_FAULT`), never by request parameter, so a hostile
+page cannot ask the server to misbehave and it cannot be left switched on by accident.
+
+## The huge-page drill found two real performance bugs
+
+A 120,008-node page (20,000-row table). Extraction was **4.8 seconds**. Two guesses at
+the cause were wrong — jsdom's `getComputedStyle` (123 ms/1500) and per-call regex
+compilation both turned out to be innocent. Isolating each DOM operation found it:
+
+```
+Array.from(el.children) traversal      8644ms
+firstElementChild traversal               4ms      <- 2000x
+document.querySelector x1500          54169ms      <- latent O(n^2)
+element.labels x500 (jsdom)            5089ms      <- 10ms per call
+```
+
+**1. `Array.from(el.children)` on every node.** `children` is a live HTMLCollection and
+snapshotting it allocates per node. Replaced with `firstElementChild`/`nextElementSibling`.
+
+**2. A document-wide `querySelector` per element with an id**, to find its `<label for>`.
+Quadratic, and *latent* — it only fires on pages whose elements have ids, i.e. most real
+pages, and none of the tidy fixtures. The obvious fix, `element.labels`, is a fast native
+accessor in browsers but a full document scan in jsdom: **a design that is only fast on
+some hosts is not a design.** Now a `Map<id, labelText>` built once per extraction.
+
+Result: **4783 ms → 1494 ms**, and the node budget now binds exactly.
+
+The budget deliberately overshoots by up to the nesting depth: ancestors holding kept
+children must survive the cut, or the tree collapses to nothing the instant the budget
+is reached — which is exactly what the first attempt at this did.
+
+## Lesson, again
+
+Three wrong guesses on the vision stage, two more here. Isolating each operation took
+less time than any single guess. **Measure the operation, not the stage.**

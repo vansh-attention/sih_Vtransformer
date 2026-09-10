@@ -67,7 +67,27 @@ $('run').addEventListener('click', async () => {
     } else {
       const previews = new Map<string, Preview>(
         (res.previews ?? []).map((p: Preview) => [p.token, p]));
-      $('phase').textContent = `${res.records.length} turn(s) complete`;
+
+      // Always say why the run ended. A run that stops with no explanation is
+      // indistinguishable from a crash, and that is exactly the wrong impression to
+      // give while someone is watching.
+      const GOOD = new Set(['goal-complete']);
+      const label: Record<string, string> = {
+        'goal-complete': 'goal complete',
+        'max-turns': 'stopped at the turn limit',
+        'nothing-executable': 'stopped — every proposed action was refused',
+        'server-unreachable': 'the reasoning server is not running',
+        'server-error': 'the reasoning server returned an error',
+        'server-timeout': 'the model did not respond in time',
+        'page-unavailable': 'this page cannot be read',
+        'unstable-viewport': 'the page kept moving while being read',
+      };
+      const reason = res.stopReason as string;
+      const cls = GOOD.has(reason) ? 'allow' : 'deny';
+      $('phase').innerHTML =
+        `<span class="${cls}">${esc(label[reason] ?? reason)}</span>`
+        + ` &middot; ${res.records.length} turn(s)`
+        + (res.detail ? `<div class="t">${esc(res.detail)}</div>` : '');
       $('ledger').innerHTML = res.records.map((r: any) => renderTurn(r, previews)).join('')
         + `<details><summary>Raw bytes transmitted — inspect it yourself</summary>
              <pre>${esc(JSON.stringify(res.lastPayload, null, 2))}</pre></details>`;
