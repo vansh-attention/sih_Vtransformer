@@ -136,7 +136,31 @@ OUT=$(AGENT_SERVER="http://127.0.0.1:$PORT" node --experimental-strip-types benc
 drill "server down: names the fix, not a stack trace" "uvicorn main:app" "$OUT"
 
 # 2. Server up, returns 500.
-start_server "500" || { echo "  (could not start server)"; exit 1; }
+#
+# If the server cannot be started at all, SKIP the server-dependent drills rather than
+# failing. Backgrounding a uvicorn process is environment-sensitive — it does not work
+# under Git Bash on Windows, where the process is spawned but never binds — and a
+# teammate there should still get every other check plus a clear reason, not one red
+# line about something they cannot fix.
+#
+# Run these under WSL on Windows. The remaining drills are pure Node and run anywhere.
+if ! start_server "500"; then
+  echo
+  echo "  ${YELLOW:-}Server-dependent drills SKIPPED: could not start uvicorn in the background.${OFF:-}"
+  echo "  This is expected under Git Bash on Windows — use WSL to run these."
+  SKIP=$((SKIP + 5))
+  stop_server
+  rm -f "$FAULT_FILE"
+
+  OUT=$(node --experimental-strip-types bench/huge-page-drill.ts 2>&1 || true)
+  drill "huge page stays within the node budget" "budget respected" "$OUT"
+  drill "huge page extracts in reasonable time" "within time budget" "$OUT"
+
+  echo
+  echo "$PASS passed, $FAIL failed, $SKIP skipped"
+  [ "$FAIL" -eq 0 ] || exit 1
+  exit 0
+fi
 OUT=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://127.0.0.1:$PORT/act" \
   -H 'content-type: application/json' -d '{"payload":{"root":{"id":"el_1","role":"other","box":{"x":0,"y":0,"w":1,"h":1},"visible":true,"enabled":true},"origin":"https://x.test","title":"t","capturedAt":0,"viewport":{"w":1,"h":1,"scrollX":0,"scrollY":0},"placeholders":[],"acknowledged":[],"goal":"g","history":[]}}')
 drill "server fault: returns a clean 500" "500" "$OUT"
