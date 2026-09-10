@@ -130,25 +130,44 @@ class ActRequest(BaseModel):
 # Fault injection — for the failure drills only
 # ---------------------------------------------------------------------------
 
-# Set via AGENT_FAULT. Deliberately env-driven rather than a request parameter, so a
-# hostile page cannot ask the server to misbehave, and so it is impossible to leave
-# switched on by accident in a demo.
-FAULT = os.environ.get("AGENT_FAULT", "")
+# Fault injection is read from a FILE, per request, not from the environment.
+#
+# The env-var form worked locally and silently failed to propagate on every CI runner:
+# the server came up healthy while the harness believed it had injected a fault. Two
+# attempts to fix the propagation (bare assignments, then `env`) both looked correct and
+# neither worked, so the mechanism itself was the problem.
+#
+# A file is unambiguous, inspectable, and settable only by something with filesystem
+# access — so a hostile page still cannot reach it, which was the point of avoiding a
+# request parameter.
+FAULT_FILE = os.environ.get("AGENT_FAULT_FILE", "")
+
+
+def current_fault() -> str:
+    if os.environ.get("AGENT_FAULT"):
+        return os.environ["AGENT_FAULT"]
+    if FAULT_FILE and os.path.exists(FAULT_FILE):
+        try:
+            return open(FAULT_FILE).read().strip()
+        except OSError:
+            return ""
+    return ""
 
 
 async def _inject_fault() -> Any:
     """Simulate the ways this server actually fails in the field."""
-    if FAULT == "500":
+    fault = current_fault()
+    if fault == "500":
         raise HTTPException(status_code=500, detail={"error": "injected server fault"})
-    if FAULT == "hang":
+    if fault == "hang":
         # Longer than any sane client timeout: proves the client gives up rather than
         # waiting forever with a frozen UI.
         await asyncio.sleep(600)
-    if FAULT == "garbage":
+    if fault == "garbage":
         # A 200 carrying non-JSON. This is what a captive portal or misrouted proxy
         # looks like, and it is far more confusing than an honest 500.
         return PlainTextResponse("<html>200 OK but not JSON</html>", status_code=200)
-    if FAULT == "empty":
+    if fault == "empty":
         return {"actions": []}
     return None
 
@@ -185,7 +204,7 @@ async def health() -> dict[str, Any]:
         names = [m["name"] for m in tags.get("models", [])]
         return {
             "ok": MODEL in names,
-            "fault": FAULT or None,
+            "fault": current_fault() or None,
             "keepAlive": os.environ.get("AGENT_KEEP_ALIVE", "30m"),
             "model": MODEL,
             "modelPresent": MODEL in names,

@@ -17,17 +17,19 @@ PORT=8979
 PASS=0; FAIL=0
 
 SERVER_PID=""
+FAULT_FILE="${TMPDIR:-/tmp}/sih-drill-fault"
+rm -f "$FAULT_FILE"
 
 start_server() {   # $1 = fault mode ("" for healthy)
   stop_server
   # `exec` so $! is UVICORN's pid, not a wrapper subshell's. Killing the subshell left
   # the server running on Windows, so the next drill talked to the PREVIOUS fault mode
   # and got an answer meant for a different test.
-  # `env` rather than bare VAR=value assignments before `exec`. The assignment form is
-  # subtle enough that it silently did not reach uvicorn on the CI runners while working
-  # locally — and a fault-injection harness that quietly injects no fault is worse than
-  # no harness.
-  ( cd server && exec env AGENT_MODEL=qwen2.5vl:7b AGENT_FAULT="$1" \
+  # The fault goes in a FILE the server reads per request. Two attempts at passing it
+  # through the environment looked correct and silently failed on CI.
+  if [ -n "$1" ]; then printf '%s' "$1" > "$FAULT_FILE"; else rm -f "$FAULT_FILE"; fi
+
+  ( cd server && exec env AGENT_MODEL=qwen2.5vl:7b AGENT_FAULT_FILE="$FAULT_FILE" \
       "$UVICORN" main:app --port $PORT --log-level error >/tmp/drill-server.log 2>&1 ) &
   SERVER_PID=$!
   disown "$SERVER_PID" 2>/dev/null || true
@@ -64,6 +66,8 @@ stop_server() {
   if [ -n "$SERVER_PID" ]; then
     kill "$SERVER_PID" 2>/dev/null || true
     SERVER_PID=""
+FAULT_FILE="${TMPDIR:-/tmp}/sih-drill-fault"
+rm -f "$FAULT_FILE"
   fi
   if command -v pkill >/dev/null 2>&1; then
     pkill -f "main:app --port $PORT" 2>/dev/null || true
@@ -139,6 +143,7 @@ else
 fi
 
 stop_server
+rm -f "$FAULT_FILE"
 
 # 7. A page far larger than the node budget.
 OUT=$(node --experimental-strip-types bench/huge-page-drill.ts 2>&1 || true)
