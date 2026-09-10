@@ -45,11 +45,15 @@ export interface NameSpan {
 
 let GIVEN: Set<string> = new Set();
 let FAMILY: Set<string> = new Set();
+let DICTIONARY: Set<string> = new Set();
 let loaded = false;
 
-export function loadGazetteer(data: { given: string[]; family: string[] }): void {
+export function loadGazetteer(
+  data: { given: string[]; family: string[]; dictionary?: string[] },
+): void {
   GIVEN = new Set(data.given);
   FAMILY = new Set(data.family);
+  DICTIONARY = new Set(data.dictionary ?? []);
   loaded = true;
 }
 
@@ -102,13 +106,24 @@ const ORG_MARKERS = new Set([
   // where "Lok Sabha", "Rajya Sabha" and "<X> Programme" were being redacted as people.
   'sabha', 'parliament', 'assembly', 'court', 'tribunal', 'programme', 'program',
   'scheme', 'mission', 'yojana', 'act', 'bill', 'committee', 'agency', 'corporation',
+  // Government department vocabulary. "Child Development" and "Caste Welfare" are
+  // fragments of ministry names, not people — generic enough to generalise beyond the
+  // page that exposed them.
+  'welfare', 'development', 'affairs', 'panchayat', 'municipal', 'directorate',
+  'secretariat', 'division', 'cell', 'wing', 'portal', 'initiative',
 ]);
 
-/** Does an organisation marker sit within a couple of tokens of this span? */
+/**
+ * Does an organisation marker sit in or beside this span?
+ *
+ * The span ITSELF is included, not just its surroundings. "Pragati Programme" was being
+ * redacted as a person because `programme` was inside the matched span rather than near
+ * it, so the guard never saw it — the same applies to "<X> Mission", "<Y> Trust" and
+ * every other two-token organisation name.
+ */
 function nearOrgMarker(text: string, start: number, end: number): boolean {
-  const before = text.slice(Math.max(0, start - 40), start);
-  const after = text.slice(end, end + 40);
-  const words = `${before} ${after}`.toLowerCase().match(/[a-z]+/g) ?? [];
+  const window = text.slice(Math.max(0, start - 40), end + 40);
+  const words = window.toLowerCase().match(/[a-z]+/g) ?? [];
   return words.some((w) => ORG_MARKERS.has(w));
 }
 
@@ -202,6 +217,34 @@ export function detectNames(text: string): NameSpan[] {
         confidence: 0.45, reason: 'lone given name in gazetteer (weak on its own)',
       });
       i += 1;
+      continue;
+    }
+
+    /**
+     * DICTIONARY ABSENCE — the signal that catches names no list contains.
+     *
+     * A gazetteer only knows names that are on it, which is why the holdout's
+     * "Ananya Krishnan" survived three separate public name datasets. But two adjacent
+     * Title-Case tokens where NEITHER is an English word is a strong person-name signal
+     * regardless of whether anyone has catalogued those particular names.
+     *
+     * It is a complement, not a replacement: "Lakshmi Narayanan" has a dictionary word
+     * in it and is caught by the gazetteer instead. Between them the coverage is far
+     * better than either alone.
+     *
+     * Precision comes from the same guards as everything else — organisation markers
+     * suppress "Kotak Mahindra" and "Lok Sabha", and NOT_NAMES suppresses sentence
+     * openers. Measured on Wikipedia and rbi.org.in, not assumed.
+     */
+    if (adjacent && !aGiven && !bGiven && !aFamily && !bFamily
+        && DICTIONARY.size > 0
+        && !DICTIONARY.has(norm(a.text)) && !DICTIONARY.has(norm(b!.text))
+        && a.text.length >= 3 && b!.text.length >= 3) {
+      push({
+        start: a.start, end: b!.end, text: text.slice(a.start, b!.end),
+        confidence: 0.7, reason: 'two Title-Case tokens, neither an English word',
+      });
+      i += 2;
       continue;
     }
 

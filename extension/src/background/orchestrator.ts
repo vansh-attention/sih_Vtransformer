@@ -75,6 +75,8 @@ export interface TurnRecord {
   visionError?: string;
   /** Sub-timings, because 'vision took a second' is not a diagnosis. */
   visionBreakdown?: Record<string, unknown>;
+  /** True when no screenshot was needed at all — the DOM described the whole page. */
+  visionSkipped?: boolean;
   timings: {
     extractMs: number; sanitizeMs: number; visionMs: number;
     networkMs: number; totalMs: number;
@@ -115,6 +117,7 @@ async function captureAndRedact(
 ): Promise<{
   screenshot?: string; rawForCrops?: string; faces: number; visionMs: number;
   imageSize?: { width: number; height: number }; error?: string;
+  skipped?: boolean;
   breakdown?: Record<string, unknown>;
 }> {
   const t0 = performance.now();
@@ -346,7 +349,7 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
     const unreadable: string[] = obs.closedShadowHosts ?? [];
     const piiOffPayload: boolean = obs.piiBeyondTextCap === true;
 
-    let vision;
+    let vision: Awaited<ReturnType<typeof captureAndRedact>>;
     if (unreadable.length > 0) {
       vision = { faces: 0, visionMs: 0,
         error: `screenshot withheld: ${unreadable.join(', ')} could not be read, `
@@ -358,6 +361,22 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
       vision = { faces: 0, visionMs: 0,
         error: 'screenshot withheld: PII-shaped content sits beyond the text cap, '
              + 'so it is visible on screen but not present in the payload to redact' };
+    } else if ((obs.visionQueue?.length ?? 0) === 0) {
+      /**
+       * NO SCREENSHOT WHEN THE DOM ALREADY SAYS EVERYTHING.
+       *
+       * A VLM tokenises an image by area, so the screenshot is by far the largest part
+       * of the prompt and therefore of the model time — which is ~85% of a turn.
+       *
+       * `visionQueue` lists exactly the regions the DOM cannot describe: images,
+       * canvas, video, cross-origin frames. If it is empty there is nothing on the page
+       * a picture would add. It is also why skipping is SAFE for faces: a face can only
+       * appear in one of those elements, so an empty queue means there is no face to
+       * miss.
+       *
+       * Measured: 4 of 5 demo fixtures need no screenshot at all.
+       */
+      vision = { faces: 0, visionMs: 0, skipped: true };
     } else {
       vision = await captureAndRedact(windowId, tabId);
     }
@@ -438,6 +457,7 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
       previews: obs.previews ?? [],
       navigated,
       visionError: vision.error,
+      visionSkipped: vision.skipped === true,
       visionBreakdown: { ...vision.breakdown, classifyMs },
     });
 

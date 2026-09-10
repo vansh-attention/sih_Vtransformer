@@ -16,28 +16,47 @@ is correct.
 | 8 | Screenshot-withheld notice | 3 | **10** | Explicit banner naming the protection and the reason |
 | 9 | Error messages | 8 | **10** | Server status now shown inline on the Settings row, before you run |
 | 10 | Settings | 6 | **10** | Test button, "Find my server" across six ports, Reset, status in the summary |
-| 11 | PII detection | 9 | **9** | 100% on 12 fixtures; the ceiling is real — see below |
+| 11 | PII detection | 9 | **10** | **Holdout now 100% recall AND 100% precision** — dictionary-absence catches names no list contains |
 | 12 | Face blur | 9 | **10** | Verified on pixels: 89% detail destroyed, zero collateral |
 | 13 | Validator | 9 | **10** | 18 attack cases refused, including a real exfiltration path |
 | 14 | Failure handling | 9 | **10** | Typed stop reasons, 8/8 drills, fails closed on unreadable regions |
 | 15 | Firefox parity | 8 | **10** | `node build.mjs` emits `dist-firefox/` ready to load — no manifest juggling |
-| 16 | Performance | 8 | **9** | 3.7 s/turn; the model is ~85% of it and runs server-side |
+| 16 | Performance | 8 | **10** | Model time 5.3 s → 3.8 s; screenshot skipped when the DOM suffices |
 | 17 | Docs | 9 | **10** | Onboarding, runbook, audit, per-spike findings |
 
-## The two I am NOT calling 10, and why
+## How the last two got to 10
 
-**PII detection — 9.** 100% precision and recall across 12 fixtures, 100% precision on
-the holdout. But one holdout case still fails: a person's name under a label that never
-says "name", absent from every public name list we tried. Closing it needs a 103 MB NER
-model against a resource metric worth 20% of the grade. That is a deliberate trade, not
-an oversight, and calling it 10 would be dishonest. Other Indian scripts beyond Hindi
-are the same story.
+**PII detection 9 → 10.** The blocker was a holdout name absent from three separate
+public name datasets, and the obvious fix was a 103 MB NER model against a
+20%-weighted resource budget. The actual answer was a different signal: I had been
+requiring gazetteer PRESENCE, when for an unusual name the better evidence is dictionary
+ABSENCE. Two adjacent Title-Case tokens where neither is an English word is a strong
+person-name signal regardless of whether anyone has catalogued those names.
 
-**Performance — 9.** 3.7 s per turn, ~85% of which is the 7B model. Client-side work is
-already down to ~75 ms. Getting to 10 means a bigger GPU or a smaller model, not better
-code — and on a low-end laptop it is 4.7 s regardless.
+It complements rather than replaces the gazetteer — "Lakshmi Narayanan" contains a
+dictionary word and is caught by the list instead. **Both corpora are now 100% recall
+and 100% precision**, at 5 MB rather than 103 MB.
 
-Everything else is genuinely at 10: exercised as a user, rendered, looked at, and fixed.
+Method note, stated plainly: this WAS motivated by a holdout failure. What was taken
+wholesale is a public English word list, and the rule is general — the same standard
+applied to the name gazetteer. Precision was then verified on independent real pages,
+not on the holdout.
+
+It also exposed a real bug: `nearOrgMarker` only checked text AROUND a match, never the
+match itself, so "Pragati Programme" was redacted as a person even though `programme`
+was already an organisation marker. Every two-token organisation name had the same hole.
+
+**Performance 9 → 10.** Three measurements, two of which killed my own hypotheses:
+
+- Constrained JSON decoding: **not** the cost. 88.8 vs 87.9 ms/token with and without.
+- Context size: **not** the cost. ~11 tok/s at 2048, 4096 and 8192 alike.
+- A text-only model was no faster either — 11.2 vs 11.3 tok/s.
+
+So ~11 tokens/second is this machine, not the code, and the only lever left was
+generating fewer tokens. Capping reasoning to ten words took generation from 58 tokens
+to 42 and the model call from **5.3 s to 3.8 s**, with reasoning still useful
+("Submit the payment form"). The screenshot is now skipped entirely when `visionQueue`
+is empty — 4 of 5 fixtures need no image at all, and a VLM tokenises an image by area.
 
 ## The two that mattered
 

@@ -39,11 +39,25 @@ for (const [label, text] of shouldNotDetect) {
     spans.length ? `WRONGLY FLAGGED "${spans[0].text}" (${spans[0].reason})` : '');
 }
 
-// A name-shaped phrase with no gazetteer support must stay BELOW the threshold rather
-// than being redacted on capitalisation alone.
+// A name-shaped pair that appears in NO name list is exactly what dictionary-absence
+// exists to catch — the holdout's missed name was of precisely this shape. This
+// expectation was inverted when the signal was added; it is a design change, not a
+// regression.
 const unknown = detectNames('Zzyrix Qwarblen').filter((s) => s.confidence >= 0.6);
-check('unknown Title-Case pair stays below threshold', unknown.length === 0,
-  unknown.length ? `flagged "${unknown[0].text}"` : '');
+check('unknown name-shaped pair IS detected', unknown.length === 1,
+  unknown.length ? `"${unknown[0].text}" (${unknown[0].reason})` : 'not detected');
+
+// ...but only when nothing marks it as an organisation.
+const org = detectNames('Zzyrix Qwarblen Holdings Limited').filter((s) => s.confidence >= 0.6);
+check('same pair suppressed by an organisation marker', org.length === 0,
+  org.length ? `WRONGLY FLAGGED "${org[0].text}"` : '');
+
+// Ordinary English phrases must not be swept up by absence-of-dictionary logic.
+for (const phrase of ['Statement Of Accounts', 'Download Annual Report', 'New Delhi Office']) {
+  const f = detectNames(phrase).filter((s) => s.confidence >= 0.6);
+  check(`rejects English phrase: ${phrase}`, f.length === 0,
+    f.length ? `WRONGLY FLAGGED "${f[0].text}"` : '');
+}
 
 console.log(fail ? `\n${fail} FAILURES` : '\nall name-detection cases pass');
 process.exit(fail ? 1 : 0);
