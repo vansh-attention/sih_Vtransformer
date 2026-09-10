@@ -15,8 +15,9 @@ import type {
   Acknowledgement, AgentAction, ElementId, ElementNode, PageStructure, PiiKind,
   Placeholder, SanitizedNode, SanitizedPayload,
 } from '../contracts.ts';
-import { classifyField, reconcile, type FieldSignals } from '../pii/dom.ts';
+import { classifyField, reconcile, REDACT_THRESHOLD, type FieldSignals } from '../pii/dom.ts';
 import { scanText } from '../pii/patterns.ts';
+import { detectNames, gazetteerLoaded } from '../pii/names.ts';
 import { applyRedactions, Vault } from './vault.ts';
 
 export type SignalsLookup = (id: ElementId) => FieldSignals | undefined;
@@ -78,6 +79,23 @@ function redactValue(
       confidence: resolved.confidence,
       verified: resolved.verified,
     });
+  }
+
+  // LAYER 3: person names, which have no pattern and may have no labelling cue.
+  // Runs only where layers 1 and 2 found nothing, so it never overrides a checksum-
+  // verified match and never fires inside a commercial-context field.
+  if (spans.length === 0 && hint?.kind !== 'NON_PII' && gazetteerLoaded()) {
+    for (const n of detectNames(text)) {
+      if (n.confidence < REDACT_THRESHOLD) {
+        kept?.push({ kind: 'NAME', reason: `name-shaped but low confidence: ${n.reason}` });
+        continue;
+      }
+      spans.push({ start: n.start, end: n.end, kind: 'NAME' });
+      placeholders.push({
+        token: '', kind: 'NAME', source: 'model',
+        confidence: n.confidence, verified: false,
+      });
+    }
   }
 
   // The field is labelled sensitive but nothing in the value parsed. Trust the label

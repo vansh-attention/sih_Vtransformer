@@ -20,6 +20,11 @@ import { JSDOM } from 'jsdom';
 import { extractPage, signalsFor, resolveElement } from '../extension/src/content/extractor.ts';
 import { sanitize } from '../extension/src/redact/sanitize.ts';
 import { Vault } from '../extension/src/redact/vault.ts';
+import { loadGazetteer } from '../extension/src/pii/names.ts';
+
+// PII layer 3 needs its gazetteer; without it names are silently not detected.
+loadGazetteer(JSON.parse(readFileSync(
+  new URL('../extension/models/name-gazetteer.json', import.meta.url), 'utf8')));
 
 // --- fixture setup ---------------------------------------------------------
 

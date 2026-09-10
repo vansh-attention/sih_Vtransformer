@@ -24,7 +24,17 @@ import { JSDOM } from 'jsdom';
 import { extractPage, signalsFor, resolveElement } from '../extension/src/content/extractor.ts';
 import { sanitize } from '../extension/src/redact/sanitize.ts';
 import { Vault } from '../extension/src/redact/vault.ts';
+import { loadGazetteer } from '../extension/src/pii/names.ts';
 import type { SanitizedNode } from '../extension/src/contracts.ts';
+
+// PII layer 3 needs its gazetteer; without it names are silently not detected.
+// `--no-layer3` measures the counterfactual, which is the only way to state what
+// layer 3 actually buys and what it costs.
+const NO_LAYER3 = process.argv.includes('--no-layer3');
+if (!NO_LAYER3) {
+  loadGazetteer(JSON.parse(readFileSync(
+    new URL('../extension/models/name-gazetteer.json', import.meta.url), 'utf8')));
+}
 
 const HOLDOUT = process.argv.includes('--holdout');
 const DIR = HOLDOUT ? 'holdout' : 'pages';
@@ -194,7 +204,7 @@ if (truths.length === 0) {
   process.exit(1);
 }
 
-console.log(`=== ${HOLDOUT ? 'HOLDOUT' : 'TUNED'} corpus — ${truths.length} pages ===\n`);
+console.log(`=== ${HOLDOUT ? 'HOLDOUT' : 'TUNED'} corpus — ${truths.length} pages${NO_LAYER3 ? ' — PII LAYER 3 DISABLED' : ''} ===\n`);
 
 const scores: PageScore[] = [];
 for (const tf of truths) {

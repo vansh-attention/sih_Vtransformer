@@ -17,6 +17,23 @@ node --experimental-strip-types bench/agent-loop.ts "goal"  # end-to-end with th
 | redaction precision | 20% | 100.0% | **100.0%** |
 | vault leaks | — | **0** | **0** |
 
+### What PII layer 3 (names) actually buys
+
+Measured, not assumed — `--no-layer3` runs the counterfactual:
+
+| | recall | precision | F1 |
+|---|---|---|---|
+| tuned, layer 3 **off** | 88.9% | 100.0% | 94.1% |
+| tuned, layer 3 **on** | **100.0%** | **100.0%** | **100.0%** |
+| holdout, either way | 91.7% | 100.0% | 95.7% |
+
+Layer 3 costs **1 MB** and closes an 11-point recall gap on names in prose. It changes
+nothing on the holdout, for the reason below.
+
+`bench/pages/casenote.html` exists specifically to make this measurable: every other
+fixture gives its names a labelling cue, so layers 1–2 catch them and layer 3's
+contribution never shows in the numbers.
+
 The holdout number is the honest prediction for the finale's unseen sites. Quote that
 one, not the tuned one.
 
@@ -54,19 +71,30 @@ Fix: evidence about a value must come from somewhere OTHER than the value.
 `signalsFor` now uses `borrowedName` (aria-label, `<label for>`, placeholder) and never
 the element's own text. Holdout redaction precision: **22.2% → 100%**.
 
-## The one open failure — deliberately not fixed
+## The one open failure — and why layer 3 did not close it
 
 ```
 support-ticket: raiser: MISSED NAME (leak)
 ```
 
-`<dt>Raised by</dt><dd>Ananya Krishnan</dd>` — a person's name under a label that never
-says "name".
+A person's name under a `<dt>` that never says "name". Layer 3 was built for exactly
+this case and **still misses it** — measured, not assumed:
 
-This is a **real limitation, not a bug**. Layer 1 needs a naming cue and layer 2 needs a
-pattern; a bare human name with neither requires **PII layer 3 (NER)**, which is
-scheduled and not yet built.
+```
+given  "Ananya"   in gazetteer: false
+family "Krishnan" in gazetteer: false
+```
 
-It stays red on purpose. Adding "raised by" to the keyword list would fix the number
-and fix nothing real — that is tuning against the holdout, and the finale will not use
-our keywords. **This failure is the measured case for building layer 3.**
+That name is in **none of the three public datasets** tried, including a 30,000-entry
+Indian-names corpus. Adding more lists did not fix it and should not be expected to.
+
+**This is the ceiling of the gazetteer approach, and it is structural.** A list only
+knows names on the list. Only a model that generalises to unseen names closes the tail,
+and that model is `bert-base-NER` at **103 MB** int8 — over 4x the extension's entire
+footprint, for one class, against a resource metric worth 20%.
+
+The failure stays red. It is the honest measurement of a real trade-off, and it is worth
+more to a judge than a keyword hack that turns the number green while fixing nothing.
+
+**Recommendation:** ship as-is. If arbitrary-name recall becomes a requirement, the
+103 MB model is the answer and the trade should be made deliberately, not by accident.

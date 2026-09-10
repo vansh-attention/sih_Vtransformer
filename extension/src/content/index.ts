@@ -19,10 +19,20 @@ import { extractPage, signalsFor, resolveElement } from './extractor.ts';
 import { executeAction } from './execute.ts';
 import { sanitize } from '../redact/sanitize.ts';
 import { Vault } from '../redact/vault.ts';
+import { loadGazetteer } from '../pii/names.ts';
 import type { AgentAction, PiiKind } from '../contracts.ts';
 
 /** One vault per page session. Cleared on navigation by the script being re-injected. */
 const vault = new Vault();
+
+// Layer 3's gazetteer, loaded once per injection. Fetched rather than bundled so the
+// 1MB of names is not parsed into the JS bundle on every page load.
+// `detectNames` is a no-op until this resolves, so an early observe degrades to layers
+// 1 and 2 rather than blocking.
+void fetch(chrome.runtime.getURL('models/name-gazetteer.json'))
+  .then((r) => r.json())
+  .then(loadGazetteer)
+  .catch((e) => console.warn('[content] name gazetteer unavailable', e));
 
 export interface CaptureContext {
   devicePixelRatio: number;

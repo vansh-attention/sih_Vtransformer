@@ -1,0 +1,12 @@
+{
+  "name": "casenote",
+  "note": "Exercises PII layer 3: names in prose with NO labelling cue.",
+  "elements": [
+    { "id": "note1",  "kind": "NAME", "redact": true,  "why": "person name in prose, no cue" },
+    { "id": "note2",  "kind": "NAME", "redact": true,  "why": "person name in prose, no cue" },
+    { "id": "decoy1", "kind": null,   "redact": false, "why": "company name, Title-Case" },
+    { "id": "decoy2", "kind": null,   "redact": false, "why": "Title-Case document name" },
+    { "id": "decoy3", "kind": null,   "redact": false, "why": "place name, Title-Case" }
+  ],
+  "mustFind": ["Acknowledge"]
+}

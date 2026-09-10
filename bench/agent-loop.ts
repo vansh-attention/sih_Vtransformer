@@ -17,8 +17,13 @@ import { JSDOM } from 'jsdom';
 import { extractPage, signalsFor, resolveElement } from '../extension/src/content/extractor.ts';
 import { sanitize } from '../extension/src/redact/sanitize.ts';
 import { Vault } from '../extension/src/redact/vault.ts';
+import { loadGazetteer } from '../extension/src/pii/names.ts';
 import { validateActions } from '../extension/src/agent/validate.ts';
 import type { AgentAction } from '../extension/src/contracts.ts';
+
+// PII layer 3 needs its gazetteer; without it names are silently not detected.
+loadGazetteer(JSON.parse(readFileSync(
+  new URL('../extension/models/name-gazetteer.json', import.meta.url), 'utf8')));
 
 const SERVER = process.env.AGENT_SERVER ?? 'http://127.0.0.1:8975';
 const GOAL = process.argv[2] ?? 'Submit the payment form';
