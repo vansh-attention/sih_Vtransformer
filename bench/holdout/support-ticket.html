@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- HOLDOUT 01. Written before any scoring run and never tuned against.
+     Markup idioms deliberately UNLIKE bench/pages: definition lists, ARIA-only
+     labelling, placeholder-only inputs, PII in running prose. -->
+<html lang="en"><head><meta charset="utf-8"><title>Support ticket #88213</title></head>
+<body>
+  <h1>Support ticket</h1>
+  <dl>
+    <dt>Ticket ID</dt><dd id="ticket">88213004921</dd>
+    <dt>Raised by</dt><dd id="raiser">Ananya Krishnan</dd>
+    <dt>Registered mobile</dt><dd id="mob">9845012345</dd>
+    <dt>Account e-mail</dt><dd id="mail">ananya.k@mailhost.in</dd>
+    <dt>Refund amount</dt><dd id="amt">245670000000</dd>
+  </dl>
+
+  <p id="body">Caller states her card ending 4539 5787 6362 1486 was charged twice.
+     She quoted PAN BXTPK9021L for the invoice and asked us to write to
+     ananya.k@mailhost.in. Reference SR-88213004921 was shared.</p>
+
+  <form>
+    <input id="alt" aria-label="Alternate contact number" placeholder="10-digit mobile" value="9611122233">
+    <input id="upi" aria-label="UPI handle for refund" value="ananya@okaxis">
+    <input id="note" placeholder="Internal note" value="verified via OTP">
+    <input id="passcode" type="password" value="tempPass99">
+    <button id="resolve">Mark resolved</button>
+  </form>
+</body></html>

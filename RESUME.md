@@ -156,7 +156,41 @@ destruction. Replaced with luma variance.
 **A red test is not automatically a real defect.** It is worth one round of asking
 whether the assertion encodes the property you actually care about.
 
+## Phase 3 — THE SCORECARD
+
+`bench/README.md` has the detail. One command prints all five rubric numbers.
+
+| metric | weight | tuned | **holdout** |
+|---|---|---|---|
+| visual context accuracy | 25% | 100.0% | **100.0%** |
+| PII detection recall | 20% | 100.0% | **91.7%** |
+| PII detection precision | 20% | 100.0% | **100.0%** |
+| redaction precision | 20% | 100.0% | **100.0%** |
+| vault leaks | — | **0** | **0** |
+
+**Quote the holdout column, never the tuned one.** It is the honest prediction for the
+finale's unseen sites.
+
+### The holdout paid for itself immediately
+Redaction precision was **22.2%** on first contact, against 100% tuned. An element's own
+text was being used as evidence about what that text is: `<td>Applicant Name</td>`
+contains "name", so the cell was classified as a NAME and replaced with a token. Every
+label cell in a table-layout form was being destroyed — the exact markup Indian
+government forms use, and the exact markup the tuned set happened not to contain.
+
+Evidence about a value must come from somewhere OTHER than the value. `signalsFor` now
+uses only borrowed names. **22.2% → 100%.**
+
+### One failure left RED on purpose
+`<dt>Raised by</dt><dd>Ananya Krishnan</dd>` — a name under a label that never says
+"name". Layer 1 needs a cue, layer 2 needs a pattern, and a bare human name has neither.
+That needs **PII layer 3 (NER)**.
+
+Adding "raised by" to the keyword list would fix the number and fix nothing real. That
+is tuning against the holdout, and the finale will not use our keywords.
+
 ### Still to build
+- **PII layer 3 (NER)** — the measured gap above
 - MobileViT on crops for non-face visual context (images, canvas, iframes)
 - Wire the loop into the extension itself (it currently runs through the bench harness)
 - Screenshot into the payload (the prompt already supports it; nothing sends one yet)

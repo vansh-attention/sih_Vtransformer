@@ -97,8 +97,32 @@ function directText(el: Element): string {
   return out.replace(/\s+/g, ' ').trim();
 }
 
-/** Accessible name, in the order the ARIA spec resolves it. */
+/**
+ * Accessible name, plus WHERE it came from.
+ *
+ * The provenance matters. When the name is borrowed — aria-label, a <label for>, a
+ * placeholder — it is CONTEXT describing something else, and must survive redaction so
+ * the server can still read the page. When it is the element's own text, it IS the
+ * content, and redacting it wholesale is correct.
+ *
+ * Conflating the two let "<span>Priya Raghunathan</span>" reach the server unredacted:
+ * it was treated as a label, and labels only ever get demotion-only hints so that
+ * "Aadhaar Number" is not blanked into a token. Found by bench/score.ts.
+ */
+function accessibleNameDetailed(el: Element): { text: string; fromOwnText: boolean } | undefined {
+  const borrowed = borrowedName(el);
+  if (borrowed) return { text: borrowed, fromOwnText: false };
+  const own = directText(el);
+  // Cap: a name is a label, not a paragraph.
+  return own ? { text: own.slice(0, 200), fromOwnText: true } : undefined;
+}
+
 function accessibleName(el: Element): string | undefined {
+  return accessibleNameDetailed(el)?.text;
+}
+
+/** Names borrowed from elsewhere, in the order the ARIA spec resolves them. */
+function borrowedName(el: Element): string | undefined {
   const aria = el.getAttribute('aria-label')?.trim();
   if (aria) return aria;
 
@@ -130,9 +154,7 @@ function accessibleName(el: Element): string | undefined {
   const title = el.getAttribute('title')?.trim();
   if (title) return title;
 
-  const own = directText(el);
-  // Cap: a name is a label, not a paragraph. Long text arrives as a 'text' node.
-  return own ? own.slice(0, 200) : undefined;
+  return undefined;
 }
 
 function boxOf(el: Element): BoundingBox {
@@ -245,10 +267,39 @@ function contextLabelFor(el: Element): string | undefined {
     const text = directText(firstCell);
     if (text) return text.slice(0, 100);
   }
+
+  // Finally, the nearest LABELLED ANCESTOR. A <div role="group" aria-label="Legal
+  // name"> wrapping a bare <span>Priya Raghunathan</span> is standard SPA markup, and
+  // the value has no label, no sibling and no row to describe it. Without this the
+  // name reaches the server unredacted, because nothing ever looks upward.
+  //
+  // Bounded to 4 levels: beyond that the ancestor describes a whole section rather
+  // than this field, and borrowing its label would mislabel everything inside it.
+  let parent = el.parentElement;
+  for (let depth = 0; parent && depth < 4; depth++, parent = parent.parentElement) {
+    const aria = parent.getAttribute('aria-label')?.trim();
+    if (aria) return aria.slice(0, 100);
+  }
+
   return undefined;
 }
 
-/** Everything `pii/dom.ts#classifyField` needs, pulled once. */
+/**
+ * Everything `pii/dom.ts#classifyField` needs, pulled once.
+ *
+ * NOTE the use of `borrowedName`, not `accessibleName`. An element's OWN text must
+ * never be evidence about what that text is — that reasoning is circular, and it is
+ * destructive:
+ *
+ *   <td>Applicant Name</td>
+ *
+ * Its own text contains "name", so the classifier concludes the field holds a NAME, so
+ * the sanitizer replaces the whole thing with <PII_NAME_1> — and the form's column
+ * heading is gone. Every label cell in a table-layout form was being redacted this way,
+ * which took redaction precision on the holdout to 22%.
+ *
+ * Evidence about a value has to come from somewhere OTHER than the value.
+ */
 export function signalsFor(el: Element): FieldSignals {
   return {
     contextLabel: contextLabelFor(el),
@@ -257,7 +308,7 @@ export function signalsFor(el: Element): FieldSignals {
     autocomplete: el.getAttribute('autocomplete') ?? undefined,
     name: el.getAttribute('name') ?? undefined,
     id: el.id || undefined,
-    label: accessibleName(el),
+    label: borrowedName(el),
     placeholder: el.getAttribute('placeholder') ?? undefined,
     ariaLabel: el.getAttribute('aria-label') ?? undefined,
   };
@@ -336,8 +387,26 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
     const id = idFor(el);
     if (needsVision(el)) visionQueue.push(id);
 
-    const value = (el as HTMLInputElement).value;
-    const label = accessibleName(el);
+    const named = accessibleNameDetailed(el);
+    const domValue = (el as HTMLInputElement).value;
+
+    // Own text is CONTENT and belongs in `value`; a borrowed name is CONTEXT and
+    // belongs in `label`. Keeping them apart is what lets the sanitizer redact one
+    // aggressively while protecting the other.
+    //
+    // EXCEPT for controls and headings, where the element's own text IS its accessible
+    // name: a button reading "Save changes" is labelled "Save changes", not valued at
+    // it. Filing that under `value` made the button vanish from the tree as far as the
+    // server was concerned. Found by bench/score.ts.
+    const ownTextIsLabel = role === 'button' || role === 'link' || role === 'heading';
+    const ownText = named?.fromOwnText ? named.text : undefined;
+
+    const value = typeof domValue === 'string' && domValue.length > 0
+      ? domValue
+      : (ownTextIsLabel ? undefined : ownText);
+    const label = named && !named.fromOwnText
+      ? named.text
+      : (ownTextIsLabel ? ownText : undefined);
     // Only when it differs: for a labelled <input> the preceding sibling IS the label,
     // and repeating it on every node would inflate the payload for nothing.
     const context = contextLabelFor(el);
@@ -345,9 +414,9 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
       id,
       role,
       label,
-      contextLabel: context && context !== label ? context : undefined,
+      contextLabel: context && context !== label && context !== value ? context : undefined,
       // Raw value. The sanitizer decides what happens to it, never the extractor.
-      value: typeof value === 'string' && value.length > 0 ? value : undefined,
+      value,
       box,
       visible,
       enabled: isEnabled(el),

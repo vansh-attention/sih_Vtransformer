@@ -1,0 +1,16 @@
+{
+  "name": "gov-form",
+  "note": "Holdout. Do not tune against this file.",
+  "elements": [
+    { "id": "nm",   "kind": "NAME",    "redact": true },
+    { "id": "aad",  "kind": "AADHAAR", "redact": true },
+    { "id": "app",  "kind": null,      "redact": false, "why": "application number, 12 digits, Verhoeff-valid by chance" },
+    { "id": "ifsc", "kind": "IFSC",    "redact": true },
+    { "id": "inc",  "kind": null,      "redact": false, "why": "income figure" },
+    { "id": "em",   "kind": "EMAIL",   "redact": true },
+    { "id": "pw",   "kind": "PASSWORD","redact": true }
+  ],
+  "mustFind": ["Submit application"],
+  "mustNotFind": ["ABCPE1234F"],
+  "visionQueueMin": 1
+}

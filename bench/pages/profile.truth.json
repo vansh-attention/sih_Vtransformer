@@ -1,0 +1,14 @@
+{
+  "name": "profile",
+  "elements": [
+    { "id": "lname",  "kind": "NAME",    "redact": true },
+    { "id": "ppan",   "kind": "PAN",     "redact": true },
+    { "id": "cref",   "kind": null,      "redact": false, "why": "customer reference, 12 digits" },
+    { "id": "cmail",  "kind": "EMAIL",   "redact": true },
+    { "id": "cphone", "kind": "PHONE",   "redact": true },
+    { "id": "cpin",   "kind": "ADDRESS", "redact": true },
+    { "id": "bio",    "kind": "EMAIL",   "redact": true, "why": "email and phone in prose" }
+  ],
+  "mustFind": ["Save changes"],
+  "visionQueueMin": 1
+}

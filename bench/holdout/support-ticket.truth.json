@@ -1,0 +1,17 @@
+{
+  "name": "support-ticket",
+  "note": "Holdout. Do not tune against this file.",
+  "elements": [
+    { "id": "ticket",   "kind": null,      "redact": false, "why": "ticket id, 11 digits, not Aadhaar" },
+    { "id": "raiser",   "kind": "NAME",    "redact": true },
+    { "id": "mob",      "kind": "PHONE",   "redact": true },
+    { "id": "mail",     "kind": "EMAIL",   "redact": true },
+    { "id": "amt",      "kind": null,      "redact": false, "why": "refund amount in paise; 12 digits" },
+    { "id": "body",     "kind": "CARD",    "redact": true,  "why": "card + PAN + email in prose" },
+    { "id": "alt",      "kind": "PHONE",   "redact": true },
+    { "id": "upi",      "kind": "UPI",     "redact": true },
+    { "id": "note",     "kind": null,      "redact": false },
+    { "id": "passcode", "kind": "PASSWORD","redact": true }
+  ],
+  "mustFind": ["Mark resolved", "Alternate contact number", "UPI handle for refund"]
+}

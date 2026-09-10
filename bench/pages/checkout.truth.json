@@ -1,0 +1,21 @@
+{
+  "name": "checkout",
+  "elements": [
+    { "id": "order_no",    "kind": null,      "redact": false, "why": "order number, not Verhoeff-valid" },
+    { "id": "order_total", "kind": null,      "redact": false, "why": "DECOY: 12 digits AND Verhoeff-valid" },
+    { "id": "awb",         "kind": null,      "redact": false, "why": "DECOY: 16 digits AND Luhn-valid" },
+    { "id": "fullname",    "kind": "NAME",    "redact": true },
+    { "id": "email",       "kind": "EMAIL",   "redact": true },
+    { "id": "mobile",      "kind": "PHONE",   "redact": true },
+    { "id": "pan",         "kind": "PAN",     "redact": true },
+    { "id": "aadhaar",     "kind": "AADHAAR", "redact": true },
+    { "id": "gstin",       "kind": "GSTIN",   "redact": true },
+    { "id": "card",        "kind": "CARD",    "redact": true },
+    { "id": "pwd",         "kind": "PASSWORD","redact": true },
+    { "id": "addr",        "kind": "ADDRESS", "redact": true },
+    { "id": "footnote",    "kind": "EMAIL",   "redact": true, "why": "email in prose; toll-free number must survive" }
+  ],
+  "mustFind": ["Pay now", "Aadhaar Number", "Card Number"],
+  "mustNotFind": ["XYZPE9999K"],
+  "visionQueueMin": 2
+}

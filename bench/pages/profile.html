@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- Fixture 03: ARIA-heavy single-page-app idiom. No <label> elements, values in
+     contenteditable and spans, PII split across running text. -->
+<html lang="en"><head><meta charset="utf-8"><title>Account settings</title></head>
+<body>
+  <h1>Account settings</h1>
+  <section aria-label="Identity">
+    <div role="group" aria-label="Legal name"><span id="lname">Priya Raghunathan</span></div>
+    <div role="group" aria-label="Permanent Account Number"><span id="ppan">AKTPR4417C</span></div>
+    <div role="group" aria-label="Customer reference"><span id="cref">881204410099</span></div>
+  </section>
+  <section aria-label="Contact">
+    <input id="cmail" autocomplete="email" value="priya.r@example.org">
+    <input id="cphone" autocomplete="tel" value="+91 90040 11223">
+    <input id="cpin" autocomplete="postal-code" value="560103">
+  </section>
+  <p id="bio">Reach me at priya.r@example.org or on 9004011223. Membership 881204410099.</p>
+  <canvas id="sig" width="200" height="60"></canvas>
+  <button id="save">Save changes</button>
+</body></html>
