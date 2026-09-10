@@ -20,14 +20,31 @@ SERVER_PID=""
 
 start_server() {   # $1 = fault mode ("" for healthy)
   stop_server
+  # `exec` so $! is UVICORN's pid, not a wrapper subshell's. Killing the subshell left
+  # the server running on Windows, so the next drill talked to the PREVIOUS fault mode
+  # and got an answer meant for a different test.
   ( cd server && AGENT_MODEL=qwen2.5vl:7b AGENT_FAULT="$1" \
-      "$UVICORN" main:app --port $PORT --log-level error >/tmp/drill-server.log 2>&1 ) &
+      exec "$UVICORN" main:app --port $PORT --log-level error >/tmp/drill-server.log 2>&1 ) &
   SERVER_PID=$!
   disown "$SERVER_PID" 2>/dev/null || true
-  for _ in $(seq 1 25); do
-    curl -s "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && return 0
+
+  # Wait for the server AND confirm it is the one we asked for. Without this the drills
+  # race a dying predecessor and assert against its answers.
+  # Probe returns "up:<fault>" so that "server is up with no fault" is DISTINGUISHABLE
+  # from "server is unreachable".
+  #
+  # Comparing the bare fault string made those two identical — an unreachable server
+  # produced an empty string, which matched the healthy expectation, and start_server
+  # returned success while nothing was listening.
+  local want="up:$1"
+  for _ in $(seq 1 30); do
+    local got
+    got=$(curl -s --max-time 2 "http://127.0.0.1:$PORT/health" 2>/dev/null \
+      | python3 -c "import json,sys;d=json.load(sys.stdin);print('up:'+(d.get('fault') or ''))" 2>/dev/null || echo "down")
+    [ "$got" = "$want" ] && return 0
     sleep 1
   done
+  echo "  (server did not come up in fault mode '${1:-none}'; last seen '${got:-none}')"
   return 1
 }
 
@@ -42,11 +59,15 @@ stop_server() {
     kill "$SERVER_PID" 2>/dev/null || true
     SERVER_PID=""
   fi
-  # Belt and braces for a server left over from an aborted earlier run.
   if command -v pkill >/dev/null 2>&1; then
     pkill -f "main:app --port $PORT" 2>/dev/null || true
   fi
-  sleep 1
+  # Wait for the PORT to actually free up rather than guessing with a fixed sleep.
+  # A fixed sleep is what let a dying server answer the next drill.
+  for _ in $(seq 1 15); do
+    curl -s --max-time 1 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 || return 0
+    sleep 1
+  done
 }
 
 # Some drills need a live model behind the server. A machine without Ollama should
