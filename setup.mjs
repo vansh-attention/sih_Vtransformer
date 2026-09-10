@@ -111,6 +111,17 @@ const NAME_SOURCES = {
     'https://raw.githubusercontent.com/laxmimerit/indian-names-dataset/master/Indian-Female-Names.csv',
     'https://raw.githubusercontent.com/laxmimerit/indian-names-dataset/master/Indian-Male-Names.csv',
   ],
+  /**
+   * An English dictionary, for detecting names by ABSENCE.
+   *
+   * A gazetteer only knows names on a list, which is why the holdout's name survived
+   * three separate name datasets. Two adjacent Title-Case tokens where NEITHER is an
+   * English word is a strong person-name signal regardless. Without this the signal is
+   * silently inert — the first fresh-clone run of setup.sh failed exactly that way.
+   */
+  dictionary: [
+    'https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt',
+  ],
 };
 
 async function buildGazetteer() {
@@ -150,11 +161,25 @@ async function buildGazetteer() {
     }
   }
 
+  const dictionary = new Set();
+  for (const url of NAME_SOURCES.dictionary) {
+    const text = await (await fetch(url)).text();
+    for (const line of text.split('\n')) {
+      const w = clean(line);
+      // 3-14 chars: shorter collides with initials, longer is obscure and never a
+      // Title-Case token on a form.
+      if (w.length >= 3 && w.length <= 14 && /^[a-z]+$/.test(w)) dictionary.add(w);
+    }
+  }
+
   mkdirSync('extension/models', { recursive: true });
-  writeFileSync(GAZETTEER, JSON.stringify(
-    { given: [...given].sort(), family: [...family].sort() }, null, 0));
+  writeFileSync(GAZETTEER, JSON.stringify({
+    given: [...given].sort(),
+    family: [...family].sort(),
+    dictionary: [...dictionary].sort(),
+  }, null, 0));
   console.log(`${given.size} given, ${family.size} family, `
-    + `${(statSync(GAZETTEER).size / 1024).toFixed(0)}KB`);
+    + `${dictionary.size} dictionary, ${(statSync(GAZETTEER).size / 1048576).toFixed(1)}MB`);
 }
 
 console.log('name gazetteer:');
