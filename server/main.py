@@ -221,7 +221,23 @@ async def health() -> dict[str, Any]:
             "backend": OLLAMA_URL,
         }
     except Exception as e:
-        return {"ok": False, "error": str(e), "backend": OLLAMA_URL}
+        # `fault` MUST appear here too.
+        #
+        # This branch runs whenever Ollama is unreachable — which is every CI runner,
+        # and never a developer machine with Ollama running. Omitting `fault` made the
+        # drill harness read "no fault injected" and chase four imaginary bugs in the
+        # injection mechanism, all of which had been working the whole time.
+        #
+        # A diagnostic endpoint that changes shape on the error path is worse than one
+        # that reports nothing, because it produces confident wrong answers.
+        return {
+            "ok": False,
+            "error": str(e),
+            "backend": OLLAMA_URL,
+            "model": MODEL,
+            "fault": current_fault() or None,
+            "keepAlive": os.environ.get("AGENT_KEEP_ALIVE", "30m"),
+        }
 
 
 @app.post("/act")
