@@ -10,14 +10,16 @@
 #   ./bench/failure-drills.sh
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT"
-VENV="$ROOT/server/.venv/bin"
+# Windows venvs use Scripts/, POSIX uses bin/.
+. "$ROOT/scripts/venv-bin.sh"
+UVICORN="$(venv_exe uvicorn "$ROOT/server/.venv")" || { echo "no uvicorn in the virtualenv — run ./setup.sh"; exit 1; }
 PORT=8979
 PASS=0; FAIL=0
 
 start_server() {   # $1 = fault mode ("" for healthy)
   stop_server
   ( cd server && AGENT_MODEL=qwen2.5vl:7b AGENT_FAULT="$1" \
-      "$VENV/uvicorn" main:app --port $PORT --log-level error >/tmp/drill-server.log 2>&1 &
+      "$UVICORN" main:app --port $PORT --log-level error >/tmp/drill-server.log 2>&1 &
     disown ) 2>/dev/null
   for _ in $(seq 1 20); do
     curl -s "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && return 0

@@ -8,6 +8,8 @@
 set -u
 cd "$(dirname "$0")"
 
+. "$(cd "$(dirname "$0")" && pwd)/scripts/venv-bin.sh"
+
 BOLD=$'\033[1m'; GREEN=$'\033[32m'; RED=$'\033[31m'; YELLOW=$'\033[33m'; OFF=$'\033[0m'
 ok()   { echo "  ${GREEN}✓${OFF} $1"; }
 warn() { echo "  ${YELLOW}!${OFF} $1"; }
@@ -71,8 +73,16 @@ if [ -d server/.venv ]; then
 else
   python3 -m venv server/.venv && ok "virtualenv created"
 fi
-./server/.venv/bin/pip install -q -r server/requirements.txt 2>&1 | tail -2
-ok "server dependencies installed"
+# Check the exit status. This used to print success unconditionally, so on Windows -
+# where the executables live in Scripts/, not bin/ - it reported installed
+# dependencies that had never been installed.
+PIP="$(venv_exe pip)" || { bad "no pip in the virtualenv"; exit 1; }
+if "$PIP" install -q -r server/requirements.txt 2>&1 | tail -2; then
+  ok "server dependencies installed"
+else
+  bad "pip install failed"
+  PROBLEMS=$((PROBLEMS+1))
+fi
 
 step "6. The vision model (6GB — the slow part)"
 if command -v ollama >/dev/null 2>&1; then

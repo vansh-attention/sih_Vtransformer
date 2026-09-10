@@ -39,6 +39,7 @@ NODE="node --experimental-strip-types"
 
 # Browser discovery, so this works on macOS, Linux and Git Bash alike.
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/find-browser.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/venv-bin.sh"
 
 # ---------------------------------------------------------------------------
 section "Build"
@@ -70,7 +71,7 @@ run "real websites survive the pipeline"  $NODE bench/realpages-drill.ts
 run "huge page stays in budget"           $NODE bench/huge-page-drill.ts
 
 section "Failure drills"
-if [ -x server/.venv/bin/uvicorn ]; then
+if venv_exe uvicorn >/dev/null 2>&1; then
   run "server faults and edge cases" ./bench/failure-drills.sh
 else
   skip "failure drills" "(no server venv — run ./setup.sh)"
