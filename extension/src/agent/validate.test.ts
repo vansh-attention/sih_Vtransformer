@@ -35,6 +35,9 @@ const cases: Array<[string, AgentAction, boolean]> = [
   ['click a DISABLED button',                A({ kind: 'click', target: 'el_3' }), false],
   ['click an INVISIBLE button',              A({ kind: 'click', target: 'el_7' }), false],
   ['click a HALLUCINATED id',                A({ kind: 'click', target: 'el_999' }), false],
+  ['bracketed id from the prompt format',     A({ kind: 'click', target: '[el_2]' }), true],
+  ['quoted id',                               A({ kind: 'click', target: '\"el_2\"' }), true],
+  ['bracketed HALLUCINATED id still refused', A({ kind: 'click', target: '[el_999]' }), false],
   ['click with no target',                   A({ kind: 'click' }), false],
   ['unknown action kind',                    A({ kind: 'explode' as never, target: 'el_2' }), false],
 

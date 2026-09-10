@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<!--
+  Fixture 06 — a task that CANNOT be done in one action.
+  
+  Every demo so far was a single click. The agent has never been shown completing a
+  genuine multi-step task, which is what a finale evaluator will actually ask for.
+  
+  Submit is disabled until all three fields are filled, so the agent must observe, act,
+  re-observe, and notice the button became enabled. It also carries PII that must stay
+  redacted throughout - the agent has to work WITH tokens across several turns.
+-->
+<html lang="en"><head><meta charset="utf-8"><title>Grievance registration</title>
+<style>body{font:15px system-ui;margin:24px;max-width:560px}
+label{display:block;margin:12px 0 4px;font-weight:600}
+input,select{width:100%;padding:8px;font:inherit}
+button{margin-top:18px;padding:10px 18px;font:inherit}
+#done{margin-top:16px;padding:12px;background:#e6f4ea;color:#1b7a3d;
+      font-weight:600;display:none}</style></head>
+<body>
+  <h1>Register a grievance</h1>
+  <p>Logged in as <span id="who">Vikram Sharma</span> · PAN <span id="pan">ABCPE1234F</span></p>
+
+  <label for="category">Category</label>
+  <select id="category" name="category">
+    <option value="">— select —</option>
+    <option value="billing">Billing</option>
+    <option value="service">Service quality</option>
+    <option value="other">Other</option>
+  </select>
+
+  <label for="refno">Reference number</label>
+  <input id="refno" name="reference_no" placeholder="e.g. GRV-100234">
+
+  <label for="detail">What happened?</label>
+  <input id="detail" name="detail" placeholder="Describe the issue">
+
+  <label for="contact">Contact number</label>
+  <input id="contact" name="contact" autocomplete="tel" value="9845012345">
+
+  <button id="submit" disabled>Submit grievance</button>
+  <div id="done">Grievance submitted.</div>
+
+<script>
+  // Submit stays disabled until all three empty fields are filled, so the task cannot
+  // be completed in a single action.
+  const fields = ['category', 'refno', 'detail'].map((id) => document.getElementById(id));
+  const btn = document.getElementById('submit');
+  function refresh() {
+    btn.disabled = fields.some((f) => !f.value.trim());
+  }
+  fields.forEach((f) => { f.addEventListener('input', refresh); f.addEventListener('change', refresh); });
+  btn.addEventListener('click', () => {
+    document.getElementById('done').style.display = 'block';
+    btn.disabled = true;
+    btn.textContent = 'Submitted';
+  });
+</script>
+</body></html>

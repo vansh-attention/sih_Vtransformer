@@ -53,6 +53,14 @@ export interface ElementNode {
    * otherwise reaches the server as naked digits. Only set when it adds information.
    */
   contextLabel?: string;
+  /**
+   * For <select>: what the user can actually choose.
+   *
+   * Without this the model sees a dropdown with no idea what is in it, so it clicks the
+   * control and moves on — leaving the field unset and any dependent Submit disabled.
+   * Found the first time the agent was asked to complete a real multi-step form.
+   */
+  options?: Array<{ value: string; label: string }>;
   /** What layer 1 thinks this field is FOR. A category, never a value. */
   fieldKind?: PiiKind;
   /** Set when the DOM cannot describe this region and the ViT must look at it. */
@@ -109,6 +117,14 @@ export interface SanitizedNode {
   enabled: boolean;
   required?: boolean;
   focused?: boolean;
+  /**
+   * For <select>: what the user can actually choose.
+   *
+   * Without this the model sees a dropdown with no idea what is in it, so it clicks the
+   * control and moves on — leaving the field unset and any dependent Submit disabled.
+   * Found the first time the agent was asked to complete a real multi-step form.
+   */
+  options?: Array<{ value: string; label: string }>;
   /** What layer 1 thinks this field is FOR. A category, never a value. */
   fieldKind?: PiiKind;
   /** Sanitized the same way `label` is — neighbouring text can carry PII too. */

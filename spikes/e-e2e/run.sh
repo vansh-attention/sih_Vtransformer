@@ -44,6 +44,6 @@ sleep 1
   --no-first-run --no-default-browser-check \
   "about:blank" >/tmp/chrome-e.log 2>&1 & CHR=$!
 
-for i in $(seq 1 60); do [ -f "$OUT" ] && break; sleep 1; done
+for i in $(seq 1 240); do [ -f "$OUT" ] && break; sleep 1; done
 kill $CHR 2>/dev/null; kill $SRV 2>/dev/null; wait 2>/dev/null
 [ -f "$OUT" ] && echo "OK: $OUT" || echo "FAILED: no result after 60s"

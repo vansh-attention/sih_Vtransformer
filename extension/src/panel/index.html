@@ -27,6 +27,14 @@
   .mask{color:#f85149;letter-spacing:1px}.tok{color:#3fb950}
   .t{color:#7d8590;font-size:10px}
   .t b{color:#e6edf3}
+  #settings{margin-top:10px;border:1px solid #30363d;border-radius:6px;
+            background:#161b22}
+  #settings summary{color:#7d8590}
+  #settings label{display:block;padding:0 10px;font-size:10px;color:#7d8590}
+  #settings input{width:calc(100% - 20px);margin:4px 10px 6px;padding:6px;
+                  background:#0d1117;border:1px solid #30363d;border-radius:4px;
+                  color:#e6edf3;font-size:11px}
+  #serverstatus{padding:0 10px 8px}
   .note{margin-top:12px;padding:8px 10px;border-left:3px solid #f0883e;
         background:#161b22;font-size:10px;color:#8b949e}
   pre{margin:6px 0 0;padding:8px;background:#010409;border-radius:4px;
@@ -38,6 +46,12 @@
   <div class="sub">SIH26171 &middot; nothing personal leaves this machine</div>
   <input id="goal" placeholder="What should the agent do?" value="Submit the payment form">
   <button id="run">Run agent on this tab</button>
+  <details id="settings">
+    <summary>Settings</summary>
+    <label for="server">Reasoning server</label>
+    <input id="server" placeholder="http://127.0.0.1:8975">
+    <div class="t" id="serverstatus">not checked</div>
+  </details>
   <div class="phase" id="phase">idle</div>
   <div id="ledger"></div>
   <div class="note"><b>Everything below is checkable.</b> The "withheld" chips are

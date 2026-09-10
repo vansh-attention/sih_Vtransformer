@@ -228,6 +228,19 @@ that touches the network — has never held a real value. "No PII leaves the mac
 property of the architecture, not a claim about one function's correctness. A bug in the
 network layer *cannot* leak a PAN, because that layer has never seen one.
 
+### Multi-step tasks — VERIFIED end to end
+`bench/pages/multistep.html`: Submit is disabled until three fields are filled, so it
+cannot be satisfied by one click. Verified by reading the PAGE afterwards, not by
+trusting the loop:
+
+```
+category = billing · refno = GRV-100234 · detail = "Issue with payment"
+"Grievance submitted." visible · button reads "Submitted"     verified: true
+```
+
+Turn 3 shows the model trying to submit a second time and the validator refusing it —
+the double-submit guard working, and worth pointing at in the demo.
+
 ### Still to build
 - **PII layer 3 (NER)** — the one red holdout test
 - MobileViT on crops for non-face visual context (images, canvas, iframes)

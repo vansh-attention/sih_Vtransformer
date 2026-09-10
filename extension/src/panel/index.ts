@@ -51,6 +51,46 @@ function renderTurn(rec: any, previews: Map<string, Preview>): string {
   </div>`;
 }
 
+const DEFAULT_SERVER = 'http://127.0.0.1:8975';
+
+/**
+ * The server URL is configurable rather than compiled in.
+ *
+ * Teammates run the server on whatever port is free, and at the finale it may not be
+ * on this machine at all. Requiring a source edit to change it is a trap: the person
+ * who hits it is under time pressure and does not know the code.
+ */
+async function loadServer(): Promise<string> {
+  const { serverUrl } = await chrome.storage.local.get('serverUrl');
+  return serverUrl || DEFAULT_SERVER;
+}
+
+async function checkServer(url: string): Promise<void> {
+  const el = $('serverstatus');
+  el.innerHTML = 'checking…';
+  try {
+    const r = await fetch(`${url}/health`).then((x) => x.json());
+    el.innerHTML = r.ok
+      ? `<span class="allow">ready</span> · ${esc(r.model)}`
+      : `<span class="deny">not ready</span> · ${esc(JSON.stringify(r.available ?? r.error))}`;
+  } catch {
+    el.innerHTML = '<span class="deny">unreachable</span> · '
+      + 'cd server &amp;&amp; .venv/bin/uvicorn main:app --port 8975';
+  }
+}
+
+void (async () => {
+  const url = await loadServer();
+  ($('server') as HTMLInputElement).value = url;
+  void checkServer(url);
+})();
+
+$('server').addEventListener('change', async (e) => {
+  const url = (e.target as HTMLInputElement).value.trim().replace(/\/$/, '') || DEFAULT_SERVER;
+  await chrome.storage.local.set({ serverUrl: url });
+  void checkServer(url);
+});
+
 $('run').addEventListener('click', async () => {
   const btn = $('run') as HTMLButtonElement;
   const goal = ($('goal') as HTMLInputElement).value.trim();

@@ -11,7 +11,20 @@ import { runAgentLoop } from './orchestrator.ts';
 import { callVision } from '../vision/bridge.ts';
 
 const OFFSCREEN_PATH = 'src/offscreen/index.html';
-const SERVER_URL = 'http://127.0.0.1:8975';
+const DEFAULT_SERVER_URL = 'http://127.0.0.1:8975';
+
+/** Configurable from the panel; falls back to the local default. */
+async function serverUrl(): Promise<string> {
+  try {
+    const { serverUrl: u } = await chrome.storage.local.get('serverUrl');
+    return u || DEFAULT_SERVER_URL;
+  } catch {
+    return DEFAULT_SERVER_URL;
+  }
+}
+
+// Spikes run without a panel, so they use the default directly.
+const SERVER_URL = DEFAULT_SERVER_URL;
 
 /**
  * Chrome allows exactly one offscreen document per extension, and createDocument()
@@ -396,7 +409,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         tabId: tab.id,
         windowId: tab.windowId!,
         goal: msg.goal,
-        serverUrl: SERVER_URL,
+        serverUrl: await serverUrl(),
         onProgress: (event) => {
           // Best-effort: the panel may be closed, and a rejected sendMessage here
           // would abort the whole run for the sake of a status line.
@@ -431,7 +444,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
  * configuration a judge will ever see.
  */
 async function runSpikeE(): Promise<Record<string, unknown>> {
-  const url = 'http://127.0.0.1:8976/pages/checkout.html';
+  // The multi-step fixture: Submit is disabled until three fields are filled, so this
+  // cannot be satisfied by a single click. A one-action demo proves far less.
+  const url = 'http://127.0.0.1:8976/pages/multistep.html';
   const tab = await chrome.tabs.create({ url, active: true });
   const tabId = tab.id!;
 
@@ -449,17 +464,48 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
   const result = await runAgentLoop({
     tabId,
     windowId: tab.windowId!,
-    goal: 'Submit the payment form',
+    goal: 'Fill in category "Billing", reference number GRV-100234, '
+        + 'a short description, then submit the grievance',
     serverUrl: SERVER_URL,
-    maxTurns: 2,
+    maxTurns: 6,
     onProgress: (e) => phases.push(`${e.turn}:${e.phase}`),
   });
   const records = result.records;
 
+  // VERIFY THE OUTCOME ON THE PAGE, not from the loop's own opinion of itself.
+  //
+  // "every action was allowed" is not the same as "the task got done". The only honest
+  // check is whether the page now shows what a completed submission looks like.
+  let outcome: Record<string, unknown> = { verified: false };
+  try {
+    const [probe] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const done = document.getElementById('done');
+        const btn = document.getElementById('submit') as HTMLButtonElement | null;
+        const fields = ['category', 'refno', 'detail'].map((id) => {
+          const el = document.getElementById(id) as HTMLInputElement | null;
+          return { id, value: el?.value ?? null };
+        });
+        return {
+          successVisible: !!done && getComputedStyle(done).display !== 'none',
+          successText: done?.textContent?.trim() ?? null,
+          submitLabel: btn?.textContent?.trim() ?? null,
+          fields,
+          allFilled: fields.every((f) => !!f.value),
+        };
+      },
+    });
+    const r = probe.result as Record<string, unknown>;
+    outcome = { ...r, verified: r.successVisible === true && r.allFilled === true };
+  } catch (e) {
+    outcome = { verified: false, error: String(e) };
+  }
+
   // Previews come from the turn records, captured at observe time. Asking the page now
   // would fail: the agent may well have navigated it.
   return { records, phases, previews: records[0]?.previews ?? [],
-           stopReason: result.stopReason, detail: result.detail };
+           stopReason: result.stopReason, detail: result.detail, outcome };
 }
 
 /**

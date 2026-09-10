@@ -32,9 +32,22 @@ It does not mean the field is empty, broken, or needs your attention.
 So:
 - A field showing <PII_EMAIL_1> is a correctly completed email field. Leave it alone.
 - An empty field with no token is genuinely empty and may need filling.
-- If you need a redacted value typed somewhere, emit the TOKEN as the value. The
-  client resolves it locally. You will never see what it stands for.
 - Never ask the user to reveal a redacted value. That defeats the entire system.
+
+WHEN TO USE A TOKEN, AND WHEN NOT TO
+This matters and it is easy to get wrong.
+
+Use a TOKEN as the value ONLY when you need to copy a redacted value from one place on
+the page into another — for example moving <PII_PAN_1> into a field labelled "PAN".
+The client resolves it locally; you never see what it stands for.
+
+For anything else, type the LITERAL TEXT. If the user's goal says to enter
+"GRV-100234", the value is "GRV-100234" — not a token. If it says to write a short
+description, write the description.
+
+A token is not a placeholder for "some value goes here". It refers to one specific
+redacted item already on the page. The client rejects a token placed in a field whose
+purpose does not match it, so a token used as a generic filler simply fails.
 
 WHAT YOU RECEIVE
 - The page origin (host only; path and query are stripped)
@@ -51,18 +64,31 @@ WHAT YOU RETURN
 A JSON object with an "actions" array. Every action must carry a "reasoning" string
 that will be shown to the user.
 
-Reference elements ONLY by the exact id given in the tree. Never invent an id, never
-use a CSS selector, never use pixel coordinates — the client rejects all three.
+Reference elements ONLY by the exact id given in the tree, e.g. "el_42" — the bare id,
+with no brackets or quotes around it. Never invent an id, never use a CSS selector,
+never use pixel coordinates: the client rejects all three.
 
 ACTION RULES
+- To set a dropdown, use kind "select" with "value" set to one of the listed choice
+  values. Do NOT "click" a dropdown — that opens it and changes nothing, and any
+  Submit button gated on the field stays disabled.
 - "type" MUST include a "value". A type action without one is rejected by the client.
 - "click" and "type" MUST include a "target" id.
 - Never target a disabled or invisible element; both are rejected.
 - Never type into a field whose role is "password".
 
+RECOGNISING THAT YOU ARE FINISHED
+Check this BEFORE proposing anything else. Signals that the goal is already met:
+- a confirmation message on the page ("Submitted", "Thank you", "Success")
+- the button you were going to press is now disabled and its label has changed
+- the actions already taken this session cover the whole goal
+- the fields the goal asked you to fill already contain those values
+
+If any of those hold, return a single "done" action and stop. Repeating a completed
+action is worse than doing nothing: it can submit a form twice.
+
 Prefer the smallest number of actions that makes real progress. If you cannot see
-enough to act, return a single "wait" or "scroll" action and set needsMoreContext.
-When the goal is achieved, return a single "done" action."""
+enough to act, return a single "wait" or "scroll" action and set needsMoreContext."""
 
 
 def _describe(node: dict[str, Any], depth: int = 0, lines: list[str] | None = None) -> list[str]:
@@ -77,7 +103,9 @@ def _describe(node: dict[str, Any], depth: int = 0, lines: list[str] | None = No
         lines = []
 
     role = node.get("role", "other")
-    parts = [f"[{node['id']}] {role}"]
+    # Bare id, no brackets. Rendering "[el_5]" made the model return "[el_5]" as the
+    # target, which the client then rejected as an unknown element.
+    parts = [f"{node['id']}: {role}"]
 
     if node.get("label"):
         parts.append(f'"{node["label"]}"')
@@ -85,6 +113,12 @@ def _describe(node: dict[str, Any], depth: int = 0, lines: list[str] | None = No
         parts.append(f'(near: "{node["contextLabel"]}")')
     if node.get("value"):
         parts.append(f"= {node['value']}")
+
+    opts = node.get("options")
+    if opts:
+        shown = ", ".join(f'"{o["label"]}"={o["value"]}' for o in opts[:12])
+        more = "" if len(opts) <= 12 else f" (+{len(opts) - 12} more)"
+        parts.append(f"choices: {shown}{more}")
 
     # On-device vision output, for regions the DOM cannot describe. The confidence is
     # rendered too: this is an ImageNet classifier looking at UI, so a 12% guess is

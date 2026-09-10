@@ -238,7 +238,10 @@ function needsVision(el: Element): boolean {
 // Pruning — the node budget lives or dies here
 // ---------------------------------------------------------------------------
 
-const SKIP_TAGS = new Set(['script', 'style', 'noscript', 'meta', 'link', 'head', 'template', 'br']);
+const SKIP_TAGS = new Set(['script', 'style', 'noscript', 'meta', 'link', 'head',
+  'template', 'br',
+  // Options travel on their <select> as `options`, not as nodes of their own.
+  'option', 'optgroup']);
 
 const INTERACTIVE_ROLES = new Set<ElementRole>([
   'button', 'link', 'textbox', 'password', 'checkbox', 'radio', 'select',
@@ -459,6 +462,15 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
     const ownTextIsLabel = role === 'button' || role === 'link' || role === 'heading';
     const ownText = named?.fromOwnText ? named.text : undefined;
 
+    // A <select>'s children are <option>s: not page structure, and useless as tree
+    // nodes, but essential as a list of what can be chosen.
+    const options = el instanceof HTMLSelectElement
+      ? Array.from(el.options)
+          .filter((o) => o.value !== '')
+          .slice(0, 40)
+          .map((o) => ({ value: o.value, label: (o.textContent ?? '').trim().slice(0, 60) }))
+      : undefined;
+
     const value = typeof domValue === 'string' && domValue.length > 0
       ? domValue
       : (ownTextIsLabel ? undefined : ownText);
@@ -479,6 +491,7 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
       // Only computed for elements that can HOLD a value. Running the classifier on
       // every heading and paragraph doubled the per-node cost for a field that only
       // means anything on a control.
+      options,
       fieldKind: INTERACTIVE_ROLES.has(role)
         ? (() => {
             const hint = classifyField(signalsFor(el, context));

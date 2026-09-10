@@ -112,10 +112,16 @@ export function validateAction(
 
   if (!action.target) return deny(`${action.kind} requires a target`);
 
-  const node = nodes.get(action.target);
+  // Strip decoration a small model tends to carry over from the prompt: "[el_5]",
+  // "\"el_5\"", "el_5.". This is NOT a security relaxation — the id must still be one
+  // we minted this turn, and an unknown id is still refused.
+  const targetId = action.target.trim().replace(/^[[("'`]+|[\])"'`.,]+$/g, '');
+  const node = nodes.get(targetId);
   // Ids are minted per extraction. An unknown id is a hallucination or a stale
   // reference to a page that has since changed; either way we must not guess.
   if (!node) return deny(`unknown element id: ${action.target}`);
+  // Normalise the action itself, so the executor resolves the same element we checked.
+  action.target = targetId;
 
   if (!node.visible) return deny(`element ${action.target} is not visible`);
   if (!node.enabled) return deny(`element ${action.target} is disabled`);

@@ -270,6 +270,10 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
       required: node.required,
       focused: node.focused,
       fieldKind: node.fieldKind,
+      options: node.options?.map((o) => ({
+        value: o.value,
+        label: redactLabel(o.label, undefined, vault).text,
+      })),
       contextLabel,
       children: node.children?.map(walk),
     };
