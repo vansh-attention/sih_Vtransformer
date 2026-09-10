@@ -16,6 +16,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    # A hung script should fail fast with a log, not sit for the default six hours.
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
@@ -38,6 +40,7 @@ jobs:
 
       - name: ./test-all.sh — the teammate path
         run: ./test-all.sh
+        timeout-minutes: 15
 
       - name: Individual suites (detail on failure)
         if: failure()

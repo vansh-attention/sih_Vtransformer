@@ -16,22 +16,36 @@ UVICORN="$(venv_exe uvicorn "$ROOT/server/.venv")" || { echo "no uvicorn in the 
 PORT=8979
 PASS=0; FAIL=0
 
+SERVER_PID=""
+
 start_server() {   # $1 = fault mode ("" for healthy)
   stop_server
   ( cd server && AGENT_MODEL=qwen2.5vl:7b AGENT_FAULT="$1" \
-      "$UVICORN" main:app --port $PORT --log-level error >/tmp/drill-server.log 2>&1 &
-    disown ) 2>/dev/null
-  for _ in $(seq 1 20); do
+      "$UVICORN" main:app --port $PORT --log-level error >/tmp/drill-server.log 2>&1 ) &
+  SERVER_PID=$!
+  disown "$SERVER_PID" 2>/dev/null || true
+  for _ in $(seq 1 25); do
     curl -s "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && return 0
     sleep 1
   done
   return 1
 }
+
+# Kill by PID, and never `wait` on it.
+#
+# The previous version used `pkill -f` and a bare `wait`. Git Bash has no pkill, so on
+# Windows the server was never killed and `wait` blocked forever — test-all.sh hung
+# indefinitely with no output. Found on a real Windows runner; invisible on macOS and
+# Linux, where pkill exists and the wait returned immediately.
 stop_server() {
-  # `disown` + redirect: without it bash prints "Terminated: 15" job notices between
-  # drills, which read as failures in output that is meant to be scanned quickly.
-  pkill -f "uvicorn main:app --port $PORT" 2>/dev/null
-  wait 2>/dev/null
+  if [ -n "$SERVER_PID" ]; then
+    kill "$SERVER_PID" 2>/dev/null || true
+    SERVER_PID=""
+  fi
+  # Belt and braces for a server left over from an aborted earlier run.
+  if command -v pkill >/dev/null 2>&1; then
+    pkill -f "main:app --port $PORT" 2>/dev/null || true
+  fi
   sleep 1
 }
 
