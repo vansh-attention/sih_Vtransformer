@@ -15,9 +15,9 @@ pkill -f "ffspike_serve" 2>/dev/null; sleep 1
 
 # Build a Firefox-manifest copy of the extension. Swapping manifest.json in place would
 # leave the tree in a Firefox-only state if this script died halfway.
-BUILD=$(mktemp -d /tmp/ff-ext-build-XXXX)
-cp -R extension/. "$BUILD/"
-cp "$BUILD/manifest.firefox.json" "$BUILD/manifest.json"
+# build.mjs now emits a ready-to-load Firefox tree; use it rather than reassembling one.
+BUILD="$ROOT/dist-firefox"
+[ -d "$BUILD" ] || { echo "dist-firefox missing — run: node build.mjs"; exit 1; }
 
 cat > "$PROFILE/user.js" <<'PREFS'
 user_pref("xpinstall.signatures.required", false);
@@ -69,5 +69,5 @@ node "$ROOT/spikes/f-firefox-ext/install.mjs" "$BUILD" 2>&1 | tee -a /tmp/firefo
 
 for i in $(seq 1 90); do [ -f "$OUT" ] && break; sleep 1; done
 kill $FFPID 2>/dev/null; kill $SRV 2>/dev/null; wait 2>/dev/null
-rm -rf "$PROFILE" "$BUILD"
+rm -rf "$PROFILE"
 [ -f "$OUT" ] && echo "OK: $OUT" || echo "NO RESULT (see /tmp/firefox-ext.log)"

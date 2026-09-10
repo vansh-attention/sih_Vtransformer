@@ -31,6 +31,8 @@ export interface LoopOptions {
    * in a half-acted state.
    */
   shouldStop?: () => boolean;
+  /** Aborts an in-flight model request the moment Stop is pressed. */
+  stopSignal?: AbortSignal;
   onProgress?: (event: ProgressEvent) => void;
 }
 
@@ -79,6 +81,12 @@ export interface TurnRecord {
   };
   /** Byte count of what was actually transmitted, for the ledger. */
   transmittedBytes: number;
+  /**
+   * The exact object sent, so a judge can inspect THIS turn rather than a single blob
+   * at the end of the run. Safe by construction: it is the sanitized payload, which is
+   * the thing the leak test asserts contains no real value.
+   */
+  transmitted: SanitizedPayload;
   nodeCount: number;
 }
 
@@ -227,12 +235,16 @@ async function annotateWithVision(
  * moment it needed to explain itself.
  */
 async function askModel(
-  serverUrl: string, body: string, timeoutMs: number,
+  serverUrl: string, body: string, timeoutMs: number, stopSignal?: AbortSignal,
 ): Promise<{ ok: true; reply: Record<string, unknown>; ms: number }
          | { ok: false; reason: StopReason; detail: string; ms: number }> {
   const started = performance.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // Stop must interrupt the request in flight. Checking only between turns meant
+  // pressing Stop during a 3-second model call did nothing visible for 3 seconds,
+  // which reads as a broken button.
+  stopSignal?.addEventListener('abort', () => controller.abort(), { once: true });
 
   try {
     const res = await fetch(`${serverUrl}/act`, {
@@ -263,6 +275,9 @@ async function askModel(
     }
   } catch (e) {
     const ms = Math.round(performance.now() - started);
+    if (e instanceof Error && e.name === 'AbortError' && stopSignal?.aborted) {
+      return { ok: false, reason: 'stopped-by-user', ms, detail: 'stopped' };
+    }
     if (e instanceof Error && e.name === 'AbortError') {
       return { ok: false, reason: 'server-timeout', ms,
                detail: `no response in ${Math.round(timeoutMs / 1000)}s — is the model still loading? `
@@ -363,7 +378,7 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
     const transmitted = JSON.stringify({ payload });
 
     progress({ turn, phase: 'reasoning' });
-    const asked = await askModel(serverUrl, transmitted, timeoutMs);
+    const asked = await askModel(serverUrl, transmitted, timeoutMs, opts.stopSignal);
     if (!asked.ok) {
       progress({ turn, phase: 'error', detail: asked.detail });
       return { records, stopReason: asked.reason, detail: asked.detail };
@@ -418,6 +433,7 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
         totalMs: Math.round(performance.now() - turnStart),
       },
       transmittedBytes: transmitted.length,
+      transmitted: payload,
       nodeCount: obs.nodeCount,
       previews: obs.previews ?? [],
       navigated,

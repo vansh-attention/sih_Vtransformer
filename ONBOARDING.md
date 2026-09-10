@@ -60,9 +60,8 @@ Then load the extension:
 
 - **Chrome** — `chrome://extensions` → Developer mode → Load unpacked → pick `extension/`
 - **Firefox** — `about:debugging` → This Firefox → Load Temporary Add-on → pick
-  `extension/manifest.firefox.json`
-  ⚠ Firefox needs the **other** manifest. Copy `manifest.firefox.json` over
-  `manifest.json` first, or it won't load.
+  **`dist-firefox/manifest.json`**. `node build.mjs` produces that folder ready to load;
+  no manifest juggling.
 
 Open `http://localhost:8080/checkout.html`, click our toolbar icon, type a goal, hit Run.
 

@@ -73,14 +73,30 @@ ok "server dependencies installed"
 
 step "6. The vision model (6GB — the slow part)"
 if command -v ollama >/dev/null 2>&1; then
+  # `ollama list` shows a model even when a pull was interrupted, so check that it
+  # actually RUNS. A half-pulled model fails at demo time, not at setup time.
   if ollama list 2>/dev/null | grep -q "qwen2.5vl"; then
-    ok "qwen2.5vl:7b already pulled"
+    # `ollama show` reads the manifest and blobs, which is what an interrupted pull
+    # leaves broken. Deliberately not `timeout`: it is not installed on macOS by
+    # default, so relying on it would make this check silently useless there.
+    printf "  verifying the model is complete ... "
+    if ollama show qwen2.5vl:7b >/dev/null 2>&1; then
+      echo "${GREEN}ok${OFF}"
+      ok "qwen2.5vl:7b present and usable"
+    else
+      bad "qwen2.5vl:7b is listed but does not run — the pull may be incomplete"
+      echo "      re-pull it:  ollama rm qwen2.5vl:7b && ollama pull qwen2.5vl:7b"
+    fi
   else
-    warn "not pulled yet. This is a 6GB download; start it now and let it run:"
-    echo "      ollama pull qwen2.5vl:7b"
+    warn "not pulled yet — 6GB. Starting it now; this is the long part."
+    if ollama pull qwen2.5vl:7b; then
+      ok "qwen2.5vl:7b pulled"
+    else
+      bad "pull failed. Re-run: ollama pull qwen2.5vl:7b"
+    fi
   fi
 else
-  warn "skipped — ollama not installed"
+  warn "skipped — ollama not installed (needed to RUN the agent, not to build or test)"
 fi
 
 step "7. Checking it works"
@@ -108,8 +124,14 @@ cat <<'NEXT'
 WHAT TO DO NEXT
   Read ONBOARDING.md — it explains the project and what to pick up.
 
-  Run the tests           ./bench/failure-drills.sh
+  Run everything          ./test-all.sh
   See the scorecard       node --experimental-strip-types bench/score.ts
-  Try the agent           see ONBOARDING.md "Running it for real"
+
+  Load the extension:
+    Chrome    chrome://extensions  -> Developer mode -> Load unpacked -> extension/
+    Firefox   about:debugging -> Load Temporary Add-on -> dist-firefox/manifest.json
+
+  Then start the server and open the side panel:
+    cd server && .venv/bin/uvicorn main:app --port 8975
 
 NEXT

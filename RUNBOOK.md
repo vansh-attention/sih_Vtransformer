@@ -40,8 +40,7 @@ python3 -m http.server 8080 --directory bench/pages
 
 **5. Load the extension.**
 - Chrome: `chrome://extensions` → Developer mode → Load unpacked → `extension/`
-- Firefox: copy `manifest.firefox.json` over `manifest.json` first, then
-  `about:debugging` → Load Temporary Add-on
+- Firefox: `about:debugging` → Load Temporary Add-on → `dist-firefox/manifest.json`
 
 **6. Open the tabs you'll use, in order**, so nothing loads live:
 - `http://localhost:8080/checkout.html`
@@ -142,7 +141,7 @@ model. Ours runs on this laptop with the network off.
 | Panel empty, nothing happens | Extension not rebuilt | `node build.mjs`, then reload the extension. |
 | Agent clicks the wrong thing | Small model, real behaviour | Say so. The validator stopped anything unsafe — that's the point. |
 | Screenshot missing | `captureVisibleTab` throttled | Wait a beat and re-run. The panel reports it rather than hiding it. |
-| Firefox won't load the extension | Wrong manifest | Firefox needs `manifest.firefox.json`. |
+| Firefox won't load the extension | Loaded `extension/` | Firefox needs `dist-firefox/`. |
 
 **Do not** switch to a random live website mid-demo. Anything with a login wall, a cookie
 banner or heavy JS will produce a worse first impression than the fixtures, and you can't

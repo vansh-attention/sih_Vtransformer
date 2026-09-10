@@ -69,4 +69,26 @@ await esbuild.build({
   console.log('manifests aligned (chrome ↔ firefox)');
 }
 
+/**
+ * Emit a ready-to-load Firefox build.
+ *
+ * Firefox needs a DIFFERENT manifest, and the instruction "copy manifest.firefox.json
+ * over manifest.json first" is a trap: forget it and the extension silently refuses to
+ * load, and doing it in place leaves the tree Firefox-only until someone undoes it.
+ * A separate output directory removes the step entirely.
+ */
+{
+  const { cpSync, rmSync, existsSync, copyFileSync } = await import('node:fs');
+  const OUT = 'dist-firefox';
+  rmSync(OUT, { recursive: true, force: true });
+  cpSync('extension', OUT, {
+    recursive: true,
+    filter: (src) => !src.includes('manifest.json'),
+  });
+  copyFileSync('extension/manifest.firefox.json', `${OUT}/manifest.json`);
+  rmSync(`${OUT}/manifest.firefox.json`, { force: true });
+  const hasModels = existsSync(`${OUT}/models/ultraface_rfb320.onnx`);
+  console.log(`built ${OUT}/  (load this one in Firefox${hasModels ? '' : ' — run setup.mjs for models'})`);
+}
+
 console.log('built extension/dist/');
