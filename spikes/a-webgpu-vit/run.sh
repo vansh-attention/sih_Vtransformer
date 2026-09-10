@@ -1,9 +1,13 @@
 #!/bin/bash
 # One-command spike runner: serve, drive headless Chrome, collect result, clean up.
 set -u
+
+# Locate browsers portably; hardcoded paths broke this for everyone but
+# one machine.
+. "$(cd "$(dirname "$0")" && pwd)/../../scripts/find-browser.sh"
 DIR="$(cd "$(dirname "$0")" && pwd)"; cd "$DIR"
 PORT=${PORT:-8971}
-CHROME=${CHROME:-"/Users/harshbajpai/Desktop/Google Chrome.app/Contents/MacOS/Google Chrome"}
+CHROME="$(find_chrome)" || { echo "no Chrome found — run scripts/get-chrome-for-testing.sh"; exit 1; }
 export RESULT_FILE=result-a1.json
 rm -f "$RESULT_FILE"
 # Kill anything left over from a previous aborted run.

@@ -1,126 +1,165 @@
-# sih_Vtransformer
+# Privacy Agent
 
-**SIH 2026 · SIH26171 — On-device Visual Perception for Light-weight Browser Agents**
+**SIH 2026 · Problem Statement SIH26171 — On-device Visual Perception for Light-weight Browser Agents**
 ISRO / Department of Space · Software · Smart Automation
 
-A browser extension where a small vision model runs **on the client**, reads the screen,
-and strips every piece of PII **before any network request is made**. Only sanitized
-context reaches the server-side VLM, which reasons about it and returns a UI action the
-client executes locally.
+A browser agent that reads your screen and acts on it — **without your personal data
+ever leaving your machine.**
 
-The server does the thinking. It never learns your PAN, your account number, or what
-you look like.
+A small model runs inside your browser, reads the page, and replaces every PAN, Aadhaar
+number, card, password and face with a typed tag *before any network request is made*.
+A larger open-weight model reasons over the censored page and returns one instruction —
+"click Submit" — which your browser carries out.
+
+The server does the thinking. It never learns your PAN, your account number, or what you
+look like.
 
 ---
 
-## Start here
-
-**`RESUME.md`** — current state, the rubric, the architectural bet, and the list of
-findings that must not be regressed. Read it before touching anything.
-
-**`PLAN.md`** — the 20-day sprint, milestones and gates.
-
-**`spikes/a-webgpu-vit/FINDINGS.md`** — measured performance data that decided the model
-choice.
-
-## Setup
+## Quick start
 
 ```bash
-npm install
-node setup.mjs     # vendors ONNX Runtime + downloads model weights (~230MB, not in git)
-node build.mjs     # bundles the extension into extension/dist/
+git clone https://github.com/vansh-attention/sih_Vtransformer.git
+cd sih_Vtransformer
+./setup.sh
 ```
 
-Run the test suite:
+About 10 minutes, mostly downloads. It checks your tools, fetches the models, builds the
+extension for both browsers, sets up the Python server, and runs the tests.
 
-```bash
-for f in extension/src/pii/*.test.ts extension/src/content/*.test.ts bench/leak-test.ts; do
-  node --experimental-strip-types "$f"
-done
-```
-
-Render the Privacy Ledger demo artifact:
-
-```bash
-node --experimental-strip-types bench/render-ledger.ts   # -> bench/out/ledger.html
-```
-
-## The scoring rubric — it drives every decision
-
-| Weight | Metric |
-|---|---|
-| 25% | Accuracy of visual context from screen |
-| 20% | Recall + precision of PII detection |
-| 20% | Precision of redaction |
-| 20% | Client-side resource utilization |
-| 15% | End-to-end latency |
-
-**40% is privacy handling. 35% is efficiency. Only 25% is vision quality.** This is an
-on-device engineering contest with a privacy-correctness bar — not a "whose model is
-smartest" contest.
-
-## Two constraints that decide the result
-
-1. **Evaluation sites are revealed only at the finale.** Anything tuned to a specific
-   site is worthless. **No hardcoded selectors, anywhere, ever.**
-2. **Chrome AND Firefox** are both named in the PS. Firefox's WebGPU trails Chrome's, so
-   the WASM fallback is not a nicety — it *is* the Firefox story.
-
-## Architecture
-
-**The screen is not just pixels. It is a DOM.**
-
-- **DOM = structure layer.** Exact labels, field types, coordinates, enabled/disabled
-  state. Free, instant, zero OCR error.
-- **Vision model = visual layer.** Only where the DOM is blind: images, canvas, video,
-  cross-origin iframes, embedded PDFs, and confirming what is *actually* visible.
-- The vision model runs on **crops, not the whole page**.
-
-This raises accuracy while cutting RAM and latency at the same time.
-
-### PII detection is a three-layer cascade
-
-1. **DOM semantics** — `input[type=password]`, `autocomplete` attributes, ARIA labels.
-   Near-perfect precision, zero cost.
-2. **Patterns with checksums** — Aadhaar (Verhoeff), cards (Luhn), GSTIN (mod-36), PAN,
-   IFSC, UPI. Measured: the checksum gate drops random 12-digit strings from 100% to
-   **8.08%** — a ~12x false-positive reduction at zero recall cost.
-3. **Small ML model** — names and addresses, which have no fixed shape.
-
-`reconcile()` in `extension/src/pii/dom.ts` is the seam where recall and precision get
-traded against each other. That seam is 40% of the grade.
-
-### Redaction: replace the value, keep the shape
-
-Never black out a region. Mint a typed placeholder — `<PII_PAN_1>` — so the server can
-reason *"the PAN field is populated and valid"* while blind to the value. That is the
-PS's "server aware of the redaction scheme" requirement, satisfied structurally.
-
-The token → value vault never leaves the browser. `Vault.toJSON()` **throws**, so any
-attempt to serialize it fails loudly at the call site instead of quietly shipping every
-secret to the server.
-
-## The Privacy Ledger
-
-`extension/src/ledger/` renders a panel showing, side by side, what was on screen versus
-the exact bytes transmitted — plus the raw payload to inspect.
-
-Every team will *claim* their pipeline is private. This lets a judge *check* it.
-
-The ledger stores masked shadows only (`ABCPE1234F` → `AB•••••••F`), never real values —
-a persistent searchable record of every secret on your screen would be worse than the
-problem it solves.
-
-## Measured so far
+**Load the extension**
 
 | | |
 |---|---|
-| Aadhaar checksum gate | random 12-digit strings: 100% → **8.08%** |
-| MobileViT fp32 / WebGPU | **10 ms** per crop ← operating point |
-| MobileViT fp32 / WASM | 45 ms (the Firefox fallback, quantified) |
-| MobileViT int8 / WebGPU | 103 ms — **quantisation is 10x SLOWER here** |
-| ViT-base int8 / WebGPU | 325 ms — ruled out |
-| Leak test | 10 secrets in vault, **0 present** in the payload |
+| **Chrome** | `chrome://extensions` → Developer mode → Load unpacked → `extension/` |
+| **Firefox** | `about:debugging` → Load Temporary Add-on → `dist-firefox/manifest.json` |
 
-Numbers measured on Apple Silicon / metal-3, headless Chrome 152. They must be
-re-measured on a low-end laptop before any of them goes on a slide.
+**Run it**
+
+```bash
+ollama serve                                          # the local model
+cd server && .venv/bin/uvicorn main:app --port 8975   # the reasoning server
+python3 -m http.server 8080 --directory bench/pages   # something to try it on
+```
+
+Open `http://localhost:8080/checkout.html`, click the toolbar icon, type a goal, press
+Run.
+
+> The server warms the model at startup and holds it resident. The **first** request
+> after a cold start takes ~17 s while 7 GB loads; after that it is ~4 s.
+
+---
+
+## Requirements
+
+| | |
+|---|---|
+| **Node** | 22 or newer — we run TypeScript directly, no compile step |
+| **Python** | 3.10+ |
+| **Ollama** | to run the agent. Not needed to build or test |
+| **Disk** | ~7 GB for the vision model, ~230 MB for everything else |
+| **RAM** | 16 GB works; 8 GB will struggle with the 7B model |
+
+**Platforms.** Developed and fully verified on macOS (Apple Silicon). The build, the
+test suite and CI run on Linux. Windows works through **Git Bash or WSL** — the shell
+scripts need a POSIX shell. Browser paths are auto-detected on all three; override with
+`CHROME=` / `FIREFOX=` if yours is somewhere unusual.
+
+---
+
+## Testing
+
+```bash
+./test-all.sh          # everything that needs no browser  (~2 min)
+./test-all.sh --full   # the above, plus real browsers and the live model
+```
+
+`--full` needs Chrome for Testing — branded Chrome refuses `--load-extension`, so:
+
+```bash
+./scripts/get-chrome-for-testing.sh
+```
+
+Individual pieces:
+
+```bash
+node --experimental-strip-types bench/score.ts            # the scorecard
+node --experimental-strip-types bench/score.ts --holdout  # pages never tuned against
+node --experimental-strip-types bench/leak-test.ts        # the hard invariant
+node --experimental-strip-types bench/injection-test.ts   # hostile-page defences
+./bench/failure-drills.sh                                 # things going wrong
+```
+
+---
+
+## Where it stands
+
+| | tuned corpus | **holdout (never tuned against)** |
+|---|---|---|
+| visual context accuracy | 100% | **100%** |
+| PII detection recall | 100% | **100%** |
+| PII detection precision | 100% | **100%** |
+| redaction precision | 100% | **100%** |
+| data leaks | **0** | **0** |
+
+Per turn: **47 KB** transmitted · face detection **65 ms** · model **~3.8 s** ·
+**~4.7 s** total on a low-end laptop (measured under 6× CPU throttling, not estimated).
+
+Working today: the full loop in **Chrome and Firefox**, on-device face blurring, the
+Privacy Ledger, prompt-injection resistance, graceful failure, Hindi and English.
+
+---
+
+## How it works
+
+**The screen is not just pixels — it is a DOM.** Page structure already gives exact
+labels, field types and coordinates for free, so the vision model runs only on the
+regions the DOM cannot describe: images, canvas, cross-origin frames.
+
+**PII detection is a three-layer cascade.** DOM semantics (`autocomplete`, ARIA,
+password inputs) → patterns *with checksums* (Verhoeff for Aadhaar, Luhn for cards,
+mod-36 for GSTIN) → person names via gazetteer and dictionary-absence.
+
+**Redaction replaces the value and keeps the shape.** `<PII_PAN_1>` tells the server
+"this field is filled and valid" without telling it what the value is.
+
+**The vault lives in the content script.** The background script — the only part that
+touches the network — has never held a real value. So "no personal data leaves the
+machine" is a property of the *architecture*, not a promise that our code is bug-free:
+a mistake in the networking layer *cannot* leak a PAN, because that layer has never seen
+one.
+
+---
+
+## Repository map
+
+| | |
+|---|---|
+| `ONBOARDING.md` | **Read this first.** What to know and what to pick up |
+| `RUNBOOK.md` | The demo, step by step. Print it |
+| `AUDIT.md` | Every part rated from a user's perspective |
+| `bench/README.md` | The scorecard, the holdout rule, known gaps |
+| `spikes/*/FINDINGS.md` | Why the architecture is what it is, with measurements |
+| `deck/` | The six-slide SIH submission |
+
+---
+
+## Known limits
+
+We publish these rather than wait to be asked.
+
+- **Only Hindi among Indian languages.** Tamil, Bengali, Telugu and the rest follow the
+  same pattern and are not yet covered.
+- **Devanagari names in running prose** are not detected — the name tokeniser is
+  Latin-only. Devanagari *form fields* are handled.
+- **The test corpus is 12 pages plus 4 real websites.** Small. Every new page shape has
+  found a real defect, which is the argument for growing it.
+- **The model generates ~11 tokens/second on our hardware.** That is the machine, not
+  the code: constrained decoding, context size and model choice were each measured and
+  ruled out.
+- Performance figures come from an Apple M5. **Re-measure on the machine you will
+  demo on.**
+
+## Licence
+
+MIT — see `LICENSE`. Third-party models retain their own licences.

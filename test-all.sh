@@ -37,6 +37,9 @@ section() { echo; echo "${BOLD}$1${OFF}"; }
 
 NODE="node --experimental-strip-types"
 
+# Browser discovery, so this works on macOS, Linux and Git Bash alike.
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/find-browser.sh"
+
 # ---------------------------------------------------------------------------
 section "Build"
 run "extension builds (and manifests agree)" node build.mjs
@@ -77,8 +80,7 @@ fi
 if [ "$FULL" -eq 1 ]; then
   section "Browser spikes (real browsers — slow)"
 
-  CFT="/tmp/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
-  if [ -f "$CFT" ]; then
+  if CFT="$(find_chrome)"; then
     run "Spike C+D — capture alignment & face redaction" ./spikes/c-capture/run.sh
     if curl -s http://127.0.0.1:8975/health >/dev/null 2>&1; then
       run "Spike E — full agent loop in Chrome" ./spikes/e-e2e/run.sh
@@ -87,13 +89,13 @@ if [ "$FULL" -eq 1 ]; then
     fi
     run "Spike G — throttled slow-machine timings" ./spikes/g-slow-machine/run.sh
   else
-    skip "Chrome spikes" "(Chrome for Testing not at /tmp/chrome-mac-arm64)"
+    skip "Chrome spikes" "(no Chrome — run scripts/get-chrome-for-testing.sh)"
   fi
 
-  if [ -f "/Volumes/Firefox/Firefox.app/Contents/MacOS/firefox" ]; then
+  if find_firefox >/dev/null; then
     run "Spike F — extension loads and runs in Firefox" ./spikes/f-firefox-ext/run.sh
   else
-    skip "Spike F" "(Firefox not mounted at /Volumes/Firefox)"
+    skip "Spike F" "(Firefox not found — install it or set FIREFOX=...)"
   fi
 
   section "Live model"

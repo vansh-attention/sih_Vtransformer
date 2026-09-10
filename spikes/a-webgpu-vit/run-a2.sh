@@ -2,9 +2,13 @@
 # Spike A2: load the real MV3 extension in Chrome and see whether ORT + WebGPU survive
 # the extension CSP inside an offscreen document.
 set -u
+
+# Locate browsers portably; hardcoded paths broke this for everyone but
+# one machine.
+. "$(cd "$(dirname "$0")" && pwd)/../../scripts/find-browser.sh"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$ROOT"
 PORT=8972
-CHROME=${CHROME:-"/Users/harshbajpai/Desktop/Google Chrome.app/Contents/MacOS/Google Chrome"}
+CHROME="$(find_chrome)" || { echo "no Chrome found — run scripts/get-chrome-for-testing.sh"; exit 1; }
 OUT="spikes/a-webgpu-vit/result-a2.json"
 rm -f "$OUT"
 pkill -f "collect.py $PORT" 2>/dev/null; pkill -f spikeA2-profile 2>/dev/null; sleep 1

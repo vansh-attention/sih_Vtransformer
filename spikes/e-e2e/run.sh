@@ -3,9 +3,13 @@
 # by sampling actual pixels. Headed Chrome required - captureVisibleTab needs a real
 # window with a compositor; headless returns a blank or fails.
 set -u
+
+# Locate browsers portably; hardcoded paths broke this for everyone but
+# one machine.
+. "$(cd "$(dirname "$0")" && pwd)/../../scripts/find-browser.sh"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$ROOT"
 PORT=8976
-CHROME=${CHROME:-"/tmp/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"}
+CHROME="$(find_chrome)" || { echo "no Chrome found — run scripts/get-chrome-for-testing.sh"; exit 1; }
 OUT="$ROOT/spikes/e-e2e/result.json"
 rm -f "$OUT"
 pkill -f "spikec_serve" 2>/dev/null; pkill -f spikeC-profile 2>/dev/null; sleep 1

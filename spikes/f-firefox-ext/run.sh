@@ -5,9 +5,13 @@
 # manifest audit found five hard Firefox blockers - so "Firefox works" was an
 # unverified claim until this ran.
 set -u
+
+# Locate browsers portably; hardcoded paths broke this for everyone but
+# one machine.
+. "$(cd "$(dirname "$0")" && pwd)/../../scripts/find-browser.sh"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$ROOT"
 PORT=8977
-FF=${FF:-"/Volumes/Firefox/Firefox.app/Contents/MacOS/firefox"}
+FF="$(find_firefox)" || { echo "no Firefox found — install it or set FIREFOX=/path/to/firefox"; exit 1; }
 OUT="$ROOT/spikes/f-firefox-ext/result.json"
 PROFILE=$(mktemp -d /tmp/ff-ext-XXXX)
 rm -f "$OUT"

@@ -5,9 +5,13 @@
 # whether Firefox lands on WebGPU or falls back to WASM — and how much that costs.
 # Reuses the Spike A1 harness unchanged so the numbers are directly comparable.
 set -u
+
+# Locate browsers portably; hardcoded paths broke this for everyone but
+# one machine.
+. "$(cd "$(dirname "$0")" && pwd)/../../scripts/find-browser.sh"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$ROOT/spikes/a-webgpu-vit"
 PORT=${PORT:-8973}
-FF=${FF:-"/Volumes/Firefox/Firefox.app/Contents/MacOS/firefox"}
+FF="$(find_firefox)" || { echo "no Firefox found — install it or set FIREFOX=/path/to/firefox"; exit 1; }
 OUT="$ROOT/spikes/b-firefox/result.json"
 PROFILE=$(mktemp -d /tmp/ff-spike-XXXX)
 

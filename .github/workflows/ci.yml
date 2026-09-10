@@ -1,0 +1,44 @@
+name: tests
+
+# Runs the browser-free suite on every push and PR. The browser spikes and the live
+# model need a GPU and a real display, so they stay a local `./test-all.sh --full`.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Fetch models and build the gazetteer
+        run: node setup.mjs
+
+      - name: Build the extension
+        run: node build.mjs
+
+      - name: Run the suite
+        run: |
+          set -e
+          for f in extension/src/pii/*.test.ts \
+                   extension/src/content/*.test.ts \
+                   extension/src/agent/*.test.ts \
+                   extension/src/vision/*.test.ts; do
+            echo "--- $f"
+            node --experimental-strip-types "$f"
+          done
+          node --experimental-strip-types bench/leak-test.ts
+          node --experimental-strip-types bench/score.ts
+          node --experimental-strip-types bench/score.ts --holdout
+          node --experimental-strip-types bench/user-journey.ts
+          node --experimental-strip-types bench/realpages-drill.ts
+          node --experimental-strip-types bench/huge-page-drill.ts
