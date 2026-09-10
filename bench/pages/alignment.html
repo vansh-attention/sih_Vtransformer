@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!--
+  bench fixture 02 — capture/DOM alignment.
+
+  Blocks of known, deliberately distinct colours at known positions. The spike reads
+  each block's box from the DOM, maps it into the captured screenshot's coordinate
+  space, samples the pixel at that mapped centre, and checks the colour matches.
+
+  If the mapping is wrong by even a scale factor, the sampled colour lands on a
+  neighbour or on background and the check fails loudly. That is the point: a redaction
+  box drawn in the wrong place is a leak, and it is invisible unless something asserts
+  on pixels.
+
+  Colours are spaced far apart in RGB so a near-miss cannot pass as a match.
+-->
+<html lang="en">
+<head><meta charset="utf-8"><title>Alignment fixture</title>
+<style>
+  html,body { margin:0; padding:0; background:#ffffff; }
+  .block { position:absolute; width:120px; height:80px; }
+  #topleft     { left:0;    top:0;    background:#ff0000; }
+  #topright    { right:0;   top:0;    background:#00ff00; }
+  #centre      { left:50%;  top:200px; transform:translateX(-50%); background:#0000ff; }
+  #offset      { left:37px; top:311px; background:#ffff00; }
+  #tall        { left:200px; top:120px; width:60px; height:240px; background:#ff00ff; }
+  /* Below the fold: must be reported as offscreen, not silently mis-mapped. */
+  #belowfold   { left:20px; top:2000px; background:#00ffff; }
+  /* Hidden: must never appear in the tree at all. */
+  #hidden      { left:300px; top:20px; background:#123456; display:none; }
+</style></head>
+<body>
+  <div class="block" id="topleft"   aria-label="topleft"></div>
+  <div class="block" id="topright"  aria-label="topright"></div>
+  <div class="block" id="centre"    aria-label="centre"></div>
+  <div class="block" id="offset"    aria-label="offset"></div>
+  <div class="block" id="tall"      aria-label="tall"></div>
+  <div class="block" id="belowfold" aria-label="belowfold"></div>
+  <div class="block" id="hidden"    aria-label="hidden"></div>
+</body></html>

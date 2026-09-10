@@ -30,4 +30,12 @@ await esbuild.build({
   outfile: 'extension/dist/offscreen.js',
 });
 
+await esbuild.build({
+  ...common,
+  entryPoints: ['extension/src/content/index.ts'],
+  outfile: 'extension/dist/content.js',
+  // Injected via chrome.scripting.executeScript, which does not support ES modules.
+  format: 'iife',
+});
+
 console.log('built extension/dist/');

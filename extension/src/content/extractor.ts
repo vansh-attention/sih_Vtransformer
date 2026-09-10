@@ -140,12 +140,28 @@ function boxOf(el: Element): BoundingBox {
   return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
 }
 
-function isVisible(el: Element, box: BoundingBox): boolean {
-  if (box.w <= 0 || box.h <= 0) return false;
+/**
+ * Genuinely hidden: the author has removed this from the page. Safe to prune the whole
+ * subtree, because nothing inside it can be seen or acted on.
+ */
+function isHidden(el: Element): boolean {
   const style = getComputedStyle(el);
-  return style.display !== 'none'
-    && style.visibility !== 'hidden'
-    && Number(style.opacity) > 0.05;
+  return style.display === 'none'
+    || style.visibility === 'hidden'
+    || Number(style.opacity) <= 0.05;
+}
+
+/**
+ * Has actual painted area. DELIBERATELY SEPARATE from `isHidden`.
+ *
+ * Zero-size is NOT the same as hidden. A container whose children are all
+ * `position:absolute` collapses to zero height while its children remain perfectly
+ * visible. Conflating the two made `walk(document.body)` return null on the alignment
+ * fixture and threw away the entire page — every element, silently, with a cheerful
+ * nodeCount of 0. Found by Spike C.
+ */
+function hasSize(box: BoundingBox): boolean {
+  return box.w > 0 && box.h > 0;
 }
 
 function isEnabled(el: Element): boolean {
@@ -195,6 +211,13 @@ function isInteresting(el: Element, role: ElementRole): boolean {
   if (INTERACTIVE_ROLES.has(role)) return true;
   if (role === 'heading' || role === 'image' || role === 'canvas' || role === 'iframe') return true;
   if (directText(el).length > 0) return true;
+
+  // An explicit aria-label or role is the author DECLARING that this element carries
+  // meaning. Pruning it discards information the page went out of its way to provide.
+  // Found by Spike C: every block on the alignment fixture was silently dropped,
+  // because a labelled <div> with no text hits none of the rules above.
+  if (el.hasAttribute('aria-label') || el.hasAttribute('role')) return true;
+
   return false;
 }
 
@@ -278,12 +301,12 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
     if (count >= maxNodes) { truncated = true; return null; }
     if (SKIP_TAGS.has(el.tagName.toLowerCase())) return null;
 
-    const box = boxOf(el);
-    const visible = isVisible(el, box);
+    // Genuinely hidden subtrees are skipped wholesale: a closed menu holds hundreds of
+    // nodes the user cannot see and the agent must not act on.
+    if (isHidden(el)) return null;
 
-    // Invisible subtrees are skipped wholesale: a closed menu holds hundreds of nodes
-    // the user cannot see and the agent must not act on.
-    if (!visible) return null;
+    const box = boxOf(el);
+    const visible = hasSize(box);
 
     if (!includeOffscreen) {
       const offscreen = box.y + box.h < 0 || box.y > viewport.h
@@ -298,6 +321,11 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
       const node = walk(child);
       if (node) children.push(node);
     }
+
+    // A zero-size element carries nothing itself, but may be the container holding
+    // everything that matters. Pass its children up rather than dropping them.
+    if (!visible && children.length === 0) return null;
+    if (!visible && children.length === 1) return children[0];
 
     // Keep a node if it carries information itself, or if it is holding up children
     // that do. Otherwise collapse it away and splice its children upward.

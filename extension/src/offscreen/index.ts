@@ -129,8 +129,49 @@ async function runSpike(modelUrl: string, side: number, runs: number): Promise<I
   return report;
 }
 
+/**
+ * Decode a captured screenshot and sample pixels at given points.
+ *
+ * Lives here because the service worker has no DOM and therefore no canvas. Sampling
+ * actual pixels is the only way to prove the DOM->image coordinate mapping is right:
+ * a box that is merely "about right" still blurs the wrong region, and nothing else
+ * in the pipeline would notice.
+ */
+async function samplePixels(
+  dataUrl: string,
+  points: Array<{ name: string; x: number; y: number }>,
+): Promise<{ width: number; height: number; samples: Array<Record<string, unknown>> }> {
+  const blob = await (await fetch(dataUrl)).blob();
+  const bitmap = await createImageBitmap(blob);
+
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(bitmap, 0, 0);
+
+  const samples = points.map((p) => {
+    const x = Math.round(p.x);
+    const y = Math.round(p.y);
+    if (x < 0 || y < 0 || x >= bitmap.width || y >= bitmap.height) {
+      return { name: p.name, x, y, outOfBounds: true, hex: null };
+    }
+    const d = ctx.getImageData(x, y, 1, 1).data;
+    const hex = '#' + [d[0], d[1], d[2]]
+      .map((v) => v.toString(16).padStart(2, '0')).join('');
+    return { name: p.name, x, y, outOfBounds: false, hex, rgb: [d[0], d[1], d[2]] };
+  });
+
+  return { width: bitmap.width, height: bitmap.height, samples };
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.target !== 'offscreen') return;
+
+  if (msg.type === 'sample-pixels') {
+    samplePixels(msg.dataUrl, msg.points)
+      .then(sendResponse)
+      .catch((e) => sendResponse({ error: String(e) }));
+    return true;
+  }
 
   if (msg.type === 'run-spike') {
     runSpike(
