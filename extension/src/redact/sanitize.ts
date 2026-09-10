@@ -257,6 +257,7 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
       enabled: node.enabled,
       required: node.required,
       focused: node.focused,
+      fieldKind: node.fieldKind,
       contextLabel,
       children: node.children?.map(walk),
     };

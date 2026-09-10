@@ -53,6 +53,8 @@ export interface ElementNode {
    * otherwise reaches the server as naked digits. Only set when it adds information.
    */
   contextLabel?: string;
+  /** What layer 1 thinks this field is FOR. A category, never a value. */
+  fieldKind?: PiiKind;
   /** Set when the DOM cannot describe this region and the ViT must look at it. */
   needsVision?: boolean;
   children?: ElementNode[];
@@ -107,6 +109,8 @@ export interface SanitizedNode {
   enabled: boolean;
   required?: boolean;
   focused?: boolean;
+  /** What layer 1 thinks this field is FOR. A category, never a value. */
+  fieldKind?: PiiKind;
   /** Sanitized the same way `label` is — neighbouring text can carry PII too. */
   contextLabel?: string;
   /**

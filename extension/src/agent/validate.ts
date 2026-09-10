@@ -133,10 +133,28 @@ export function validateAction(
     }
 
     // A token is fine: the client resolves it locally from the vault, so the model
-    // directed the value without ever knowing it. But it must be a token WE minted.
+    // directed the value without ever knowing it. But it must be a token WE minted,
+    // AND the destination must be a field that actually wants that kind of value.
     if (TOKEN_RE.test(action.value)) {
       const known = payload.placeholders.some((p) => p.token === action.value);
       if (!known) return deny(`unknown placeholder token: ${action.value}`);
+
+      // KIND AGREEMENT. Without this a hostile page can simply ask the agent to put
+      // <PII_PAN_1> into a box labelled "Optional feedback" that posts to the
+      // attacker's server. The model emits only a token, so nothing looks wrong — but
+      // the CLIENT resolves that token to the real PAN at execution time and types it
+      // in. That was a working exfiltration path, found by bench/injection-test.ts.
+      //
+      // A token may only be resolved into a field layer 1 classified as the same kind.
+      // The page cannot forge that: `fieldKind` comes from our own classifier, not from
+      // anything the page asserts.
+      const tokenKind = action.value.match(/^<PII_([A-Z]+)_\d+>$/)?.[1];
+      if (tokenKind && node.fieldKind !== tokenKind) {
+        return deny(
+          `refusing to place a ${tokenKind} value into a field classified as ` +
+          `${node.fieldKind ?? 'unclassified'} (${action.target})`,
+        );
+      }
     } else if (holdsRedactedValue(node)) {
       // The field already holds redacted content. Overwriting it with literal text
       // would destroy the user's real data on the strength of a model's guess.

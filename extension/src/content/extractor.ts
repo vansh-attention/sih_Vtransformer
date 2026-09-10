@@ -18,7 +18,7 @@
 import type {
   BoundingBox, ElementId, ElementNode, ElementRole, PageStructure,
 } from '../contracts.ts';
-import type { FieldSignals } from '../pii/dom.ts';
+import { classifyField, type FieldSignals } from '../pii/dom.ts';
 
 // ---------------------------------------------------------------------------
 // Stable element identity
@@ -256,15 +256,26 @@ function isInteresting(el: Element, role: ElementRole): boolean {
  * Pure structural markup, so it does not breach the no-site-specific-logic rule.
  */
 function contextLabelFor(el: Element): string | undefined {
-  const prev = el.previousElementSibling;
-  const prevText = prev ? directText(prev) : '';
+  // Borrowed text must come from something the USER CAN SEE.
+  //
+  // Without this check a `display:none` block adjacent to a visible element had its
+  // text lifted into that element's contextLabel and shipped to the model — a working
+  // prompt-injection channel that bypassed the visibility pruning entirely, because the
+  // hidden node itself was correctly dropped while its text travelled anyway.
+  // Found by bench/injection-test.ts.
+  const visibleText = (node: Element | null | undefined): string => {
+    if (!node || isHidden(node)) return '';
+    return directText(node);
+  };
+
+  const prevText = visibleText(el.previousElementSibling);
   if (prevText) return prevText.slice(0, 100);
 
   // Table cells: fall back to the first cell of the row.
   const row = el.closest('tr');
   const firstCell = row?.firstElementChild;
   if (firstCell && firstCell !== el) {
-    const text = directText(firstCell);
+    const text = visibleText(firstCell);
     if (text) return text.slice(0, 100);
   }
 
@@ -277,6 +288,7 @@ function contextLabelFor(el: Element): string | undefined {
   // than this field, and borrowing its label would mislabel everything inside it.
   let parent = el.parentElement;
   for (let depth = 0; parent && depth < 4; depth++, parent = parent.parentElement) {
+    if (isHidden(parent)) return undefined;
     const aria = parent.getAttribute('aria-label')?.trim();
     if (aria) return aria.slice(0, 100);
   }
@@ -415,6 +427,12 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
       role,
       label,
       contextLabel: context && context !== label && context !== value ? context : undefined,
+      // What layer 1 thinks this field is FOR. Not sensitive — a category, never a
+      // value — and the validator needs it to refuse typing a PAN into a feedback box.
+      fieldKind: (() => {
+        const hint = classifyField(signalsFor(el));
+        return hint && hint.kind !== 'NON_PII' ? hint.kind : undefined;
+      })(),
       // Raw value. The sanitizer decides what happens to it, never the extractor.
       value,
       box,
