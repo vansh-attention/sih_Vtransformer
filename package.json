@@ -1,0 +1,17 @@
+{
+  "name": "sih-browser-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SIH26171 - On-device Visual Perception for Light-weight Browser Agents",
+  "scripts": {
+    "test": "node --experimental-strip-types --test extension/src/**/*.test.ts"
+  },
+  "dependencies": {
+    "jsdom": "^30.0.1",
+    "onnxruntime-web": "^1.29.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

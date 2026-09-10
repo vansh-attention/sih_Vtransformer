@@ -1,0 +1,17 @@
+#!/bin/bash
+# One-command spike runner: serve, drive headless Chrome, collect result, clean up.
+set -u
+DIR="$(cd "$(dirname "$0")" && pwd)"; cd "$DIR"
+PORT=${PORT:-8971}
+CHROME=${CHROME:-"/Users/harshbajpai/Desktop/Google Chrome.app/Contents/MacOS/Google Chrome"}
+rm -f result.json
+# Kill anything left over from a previous aborted run.
+pkill -f "serve.py $PORT" 2>/dev/null; pkill -f spikeA-profile 2>/dev/null; sleep 1
+python3 serve.py "$PORT" & SRV=$!
+sleep 1
+"$CHROME" --headless=new --no-sandbox --enable-unsafe-webgpu --use-angle=metal \
+  --user-data-dir=/tmp/spikeA-profile --disable-dev-shm-usage \
+  "http://127.0.0.1:$PORT/index.html" >/tmp/chrome-a.log 2>&1 & CHR=$!
+for i in $(seq 1 120); do [ -f result.json ] && break; sleep 1; done
+kill $CHR 2>/dev/null; kill $SRV 2>/dev/null; wait 2>/dev/null
+[ -f result.json ] && echo "OK: result.json written" || echo "FAILED: no result after 120s"

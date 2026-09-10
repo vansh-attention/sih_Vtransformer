@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!--
+  bench fixture 01 — checkout page.
+
+  Deliberately mixes real PII with decoy numbers that a naive detector will flag:
+    - order number 123456789012      (12 digits, NOT Verhoeff-valid)
+    - order total 999999999999       (12 digits, IS Verhoeff-valid — the hard case)
+    - tracking AWB 4539578763621486  (16 digits, IS Luhn-valid — a decoy "card")
+  The AWB is deliberately DIFFERENT digits from the real card below: when the same
+  value appears twice, the vault sweep redacts both, and the decoy stops being a decoy.
+  Ground truth lives in checkout.truth.json.
+-->
+<html lang="en">
+<head><meta charset="utf-8"><title>Checkout — Demo Store</title></head>
+<body>
+  <h1>Complete your order</h1>
+
+  <section aria-label="Order summary">
+    <table>
+      <tr><td>Order Number</td><td id="order_no">123456789012</td></tr>
+      <tr><td>Order Total</td><td id="order_total">999999999999</td></tr>
+      <tr><td>Tracking (AWB)</td><td id="awb">4539578763621486</td></tr>
+    </table>
+  </section>
+
+  <form id="pay">
+    <label for="fullname">Full Name</label>
+    <input id="fullname" name="fullname" autocomplete="name" value="Harsh Bajpai">
+
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="email" value="hb@example.com">
+
+    <label for="mobile">Mobile Number</label>
+    <input id="mobile" name="mobile" type="tel" autocomplete="tel" value="+91 98765 43210">
+
+    <label for="pan">PAN (for invoices above ₹2 lakh)</label>
+    <input id="pan" name="pan" value="ABCPE1234F">
+
+    <label for="aadhaar">Aadhaar Number</label>
+    <input id="aadhaar" name="aadhaar_no" value="234567890124">
+
+    <label for="gstin">GSTIN (optional)</label>
+    <input id="gstin" name="gstin" value="27AAPFU0939F1ZV">
+
+    <label for="card">Card Number</label>
+    <input id="card" name="card" autocomplete="cc-number" value="4111 1111 1111 1111">
+
+    <label for="pwd">Payment PIN</label>
+    <input id="pwd" name="pwd" type="password" value="hunter2">
+
+    <label for="addr">Billing Address</label>
+    <textarea id="addr" name="addr" autocomplete="street-address">12 MG Road, Indore 452001</textarea>
+
+    <!-- A hidden panel: must be pruned entirely, not reported as actionable. -->
+    <div id="hidden-panel" style="display:none">
+      <input id="secret" name="secret_pan" value="XYZPE9999K">
+      <button id="ghost">Ghost Button</button>
+    </div>
+
+    <img id="avatar" src="avatar.png" alt="">
+    <canvas id="sigpad" width="300" height="100"></canvas>
+
+    <button id="submit" type="submit">Pay now</button>
+    <button id="cancel" type="button" disabled>Cancel</button>
+  </form>
+
+  <p id="footnote">Questions? Write to support@example.com or call 1800 123 4567.</p>
+</body>
+</html>

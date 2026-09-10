@@ -1,0 +1,13 @@
+node_modules/
+extension/dist/
+bench/out/
+spikes/**/result*.json
+/tmp/
+
+# Vendored ONNX Runtime (~97MB) and model weights (~112MB). Both are reproducible:
+#   npm install && node setup.mjs
+# See spikes/a-webgpu-vit/FINDINGS.md for why these specific models.
+extension/ort/
+extension/models/
+spikes/**/ort/
+*.onnx
