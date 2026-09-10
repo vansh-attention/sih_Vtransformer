@@ -24,6 +24,12 @@ everything, or no assistant. We're building the third option.
 
 ---
 
+## Platforms
+
+CI runs the suite on Linux, macOS and Windows on every push. On **Windows use WSL** if
+you can: under Git Bash the server-dependent failure drills cannot run (a background
+uvicorn is spawned but never binds), so they skip with a message. Everything else works.
+
 ## Get it running
 
 ```bash

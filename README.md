@@ -60,10 +60,17 @@ Run.
 | **Disk** | ~7 GB for the vision model, ~230 MB for everything else |
 | **RAM** | 16 GB works; 8 GB will struggle with the 7B model |
 
-**Platforms.** Developed and fully verified on macOS (Apple Silicon). The build, the
-test suite and CI run on Linux. Windows works through **Git Bash or WSL** — the shell
-scripts need a POSIX shell. Browser paths are auto-detected on all three; override with
-`CHROME=` / `FIREFOX=` if yours is somewhere unusual.
+**Platforms.** CI runs the full suite on **Linux, macOS and Windows** on every push.
+
+| | |
+|---|---|
+| macOS, Linux | everything, including the failure drills |
+| Windows (Git Bash) | everything except the server drills — they need a background uvicorn, which Git Bash spawns but never binds. The drills say so and skip. |
+| Windows (WSL) | everything |
+
+Browser paths are auto-detected on all three; override with `CHROME=` / `FIREFOX=` if
+yours is somewhere unusual. Run `./scripts/get-chrome-for-testing.sh` for the
+extension spikes — branded Chrome refuses `--load-extension`.
 
 ---
 
