@@ -133,6 +133,10 @@ when part of the page is unreadable (`closedShadowHosts`, `piiBeyondTextCap`).
 - Chrome caches the extension's service worker in the user profile — a reused profile
   runs yesterday's code against today's build
 - `instanceof HTMLSelectElement` is a browser global; it broke 7 suites under Node
+- **A wall-clock threshold in a test is a claim about the machine, not the code.** The
+  huge-page drill's `< 6000ms` failed two docs-only commits at 6021ms on a loaded macOS
+  runner. It is now a **ratio** against a style call timed on the same machine: healthy
+  0.5×, limit 3×, and an injected regression measured 3.40× — so it still fires
 - Headless Firefox reports no WebGPU adapter; **headed Firefox has one** (Spike B was
   wrong and is marked superseded)
 

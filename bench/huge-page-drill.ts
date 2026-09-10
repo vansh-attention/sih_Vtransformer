@@ -22,6 +22,10 @@ loadGazetteer(JSON.parse(readFileSync(
 
 // 20,000 interactive rows — comparable to a large admin table or a long feed.
 const ROWS = 20_000;
+// Enough style calls to average out scheduler noise, few enough to stay quick.
+const CAL_NODES = 2_000;
+// Nodes the extractor walks to keep 1,500. Measured, and the number the ratio is against.
+const NODES_VISITED = 13_893;
 const rows = Array.from({ length: ROWS }, (_, i) =>
   `<tr><td>Row ${i}</td><td><input name="f${i}" value="value ${i}"></td>` +
   `<td><button>Act ${i}</button></td></tr>`).join('');
@@ -41,6 +45,19 @@ globalThis.CSS = window.CSS;
 globalThis.getComputedStyle = (el: Element) => window.getComputedStyle(el);
 
 const domNodes = window.document.querySelectorAll('*').length;
+
+// Calibrate this machine before measuring, so the timing check below can be a ratio
+// rather than a wall-clock number. A separate throwaway document: calibrating on the
+// real one would prime jsdom's style cache for the very nodes extraction is about to
+// visit, and flatter the result.
+const calDom = new JSDOM(`<!DOCTYPE html><html><body><table>${
+  Array.from({ length: CAL_NODES }, (_, i) =>
+    `<tr><td>c${i}</td></tr>`).join('')}</table></body></html>`);
+const calEls = [...calDom.window.document.querySelectorAll('td')];
+const c0 = performance.now();
+for (const el of calEls) calDom.window.getComputedStyle(el).display;
+const perStyleCallMs = (performance.now() - c0) / calEls.length;
+
 const heapBefore = process.memoryUsage().heapUsed;
 
 const t0 = performance.now();
@@ -63,6 +80,8 @@ console.log(`extract           : ${Math.round(extractMs)}ms`);
 console.log(`sanitize          : ${Math.round(sanitizeMs)}ms`);
 console.log(`payload           : ${(bytes / 1024).toFixed(0)}KB`);
 console.log(`heap delta        : ${heapMb.toFixed(1)}MB`);
+// Print the calibration so a failure says whether the machine was slow or we were.
+console.log(`this machine      : ${perStyleCallMs.toFixed(3)}ms per jsdom style call`);
 // Environment-independent efficiency measure: how many nodes we touch per node we keep.
 // Unlike wall-clock this means the same thing in jsdom and in Chrome, so it is the
 // number to watch if extraction ever feels slow.
@@ -86,14 +105,24 @@ check('budget respected', nodeCount <= 1500 + MAX_CONTAINER_OVERSHOOT && truncat
 // TIMING HERE IS A JSDOM-RELATIVE REGRESSION GUARD, NOT A BROWSER NUMBER.
 //
 // Profiled: the cost is `getComputedStyle`, which jsdom implements by running its CSS
-// selector engine — ~0.24ms per call against roughly a microsecond in a real browser.
-// The walk visits ~14,000 nodes to keep 1,500, so jsdom spends seconds where Chrome
-// spends milliseconds. Spike E measured real extraction in Chrome at 2-5ms.
+// selector engine — against roughly a microsecond in a real browser. The walk visits
+// ~14,000 nodes to keep 1,500, so jsdom spends seconds where Chrome spends milliseconds.
+// Spike E measured real extraction in Chrome at 2-5ms.
 //
-// The threshold is set with headroom so it catches an ORDER-OF-MAGNITUDE regression
-// (which would be real) without failing on jsdom's baseline (which is not).
-check('within time budget (jsdom-relative)', extractMs + sanitizeMs < 6000,
-  `${Math.round(extractMs + sanitizeMs)}ms — browser figure is Spike E's 2-5ms`);
+// This is a RATIO against a style call timed on this same machine, not a wall-clock
+// threshold. It used to be `< 6000ms`, which is a statement about how fast the computer
+// is: a loaded CI runner came in at 6021ms and failed a docs-only commit. Scaling both
+// sides by machine speed cancels that out, while the regressions this exists to catch
+// change the ratio by two to three orders of magnitude — reintroducing
+// `Array.from(el.children)` took extraction from 4ms to 8644ms, and a per-element
+// `label[for]` query cost 54s per 1500 nodes.
+const expectedMs = NODES_VISITED * perStyleCallMs;
+const ratio = (extractMs + sanitizeMs) / expectedMs;
+const SLACK = 3;
+check('within time budget (jsdom-relative)', ratio < SLACK,
+  `${Math.round(extractMs + sanitizeMs)}ms = ${ratio.toFixed(2)}x the ` +
+  `${Math.round(expectedMs)}ms this machine needs for ${NODES_VISITED.toLocaleString()} ` +
+  `style calls (limit ${SLACK}x) — browser figure is Spike E's 2-5ms`);
 
 // Truncation must be REPORTED, or the server silently reasons about a partial page and
 // concludes the missing controls do not exist.
