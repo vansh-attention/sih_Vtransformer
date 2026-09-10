@@ -51,9 +51,22 @@ start_server() {   # $1 = fault mode ("" for healthy)
     [ "$got" = "$want" ] && return 0
     sleep 1
   done
+  # Four attempts at this have failed on CI while passing locally. Print everything
+  # needed to diagnose it from the log alone, instead of guessing a fifth time.
   echo "  (server did not come up in fault mode '${1:-none}'; last seen '${got:-none}')"
+  echo "  --- diagnostics ---"
+  echo "  ROOT=$ROOT"
+  echo "  FAULT_FILE=$FAULT_FILE"
+  echo "  fault file exists: $([ -f "$FAULT_FILE" ] && echo "yes, contents: '$(cat "$FAULT_FILE")'" || echo no)"
+  echo "  UVICORN=$UVICORN"
+  echo "  server pid=$SERVER_PID alive: $(kill -0 "$SERVER_PID" 2>/dev/null && echo yes || echo no)"
+  echo "  /health raw: $(curl -s --max-time 3 "http://127.0.0.1:$PORT/health" 2>&1 | head -c 400)"
   echo "  --- server log ---"
-  tail -15 /tmp/drill-server.log 2>/dev/null | sed 's/^/  /'
+  if [ -s /tmp/drill-server.log ]; then
+    tail -25 /tmp/drill-server.log | sed "s/^/  /"
+  else
+    echo "  (log is empty — uvicorn wrote nothing)"
+  fi
   return 1
 }
 
