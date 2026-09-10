@@ -43,14 +43,23 @@ start_server() {   # $1 = fault mode ("" for healthy)
   # Comparing the bare fault string made those two identical — an unreachable server
   # produced an empty string, which matched the healthy expectation, and start_server
   # returned success while nothing was listening.
-  local want="up:$1"
+  # Matched with grep, NOT by piping through python3.
+  #
+  # Git Bash on Windows has `python`, not `python3`, so the probe silently failed there
+  # and reported the server as down while it was serving the requested fault perfectly.
+  # The drills should not depend on an interpreter to read one JSON field.
+  local want
+  if [ -n "$1" ]; then want="\"fault\":\"$1\""; else want='"fault":null'; fi
+
+  local raw
   for _ in $(seq 1 30); do
-    local got
-    got=$(curl -s --max-time 2 "http://127.0.0.1:$PORT/health" 2>/dev/null \
-      | python3 -c "import json,sys;d=json.load(sys.stdin);print('up:'+(d.get('fault') or ''))" 2>/dev/null || echo "down")
-    [ "$got" = "$want" ] && return 0
+    raw=$(curl -s --max-time 2 "http://127.0.0.1:$PORT/health" 2>/dev/null || echo "")
+    case "$raw" in
+      *"$want"*) return 0 ;;
+    esac
     sleep 1
   done
+  local got="${raw:-unreachable}"
   # Four attempts at this have failed on CI while passing locally. Print everything
   # needed to diagnose it from the log alone, instead of guessing a fifth time.
   echo "  (server did not come up in fault mode '${1:-none}'; last seen '${got:-none}')"
@@ -60,7 +69,8 @@ start_server() {   # $1 = fault mode ("" for healthy)
   echo "  fault file exists: $([ -f "$FAULT_FILE" ] && echo "yes, contents: '$(cat "$FAULT_FILE")'" || echo no)"
   echo "  UVICORN=$UVICORN"
   echo "  server pid=$SERVER_PID alive: $(kill -0 "$SERVER_PID" 2>/dev/null && echo yes || echo no)"
-  echo "  /health raw: $(curl -s --max-time 3 "http://127.0.0.1:$PORT/health" 2>&1 | head -c 400)"
+  echo "  /health raw: $(echo "$raw" | head -c 400)"
+  echo "  looked for: $want"
   echo "  --- server log ---"
   if [ -s /tmp/drill-server.log ]; then
     tail -25 /tmp/drill-server.log | sed "s/^/  /"
