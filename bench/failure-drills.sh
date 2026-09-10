@@ -23,8 +23,12 @@ start_server() {   # $1 = fault mode ("" for healthy)
   # `exec` so $! is UVICORN's pid, not a wrapper subshell's. Killing the subshell left
   # the server running on Windows, so the next drill talked to the PREVIOUS fault mode
   # and got an answer meant for a different test.
-  ( cd server && AGENT_MODEL=qwen2.5vl:7b AGENT_FAULT="$1" \
-      exec "$UVICORN" main:app --port $PORT --log-level error >/tmp/drill-server.log 2>&1 ) &
+  # `env` rather than bare VAR=value assignments before `exec`. The assignment form is
+  # subtle enough that it silently did not reach uvicorn on the CI runners while working
+  # locally — and a fault-injection harness that quietly injects no fault is worse than
+  # no harness.
+  ( cd server && exec env AGENT_MODEL=qwen2.5vl:7b AGENT_FAULT="$1" \
+      "$UVICORN" main:app --port $PORT --log-level error >/tmp/drill-server.log 2>&1 ) &
   SERVER_PID=$!
   disown "$SERVER_PID" 2>/dev/null || true
 
@@ -45,6 +49,8 @@ start_server() {   # $1 = fault mode ("" for healthy)
     sleep 1
   done
   echo "  (server did not come up in fault mode '${1:-none}'; last seen '${got:-none}')"
+  echo "  --- server log ---"
+  tail -15 /tmp/drill-server.log 2>/dev/null | sed 's/^/  /'
   return 1
 }
 
