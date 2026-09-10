@@ -28,6 +28,13 @@ const MODELS = [
     dests: ['spikes/a-webgpu-vit'],
   },
   {
+    // Face detection. 1.2MB, MIT, from the ONNX Model Zoo. Size was the deciding
+    // factor: client resources are 20% of the grade.
+    name: 'ultraface_rfb320.onnx',
+    url: 'https://media.githubusercontent.com/media/onnx/models/main/validated/vision/body_analysis/ultraface/models/version-RFB-320.onnx',
+    dests: ['extension/models'],
+  },
+  {
     // Kept only so the spike can reproduce the "ViT-base is too slow" measurement.
     name: 'vit_base_int8.onnx',
     url: 'https://huggingface.co/Xenova/vit-base-patch16-224/resolve/main/onnx/model_quantized.onnx',
@@ -78,5 +85,22 @@ vendorOrt('spikes/a-webgpu-vit/ort');
 
 console.log('fetching models:');
 for (const m of MODELS) await fetchModel(m);
+
+// Test assets. Deliberately NOT committed: a repo should not carry third-party
+// images, and this one is a real person's likeness.
+const ASSETS = [{
+  name: 'bench/assets/face-test.jpg',
+  url: 'https://raw.githubusercontent.com/opencv/opencv/4.x/samples/data/messi5.jpg',
+}];
+
+console.log('fetching test assets:');
+for (const a of ASSETS) {
+  mkdirSync('bench/assets', { recursive: true });
+  if (existsSync(a.name)) { console.log(`  ${a.name} already present`); continue; }
+  const res = await fetch(a.url);
+  if (!res.ok) throw new Error(`${a.name}: HTTP ${res.status}`);
+  await pipeline(Readable.fromWeb(res.body), createWriteStream(a.name));
+  console.log(`  ${a.name} ${(statSync(a.name).size / 1024).toFixed(0)}KB`);
+}
 
 console.log('\nsetup complete. Build with: node build.mjs');

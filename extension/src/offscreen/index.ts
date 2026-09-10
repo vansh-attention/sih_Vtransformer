@@ -16,6 +16,7 @@
  */
 
 import * as ort from 'onnxruntime-web/webgpu';
+import { loadFaceModel, detectFaces, blurRegions } from '../vision/detect.ts';
 
 export interface InferenceReport {
   ok: boolean;
@@ -165,6 +166,74 @@ async function samplePixels(
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.target !== 'offscreen') return;
+
+  if (msg.type === 'detect-faces') {
+    (async () => {
+      const t0 = performance.now();
+      const load = await loadFaceModel(chrome.runtime.getURL('models/ultraface_rfb320.onnx'));
+      const blob = await (await fetch(msg.dataUrl)).blob();
+      const bitmap = await createImageBitmap(blob);
+      const result = await detectFaces(bitmap, msg.threshold ?? 0.7);
+
+      let redactedDataUrl: string | undefined;
+      let applied: unknown[] = [];
+      if (msg.blur !== false && result.detections.length) {
+        const { canvas, applied: a } = await blurRegions(
+          bitmap, result.detections.map((d) => d.box));
+        applied = a;
+        const out = await canvas.convertToBlob({ type: 'image/png' });
+        redactedDataUrl = await new Promise<string>((res) => {
+          const fr = new FileReader();
+          fr.onload = () => res(fr.result as string);
+          fr.readAsDataURL(out);
+        });
+      }
+
+      return {
+        ...result,
+        loadMs: load.ms,
+        totalMs: Math.round(performance.now() - t0),
+        appliedBoxes: applied,
+        redactedDataUrl,
+      };
+    })().then(sendResponse).catch((e) => sendResponse({ error: String(e?.stack ?? e) }));
+    return true;
+  }
+
+  if (msg.type === 'region-stats') {
+    (async () => {
+      const blob = await (await fetch(msg.dataUrl)).blob();
+      const bitmap = await createImageBitmap(blob);
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(bitmap, 0, 0);
+
+      const r = msg.region as { x: number; y: number; w: number; h: number };
+      const { data } = ctx.getImageData(r.x, r.y, r.w, r.h);
+
+      // Luma variance is the right measure of "was detail destroyed".
+      //
+      // Absolute pixel change is NOT: blurring a flat region of skin barely moves its
+      // values, so a delta test reports failure while the blur is working perfectly.
+      // Blur is a low-pass filter — what it removes is high-frequency detail, and
+      // variance is what that shows up as.
+      let sum = 0;
+      let sumSq = 0;
+      const n = r.w * r.h;
+      for (let i = 0; i < n; i++) {
+        const y = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+        sum += y;
+        sumSq += y * y;
+      }
+      const mean = sum / n;
+      return {
+        mean: Math.round(mean * 100) / 100,
+        variance: Math.round((sumSq / n - mean * mean) * 100) / 100,
+        pixels: n,
+      };
+    })().then(sendResponse).catch((e) => sendResponse({ error: String(e) }));
+    return true;
+  }
 
   if (msg.type === 'sample-pixels') {
     samplePixels(msg.dataUrl, msg.points)

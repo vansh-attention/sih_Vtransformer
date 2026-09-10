@@ -11,3 +11,4 @@ extension/ort/
 extension/models/
 spikes/**/ort/
 *.onnx
+bench/assets/

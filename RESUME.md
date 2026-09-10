@@ -121,8 +121,43 @@ Latency budget today: extract 45 ms + sanitize 6 ms + **model 2.5 s**. The model
 ~98% of end-to-end time, so latency work means model work — vLLM on a real GPU for the
 finale — not client micro-optimisation.
 
+## Vision layer — face redaction VERIFIED on pixels
+
+Full write-up: `spikes/d-face-redaction/FINDINGS.md`.
+Model: **UltraFace RFB-320**, 1.2 MB, MIT. Size was the deciding factor — client
+resources are 20% of the grade.
+
+```
+face detected  : score 1.00, webgpu, 53.6 ms warm (437 ms cold)
+detail inside  : variance 3195.88 -> 343.58  =  89.2% destroyed
+outside the box: 5 control points, ALL delta 0
+VERIFIED       : true
+```
+
+Both halves hold: the face is destroyed AND nothing else is touched. A blur that smears
+the whole frame would pass a naive check while wrecking the visual context worth 25%.
+
+Design decisions that came out of building it:
+- **Grow the box 25% before blurring.** UltraFace boxes are tight on the features and
+  leave hair, ears and jawline outside — all identifying. A tight blur de-identifies
+  nothing while looking diligent.
+- **Blur radius scales with face size** (`max(8, min(w,h)/4)`). A fixed radius leaves
+  large faces recognisable.
+- **Letterbox padding is mid-grey (127)**, which normalises to 0. Black padding reads as
+  a strong edge and invents detections along the border.
+
+### ⚠ A verification lesson worth keeping
+The first version of this test asserted that pixels inside the face box must CHANGE by
+>10, and it FAILED while the blur was working perfectly. One sample sat on flat skin
+tone — blur averages neighbours, so over a uniform region the average IS the original.
+The test measured pixel displacement when the property that matters is detail
+destruction. Replaced with luma variance.
+
+**A red test is not automatically a real defect.** It is worth one round of asking
+whether the assertion encodes the property you actually care about.
+
 ### Still to build
-- Vision layer: MobileViT on crops, face detection, visibility verification
+- MobileViT on crops for non-face visual context (images, canvas, iframes)
 - Wire the loop into the extension itself (it currently runs through the bench harness)
 - Screenshot into the payload (the prompt already supports it; nothing sends one yet)
 - Phase 3: benchmark harness + the holdout run

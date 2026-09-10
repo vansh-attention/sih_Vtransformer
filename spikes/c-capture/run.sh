@@ -14,7 +14,7 @@ pkill -f "spikec_serve" 2>/dev/null; pkill -f spikeC-profile 2>/dev/null; sleep 
 # confusing round of "the fix did not work" when the fix was never loaded.
 rm -rf /tmp/spikeC-profile
 
-python3 - "$PORT" "$OUT" "$ROOT/bench/pages" <<'PY' & SRV=$!
+python3 - "$PORT" "$OUT" "$ROOT/bench" <<'PY' & SRV=$!
 # spikec_serve
 import http.server, socketserver, sys, threading, os
 PORT, OUT, ROOT = int(sys.argv[1]), sys.argv[2], sys.argv[3]
