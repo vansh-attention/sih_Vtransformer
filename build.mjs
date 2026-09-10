@@ -21,7 +21,13 @@ const common = {
 await esbuild.build({
   ...common,
   entryPoints: ['extension/src/background/index.ts'],
-  outfile: 'extension/dist/background.js',
+  // Split, not bundled to one file: the dynamic vision-handlers import becomes its own
+  // chunk, so Chrome's service worker does not carry ONNX Runtime it never runs.
+  // (Chrome routes vision to the offscreen document; only Firefox loads the chunk.)
+  splitting: true,
+  outdir: 'extension/dist',
+  entryNames: 'background',
+  chunkNames: 'chunks/[name]-[hash]',
 });
 
 await esbuild.build({
@@ -43,5 +49,24 @@ await esbuild.build({
   entryPoints: ['extension/src/panel/index.ts'],
   outfile: 'extension/dist/panel.js',
 });
+
+// The Chrome and Firefox manifests differ only in host-specific keys. Anything else
+// diverging means one browser is quietly running a different extension.
+{
+  const { readFileSync } = await import('node:fs');
+  const chrome = JSON.parse(readFileSync('extension/manifest.json', 'utf8'));
+  const firefox = JSON.parse(readFileSync('extension/manifest.firefox.json', 'utf8'));
+  const HOST_SPECIFIC = new Set([
+    'background', 'permissions', 'side_panel', 'sidebar_action', 'browser_specific_settings',
+  ]);
+  const drift = [...new Set([...Object.keys(chrome), ...Object.keys(firefox)])]
+    .filter((k) => !HOST_SPECIFIC.has(k))
+    .filter((k) => JSON.stringify(chrome[k]) !== JSON.stringify(firefox[k]));
+  if (drift.length) {
+    console.error(`\n✘ manifests have drifted on non-host keys: ${drift.join(', ')}`);
+    process.exit(1);
+  }
+  console.log('manifests aligned (chrome ↔ firefox)');
+}
 
 console.log('built extension/dist/');

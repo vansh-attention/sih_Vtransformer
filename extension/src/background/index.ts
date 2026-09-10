@@ -8,6 +8,7 @@
  */
 
 import { runAgentLoop } from './orchestrator.ts';
+import { callVision } from '../vision/bridge.ts';
 
 const OFFSCREEN_PATH = 'src/offscreen/index.html';
 const SERVER_URL = 'http://127.0.0.1:8975';
@@ -454,6 +455,68 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
   return { records, phases, previews: records[0]?.previews ?? [] };
 }
 
+/**
+ * Spike F — does the extension actually work in Firefox?
+ *
+ * Reports what the host provides, then exercises the vision path through the bridge.
+ * On Firefox that runs in the background event page; on Chrome it goes to the offscreen
+ * document. If the bridge is right, this returns the same shape on both.
+ */
+async function runSpikeF(): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = {
+    userAgent: navigator.userAgent,
+    hasOffscreenApi: !!(chrome as { offscreen?: unknown }).offscreen,
+    hasSidePanelApi: !!(chrome as { sidePanel?: unknown }).sidePanel,
+    hasSidebarAction: !!(chrome as { sidebarAction?: unknown }).sidebarAction,
+    hasWebGPU: 'gpu' in navigator,
+  };
+
+  // A 1x1 PNG: enough to prove the vision path is reachable and the model loads.
+  const px = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+    + 'AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  try {
+    const t0 = performance.now();
+    const det = await callVision({ type: 'detect-faces', dataUrl: px, blur: false,
+                                   wantFullFrame: false }) as never as Record<string, never>;
+    out.visionReachable = true;
+    out.visionBackend = det.backend;
+    out.visionMs = Math.round(performance.now() - t0);
+    out.facesOnBlankPixel = (det.detections as unknown[] | undefined)?.length ?? 0;
+  } catch (e) {
+    out.visionReachable = false;
+    out.visionError = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  }
+
+  // Throttling differs by host: Chrome's offscreen document is quantised to ~1s, a
+  // Firefox background page should not be.
+  try {
+    out.encodeProbe = await callVision({ type: 'probe-encode' });
+  } catch (e) {
+    out.encodeProbeError = String(e);
+  }
+
+  // The content script must inject and observe on a real page.
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['dist/content.js'] });
+      const obs = await chrome.tabs.sendMessage(tab.id, {
+        target: 'content', type: 'observe', goal: 'spike F', history: [] });
+      out.contentScript = {
+        ok: !!obs?.ok,
+        nodeCount: obs?.nodeCount,
+        withheld: obs?.withheld,
+        extractMs: obs?.timings?.extractMs,
+        sanitizeMs: obs?.timings?.sanitizeMs,
+      };
+    }
+  } catch (e) {
+    out.contentScript = { ok: false, error: String(e) };
+  }
+
+  return out;
+}
+
 /** Is a spike collector listening on this port? */
 async function collectorUp(port: number): Promise<boolean> {
   try {
@@ -483,6 +546,16 @@ chrome.runtime.onInstalled.addListener(() => {
         out.error = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e);
       }
       await reportTo('http://127.0.0.1:8974/result', out);
+      return;
+    }
+
+    if (await collectorUp(8977)) {
+      try {
+        out.spikeF = await runSpikeF();
+      } catch (e) {
+        out.error = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e);
+      }
+      await reportTo('http://127.0.0.1:8977/result', out);
       return;
     }
 

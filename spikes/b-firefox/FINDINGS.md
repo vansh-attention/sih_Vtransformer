@@ -35,6 +35,16 @@ This also validates the try-WebGPU-then-WASM ladder already in
 `extension/src/offscreen/index.ts`: it is not defensive boilerplate, it is the only
 reason Firefox works at all.
 
+## ⚠ SUPERSEDED — see spikes/f-firefox-ext/FINDINGS.md
+
+**The headed-Firefox caveat below was correct to flag, and the answer is now measured:
+headed Firefox 155 DOES have a working WebGPU adapter.** The null adapter here is an
+artefact of headless mode, not a Firefox limitation. The expected Firefox path is
+WebGPU, not WASM.
+
+The WASM numbers below remain valid as the fallback path — they are what runs when no
+adapter is available — but do not present them as "what Firefox does".
+
 ## ⚠ Caveat — this is HEADLESS Firefox
 
 Headless browsers frequently have no GPU access. Chrome headless *did* expose a

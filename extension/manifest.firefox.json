@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Privacy-Preserving Browser Agent (SIH26171)",
+  "version": "0.1.0",
+  "description": "On-device visual perception with client-side PII redaction before any network request.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": [
+      "dist/background.js"
+    ],
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "models/*",
+        "ort/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "action": {
+    "default_title": "Privacy Agent (SIH26171)"
+  },
+  "sidebar_action": {
+    "default_title": "Privacy Agent",
+    "default_panel": "src/panel/index.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "sih26171-privacy-agent@example.org",
+      "strict_min_version": "128.0"
+    }
+  }
+}

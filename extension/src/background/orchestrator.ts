@@ -11,8 +11,7 @@
 
 import type { AgentAction, SanitizedNode, SanitizedPayload } from '../contracts.ts';
 import { validateActions } from '../agent/validate.ts';
-
-const OFFSCREEN_PATH = 'src/offscreen/index.html';
+import { callVision } from '../vision/bridge.ts';
 
 export interface LoopOptions {
   tabId: number;
@@ -57,18 +56,6 @@ export interface TurnRecord {
   /** Byte count of what was actually transmitted, for the ledger. */
   transmittedBytes: number;
   nodeCount: number;
-}
-
-async function ensureOffscreen(): Promise<void> {
-  const existing = await chrome.runtime.getContexts({
-    contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType],
-  });
-  if (existing.length > 0) return;
-  await chrome.offscreen.createDocument({
-    url: OFFSCREEN_PATH,
-    reasons: ['WORKERS' as chrome.offscreen.Reason],
-    justification: 'Runs on-device vision models; a service worker has no DOM or GPU.',
-  });
 }
 
 /** Downscale via the content script; fall back to the original if anything fails. */
@@ -190,8 +177,8 @@ async function annotateWithVision(
       }));
     if (!crops.length) return 0;
 
-    const res = await chrome.runtime.sendMessage({
-      target: 'offscreen', type: 'classify-crops', frameToken: dataUrl, crops, max: 12 });
+    const res = await callVision({
+      type: 'classify-crops', frameToken: dataUrl, crops, max: 12 }) as never as Record<string, never>;
     if (res?.error) return 0;
 
     let n = 0;
