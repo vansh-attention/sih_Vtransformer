@@ -8,6 +8,12 @@
  *
  * Token resolution happens HERE, at the last possible moment, so the real value exists
  * for exactly as long as it takes to type it.
+ *
+ * ⚠ This file uses `instanceof HTMLInputElement` and friends. Those constructors are
+ * BROWSER GLOBALS and do not exist under Node, so this module must never be imported by
+ * a Node test. The same mistake in `extractor.ts` threw ReferenceError and took out
+ * seven suites at once. If you need to test this logic outside a browser, switch to
+ * `el.tagName.toLowerCase()` checks first.
  */
 
 import type { AgentAction } from '../contracts.ts';

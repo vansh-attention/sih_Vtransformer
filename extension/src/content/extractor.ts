@@ -464,8 +464,11 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
 
     // A <select>'s children are <option>s: not page structure, and useless as tree
     // nodes, but essential as a list of what can be chosen.
-    const options = el instanceof HTMLSelectElement
-      ? Array.from(el.options)
+    // Tag check, NOT `instanceof HTMLSelectElement`. That constructor is a browser
+    // global and does not exist in the Node test environment, so the instanceof threw
+    // ReferenceError and took out seven test suites at once.
+    const options = el.tagName.toLowerCase() === 'select'
+      ? Array.from((el as HTMLSelectElement).options)
           .filter((o) => o.value !== '')
           .slice(0, 40)
           .map((o) => ({ value: o.value, label: (o.textContent ?? '').trim().slice(0, 60) }))
