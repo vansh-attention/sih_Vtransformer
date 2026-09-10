@@ -3,6 +3,9 @@ collects the POSTed result, and exits. Keeps the spike a one-command operation."
 import http.server, socketserver, json, sys, threading, os
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8971
+# Result filename is caller-supplied: Spike B reuses this harness, and a shared
+# hardcoded 'result.json' meant one spike silently overwrote the other's output.
+OUT = os.environ.get('RESULT_FILE', 'result.json')
 done = threading.Event()
 
 class H(http.server.SimpleHTTPRequestHandler):
@@ -15,7 +18,7 @@ class H(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get('content-length', 0))
         body = self.rfile.read(n)
-        open('result.json', 'wb').write(body)
+        open(OUT, 'wb').write(body)
         self.send_response(204); self.end_headers()
         done.set()
 
