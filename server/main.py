@@ -181,15 +181,7 @@ async def _inject_fault() -> Any:
     return None
 
 
-@app.on_event("startup")
-async def warm_model() -> None:
-    """
-    Load the model at startup rather than on the user's first request.
-
-    Otherwise the first thing anyone sees — including a judge — is a ~5s reload plus a
-    cold inference. The runbook says to pre-warm manually; doing it here means nobody
-    has to remember.
-    """
+async def _warm() -> None:
     try:
         async with httpx.AsyncClient(timeout=120) as c:
             await c.post(f"{OLLAMA_URL}/api/chat", json={
@@ -200,8 +192,24 @@ async def warm_model() -> None:
                 "options": {"num_predict": 1},
             })
         print(f"[startup] {MODEL} warmed and held resident")
-    except Exception as e:      # never block startup on this
+    except Exception as e:
         print(f"[startup] could not warm {MODEL}: {e}")
+
+
+@app.on_event("startup")
+async def warm_model() -> None:
+    """
+    Warm the model IN THE BACKGROUND.
+
+    Loading it up front means the first request anyone makes — including a judge's — is
+    not a ~5s reload plus a cold inference. But awaiting it here blocks the server from
+    accepting connections until it finishes, and when Ollama is absent that wait is a
+    connection timeout: fast on Linux and macOS, slow enough on Windows that the server
+    took over 30 seconds to start answering at all.
+
+    A warm-up is an optimisation. It must never delay readiness.
+    """
+    asyncio.create_task(_warm())
 
 
 @app.get("/health")

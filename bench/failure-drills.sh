@@ -52,7 +52,9 @@ start_server() {   # $1 = fault mode ("" for healthy)
   if [ -n "$1" ]; then want="\"fault\":\"$1\""; else want='"fault":null'; fi
 
   local raw
-  for _ in $(seq 1 30); do
+  # 60s: Windows runners are markedly slower to bind than Linux or macOS, and a
+  # too-short window reports a healthy server as dead.
+  for _ in $(seq 1 60); do
     raw=$(curl -s --max-time 2 "http://127.0.0.1:$PORT/health" 2>/dev/null || echo "")
     case "$raw" in
       *"$want"*) return 0 ;;
