@@ -69,7 +69,7 @@ property of the architecture, not a claim about code correctness.
 
 ## Numbers — all measured, none estimated
 
-| | tuned (12 fixtures) | **holdout (2)** |
+| | tuned (14 fixtures) | **holdout (2)** |
 |---|---|---|
 | visual context accuracy | 100% | **100%** |
 | PII recall / precision | 100% / 100% | **100% / 100%** |
@@ -194,13 +194,15 @@ writing a test *for* rule 4.
 
 ## Still open — none blocking
 
-- Indian languages beyond Hindi (Tamil, Bengali, Telugu behave as Hindi did before
-  `hindi-opaque.html` was added)
+- Eight of the eleven language vocabularies are **unreviewed by a native reader** —
+  Telugu, Gujarati, Kannada, Malayalam, Punjabi, Odia, Marathi and the Hindi additions.
+  Tamil and Bengali have fixtures. This is the cheapest high-value thing to hand to
+  someone who reads the script
 - Devanagari names in **prose** — form fields work; the name tokeniser is Latin-only
 - Frames are masked, not read. Injecting with `allFrames` and merging per-frame vaults
   would recover the context, but merging vaults across frames is where leaks live — it
   needs a design, not a flag flip
-- Corpus is 12 tuned fixtures + 2 holdout + 4 real sites. **Growing it has found a real bug every single
+- Corpus is 14 tuned fixtures + 2 holdout + 4 real sites. **Growing it has found a real bug every single
   time — the best task for a teammate**
 - Git Bash on Windows cannot background uvicorn, so the server drills skip there; WSL
   works. Documented, not hidden

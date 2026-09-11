@@ -118,12 +118,28 @@ function redactValue(
   // real Wikipedia article this rule replaced entire paragraphs with a single token
   // because some nearby text mentioned a name — destroying the page content the server
   // needs to read. Long text gets span-level redaction or nothing.
-  // AND only for actual form controls. A label vouches for the value of a FIELD; a
-  // paragraph has no label vouching for it, and a nearby name-ish heading is not
-  // permission to replace an article's prose with a token.
+  // AND only where something genuinely LABELS the value. A label vouches for the value
+  // of a field; a paragraph has no label vouching for it, and a nearby name-ish heading
+  // is not permission to replace an article's prose with a token.
+  //
+  // `<dd>` counts. A <dt>/<dd> pair is a labelling relationship in the same sense as
+  // <label for> — the browser, the accessibility tree and every reader treat the <dt> as
+  // naming the <dd>, and it is how read-only government and banking records are marked
+  // up when there is no form to fill in. Restricting this to form controls meant
+  //
+  //   <dt>Address</dt><dd>22 Rashbehari Avenue, Kolkata 700029</dd>
+  //
+  // went out in full: the hint said ADDRESS, no pattern matched, and the rule declined
+  // to act. Reproduced in plain English before being fixed, so it was never a
+  // Bengali-specific bug — bengali-opaque.html just happened to be the first fixture in
+  // the corpus that displayed values instead of editing them.
+  //
+  // <td> is deliberately NOT here. A table cell takes meaning from a column header
+  // shared with every other row, and on a bank statement that route already redacted
+  // references and balances as Aadhaar numbers once.
   const FIELD_VALUE_MAX = 120;
   const isFormControl = signals !== undefined
-    && ['input', 'textarea', 'select'].includes(signals.tag);
+    && ['input', 'textarea', 'select', 'dd', 'output'].includes(signals.tag);
   if (spans.length === 0 && isFormControl && text.length <= FIELD_VALUE_MAX
       && hint && hint.kind !== 'NON_PII') {
     const resolved = reconcile(hint, null);

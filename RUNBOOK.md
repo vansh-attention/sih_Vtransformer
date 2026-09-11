@@ -134,11 +134,12 @@ against a live hostile page. One is a real exfiltration path we found and closed
 written before any tuning, never optimised against. 100% recall, 100% precision, zero
 leaks — the same as the tuned set.
 
-**"What doesn't it do?"** — Indian languages beyond Hindi: a form labelled only in Tamil,
-Bengali or Telugu behaves the way Hindi did before we added a fixture for it. Devanagari
-names in running prose are missed too — the name tokeniser is Latin-only, though
-Devanagari *form fields* work. And our corpus is 12 tuned fixtures, 2 holdout and 4 real sites, which is
-small; every new page shape we have added has found a real defect.
+**"What doesn't it do?"** — Eleven languages have field vocabularies, but only Tamil and
+Bengali are backed by fixtures; the other eight want a native reader's eye, and we say so
+rather than claim eleven. Names in running prose are Latin-only — the tokeniser does not
+segment Indic scripts, though form fields in all eleven work. And our corpus is 14 tuned
+fixtures, 2 holdout and 4 real sites, which is small; every new page shape we have added
+has found a real defect, without exception.
 
 **"Why not use GPT-4/Claude?"** — The PS requires an open-weight, offline-deployable
 model. Ours runs on this laptop with the network off.

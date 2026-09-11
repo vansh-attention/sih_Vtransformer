@@ -155,8 +155,11 @@ one.
 
 We publish these rather than wait to be asked.
 
-- **Only Hindi among Indian languages.** Tamil, Bengali, Telugu and the rest follow the
-  same pattern and are not yet covered.
+- **Eleven languages, two of them measured.** English, Hindi, Marathi, Tamil, Telugu,
+  Bengali, Gujarati, Kannada, Malayalam, Punjabi and Odia have field vocabularies. Only
+  the Tamil and Bengali lists are backed by fixtures; the other eight were not written by
+  native readers and should be reviewed by one. A wrong word there fails open — a missed
+  label, not a wrong redaction.
 - **Devanagari names in running prose** are not detected — the name tokeniser is
   Latin-only. Devanagari *form fields* are handled.
 - **The test corpus is 12 pages plus 4 real websites.** Small. Every new page shape has

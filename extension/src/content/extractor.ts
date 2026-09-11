@@ -340,23 +340,46 @@ function contextLabelFor(el: Element): string | undefined {
     let index = 0;
     for (let c = row.firstElementChild; c && c !== cell; c = c.nextElementSibling) index++;
 
+    let columnHeader = '';
     const headerRow = row.closest('table')?.querySelector('tr');
     if (headerRow && headerRow !== row) {
       let i = 0;
       for (let h = headerRow.firstElementChild; h; h = h.nextElementSibling, i++) {
         if (i === index) {
-          const text = visibleText(h);
-          if (text) return text.slice(0, 100);
+          columnHeader = visibleText(h);
           break;
         }
       }
     }
 
+    let rowLabel = '';
     const firstCell = row.firstElementChild;
-    if (firstCell && firstCell !== cell) {
-      const text = visibleText(firstCell);
-      if (text) return text.slice(0, 100);
-    }
+    if (firstCell && firstCell !== cell) rowLabel = visibleText(firstCell);
+
+    /**
+     * BOTH, not one or the other.
+     *
+     * Returning the column header and stopping loses the row label entirely, and the row
+     * label is often the only thing that says what the value IS:
+     *
+     *   <tr><th>Description</th><th>Number</th></tr>
+     *   <tr><td>Order Total</td><td>999999999999</td></tr>
+     *
+     * The cell's context became "Number", "Order Total" was never seen, and a
+     * checksum-valid total was redacted as an Aadhaar number. Over-redaction is scored
+     * as heavily as leaking.
+     *
+     * This was invisible until `tamil-opaque.html` was added, because every table in the
+     * corpus until then was HEADER-LESS — with no <th> row the code fell through to the
+     * row label by accident and looked correct. The bug is not language-specific; it
+     * reproduces in English with the same markup.
+     *
+     * Header first: the earlier bank-statement finding stands, and where the two
+     * disagree the column is the better evidence. Keeping both simply stops one signal
+     * from hiding the other, since classifyField reads the whole string.
+     */
+    const combined = [columnHeader, rowLabel].filter(Boolean).join(' ');
+    if (combined) return combined.slice(0, 100);
   }
 
   const prevText = visibleText(el.previousElementSibling);

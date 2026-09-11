@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <title>পেনশন আবেদন ফর্ম</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; max-width: 720px; }
+    dl { margin: 0; }
+    dt { font-size: 14px; color: #444; margin-top: 12px; }
+    dd { margin: 4px 0 0; font-size: 15px; }
+    table { border-collapse: collapse; margin-top: 20px; }
+    td, th { border: 1px solid #ccc; padding: 6px 10px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>পেনশন আবেদন ফর্ম</h1>
+
+  <!--
+    A second script, and a second MARKUP shape: this one is a definition list of
+    already-submitted values rather than a form of inputs, so the value carries no field
+    hint of its own and the <dt> is the only signal. Two variables at once is deliberate
+    — a language fixture that reuses the Tamil markup would only re-test the markup.
+
+    Same trap at the bottom: "মোট" is "total".
+  -->
+  <dl>
+    <dt>আবেদনকারীর নাম</dt><dd id="b1">Sudipto Chatterjee</dd>
+    <dt>আধার নম্বর</dt><dd id="b2">3456 7890 1234</dd>
+    <dt>মোবাইল নম্বর</dt><dd id="b3">9830112233</dd>
+    <dt>ইমেইল</dt><dd id="b4">s.chatterjee@example.com</dd>
+    <dt>ঠিকানা</dt><dd id="b5">22 Rashbehari Avenue, Kolkata 700029</dd>
+    <dt>জন্ম তারিখ</dt><dd id="b6">1961-04-12</dd>
+  </dl>
+
+  <table>
+    <tr><th>বিবরণ</th><th>সংখ্যা</th></tr>
+    <tr><td>মোট</td><td id="b7">888888888888</td></tr>
+  </table>
+
+  <button id="submit">জমা দিন</button>
+</body>
+</html>

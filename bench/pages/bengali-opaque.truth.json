@@ -1,0 +1,14 @@
+{
+  "name": "bengali-opaque",
+  "elements": [
+    { "id": "b1", "kind": "NAME",    "redact": true },
+    { "id": "b2", "kind": "AADHAAR", "redact": true },
+    { "id": "b3", "kind": "PHONE",   "redact": true },
+    { "id": "b4", "kind": "EMAIL",   "redact": true },
+    { "id": "b5", "kind": "ADDRESS", "redact": true },
+    { "id": "b6", "kind": "DOB",     "redact": true },
+    { "id": "b7", "kind": null, "redact": false, "why": "মোট = total; 12 digits, commercial not personal" }
+  ],
+  "mustFind": ["জমা দিন"],
+  "visionQueueMin": 0
+}

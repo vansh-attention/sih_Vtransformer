@@ -100,27 +100,68 @@ const AUTOCOMPLETE_MAP: Record<string, PiiKind> = {
  * Aadhaar number. Both are exactly the failure a judge from an Indian ministry would
  * think to try.
  *
- * Other Indian scripts follow the same pattern and are not yet covered — see
- * bench/README.md.
+ * NINE MORE SCRIPTS, ADDED 11 Sep. Hindi was the only Indian language covered, which is
+ * a strange gap for a problem statement set by an Indian space agency: a form labelled
+ * only in Tamil behaved exactly as a Hindi one did before `hindi-opaque.html` existed —
+ * names unredacted, amounts redacted as Aadhaar numbers.
+ *
+ * Cross-script false positives are impossible by construction, because the Indic scripts
+ * occupy disjoint Unicode blocks: a Tamil keyword cannot fire on a Bengali label. That
+ * is what makes adding nine at once a bounded risk rather than a reckless one. It is
+ * also why each language stays on its own line — the list is meant to be reviewed by
+ * someone who reads the script, one row at a time.
+ *
+ * HONEST CAVEAT: these were not written by native speakers of each language. They are
+ * the standard government-form renderings, and the Tamil and Bengali ones are measured
+ * against fixtures. The rest are UNVERIFIED BY A NATIVE READER and should be treated as
+ * a first pass — a wrong word here fails open (a missed label), not closed.
  */
 const KEYWORD_MAP: Array<{ kind: PiiKind; words: string[] }> = [
-  { kind: 'AADHAAR', words: ['aadhaar', 'aadhar', 'uidai', 'uid', 'आधार'] },
-  { kind: 'PAN', words: ['pan', 'permanent account', 'पैन'] },
+  { kind: 'AADHAAR', words: ['aadhaar', 'aadhar', 'uidai', 'uid',
+                             'आधार',        // hi/mr
+                             'ஆதார்',        // ta
+                             'ఆధార్',        // te
+                             'আধার',        // bn
+                             'આધાર',        // gu
+                             'ಆಧಾರ್',       // kn
+                             'ആധാർ',       // ml
+                             'ਆਧਾਰ',        // pa
+                             'ଆଧାର'] },     // or
+  { kind: 'PAN', words: ['pan', 'permanent account',
+                         'पैन', 'பான்', 'పాన్', 'প্যান', 'પાન', 'ಪಾನ್', 'പാൻ', 'ਪੈਨ'] },
   { kind: 'GSTIN', words: ['gstin', 'gst', 'जीएसटी'] },
   { kind: 'IFSC', words: ['ifsc', 'आईएफएससी'] },
   { kind: 'UPI', words: ['upi', 'vpa', 'यूपीआई'] },
   { kind: 'CARD', words: ['card number', 'cardno', 'creditcard', 'debitcard', 'cvv',
-                          'कार्ड संख्या', 'कार्ड नंबर'] },
+                          'कार्ड संख्या', 'कार्ड नंबर',
+                          'அட்டை', 'కార్డు', 'কার্ড', 'કાર્ડ', 'ಕಾರ್ಡ್', 'കാർഡ്', 'ਕਾਰਡ'] },
   { kind: 'PHONE', words: ['mobile', 'phone', 'contact number',
-                           'मोबाइल', 'दूरभाष', 'फ़ोन', 'फोन'] },
-  { kind: 'EMAIL', words: ['email', 'e-mail', 'ईमेल', 'ई-मेल'] },
+                           'मोबाइल', 'मोबाईल', 'दूरभाष', 'फ़ोन', 'फोन',
+                           'கைபேசி', 'மொபைல்', 'தொலைபேசி',
+                           'మొబైల్', 'ఫోన్',
+                           'মোবাইল', 'ফোন',
+                           'મોબાઇલ', 'ફોન',
+                           'ಮೊಬೈಲ್', 'ಫೋನ್',
+                           'മൊബൈൽ', 'ഫോൺ',
+                           'ਮੋਬਾਈਲ', 'ਫ਼ੋਨ',
+                           'ମୋବାଇଲ'] },
+  { kind: 'EMAIL', words: ['email', 'e-mail', 'ईमेल', 'ई-मेल',
+                           'மின்னஞ்சல்', 'ఇమెయిల్', 'ইমেইল', 'ই-মেইল', 'ઇમેઇલ',
+                           'ಇಮೇಲ್', 'ഇമെയിൽ', 'ਈਮੇਲ', 'ଇମେଲ'] },
   { kind: 'NAME', words: ['name', 'firstname', 'lastname', 'surname',
-                          'नाम', 'उपनाम'] },
+                          'नाम', 'उपनाम', 'नाव',
+                          'பெயர்', 'పేరు', 'নাম', 'નામ', 'ಹೆಸರು', 'പേര്', 'ਨਾਮ', 'ନାମ'] },
   { kind: 'ADDRESS', words: ['address', 'pincode', 'postal', 'street', 'city',
-                             'पता', 'पिनकोड', 'शहर', 'गाँव', 'गांव'] },
-  { kind: 'DOB', words: ['dob', 'birth', 'birthday', 'जन्म', 'जन्मतिथि'] },
+                             'पता', 'पत्ता', 'पिनकोड', 'शहर', 'गाँव', 'गांव',
+                             'முகவரி', 'చిరునామా', 'ঠিকানা', 'સરનામું',
+                             'ವಿಳಾಸ', 'വിലാസം', 'ਪਤਾ', 'ଠିକଣା'] },
+  { kind: 'DOB', words: ['dob', 'birth', 'birthday', 'जन्म', 'जन्मतिथि',
+                         'பிறந்த', 'జనన', 'పుట్టిన', 'জন্ম', 'જન્મ',
+                         'ಜನನ', 'ജനന', 'ਜਨਮ', 'ଜନ୍ମ'] },
   { kind: 'PASSWORD', words: ['password', 'passwd', 'pwd', 'otp', 'pin',
-                              'पासवर्ड', 'ओटीपी'] },
+                              'पासवर्ड', 'ओटीपी',
+                              'கடவுச்சொல்', 'పాస్‌వర్డ్', 'পাসওয়ার্ড', 'પાસવર્ડ',
+                              'ಪಾಸ್‌ವರ್ಡ್', 'പാസ്‌വേഡ്', 'ਪਾਸਵਰਡ'] },
 ];
 
 /**
@@ -143,6 +184,20 @@ const NON_PII_WORDS = [
   // Hindi commercial vocabulary. Same reason as the positive list: without these an
   // amount under "कुल राशि" is redacted as an Aadhaar number.
   'राशि', 'कुल', 'क्रमांक', 'शुल्क', 'मूल्य', 'बिल', 'रसीद', 'भुगतान', 'शेष', 'लेनदेन',
+  // Marathi
+  'रक्कम', 'एकूण', 'पावती',
+  // The same commercial vocabulary in the other scripts. This half matters as much as
+  // the positive list: a 12-digit total passes the Aadhaar checksum, so a script whose
+  // word for "total" is missing loses redaction PRECISION, which is scored as heavily
+  // as a leak. Tamil and Telugu are measured; the rest follow the same construction.
+  'தொகை', 'மொத்தம்', 'கட்டணம்', 'ரசீது', 'விலை',                    // ta
+  'మొత్తం', 'సొమ్ము', 'రసీదు', 'బిల్లు', 'ధర',                          // te
+  'পরিমাণ', 'মোট', 'রসিদ', 'বিল', 'মূল্য',                           // bn
+  'રકમ', 'કુલ', 'રસીદ', 'બિલ', 'કિંમત',                              // gu
+  'ಮೊತ್ತ', 'ಒಟ್ಟು', 'ರಸೀದಿ', 'ಬಿಲ್', 'ಬೆಲೆ',                            // kn
+  'തുക', 'ആകെ', 'രസീത്', 'ബിൽ', 'വില',                            // ml
+  'ਰਕਮ', 'ਕੁੱਲ', 'ਰਸੀਦ', 'ਬਿੱਲ', 'ਕੀਮਤ',                             // pa
+  'ପରିମାଣ', 'ମୋଟ', 'ରସିଦ', 'ବିଲ',                                    // or
 ];
 
 /**

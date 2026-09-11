@@ -39,14 +39,14 @@ Measured, not assumed — `--no-layer3` runs the counterfactual:
 
 | | recall | precision | F1 |
 |---|---|---|---|
-| tuned, layer 3 **off** | 86.8% | 100.0% | 93.0% |
+| tuned, layer 3 **off** | 90.4% | 100.0% | 94.9% |
 | tuned, layer 3 **on** | **100.0%** | **100.0%** | **100.0%** |
 | holdout, layer 3 **off** | 91.7% | 100.0% | 95.7% |
 | holdout, layer 3 **on** | **100.0%** | **100.0%** | **100.0%** |
 
 Layer 3 costs **5.1 MB** of static assets — 27,475 given names, 82,624 family names and
 a 349,766-word English dictionary — and needs no inference at all. It closes a
-13-point recall gap on the tuned corpus and an 8-point gap on the holdout.
+10-point recall gap on the tuned corpus and an 8-point gap on the holdout.
 
 `bench/pages/casenote.html` exists specifically to make this measurable: every other
 fixture gives its names a labelling cue, so layers 1–2 catch them and layer 3's
@@ -54,11 +54,13 @@ contribution never shows in the numbers.
 
 ## Known coverage gaps
 
-- **Only Hindi among Indian languages.** The keyword lists cover English and Devanagari.
-  Tamil, Bengali, Telugu, Marathi and the rest follow the same pattern and are not yet
-  covered — a form labelled only in those scripts would behave the way Hindi did before
-  `bench/pages/hindi-opaque.html` was added: personal names unredacted, amounts redacted
-  as Aadhaar numbers.
+- **Eleven languages, two of them measured.** English, Hindi, Marathi, Tamil, Telugu,
+  Bengali, Gujarati, Kannada, Malayalam, Punjabi and Odia now have both positive field
+  vocabularies and the commercial ("total", "receipt") vocabulary that keeps amounts from
+  being redacted as Aadhaar numbers. Cross-script false positives are impossible by
+  construction — the Indic scripts sit in disjoint Unicode blocks.
+  **Only Tamil and Bengali have fixtures.** The other eight were not written by native
+  readers. Treat them as a first pass and get them reviewed.
 - **Devanagari names in prose.** Layer 3's tokeniser is Latin-only, so a Hindi name in a
   paragraph (rather than in a labelled field) is not detected.
 - **Text beyond 2000 characters.** Reported via `piiBeyondTextCap`, and the orchestrator

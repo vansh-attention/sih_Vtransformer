@@ -1,0 +1,14 @@
+{
+  "name": "tamil-opaque",
+  "elements": [
+    { "id": "f1", "kind": "NAME",     "redact": true },
+    { "id": "f2", "kind": "AADHAAR",  "redact": true },
+    { "id": "f3", "kind": "PHONE",    "redact": true },
+    { "id": "f4", "kind": "EMAIL",    "redact": true },
+    { "id": "f5", "kind": "ADDRESS",  "redact": true },
+    { "id": "f6", "kind": "PASSWORD", "redact": true },
+    { "id": "f7", "kind": null, "redact": false, "why": "மொத்தம் = total; 12 digits and Aadhaar-checksum-valid, but commercial" }
+  ],
+  "mustFind": ["சமர்ப்பிக்கவும்"],
+  "visionQueueMin": 0
+}

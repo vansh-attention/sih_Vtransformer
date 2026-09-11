@@ -163,7 +163,7 @@ Rebuild after any change to `extension/src/` or Chrome will keep running the old
 
 Open items are at the bottom of `RESUME.md`. Good first tasks:
 
-- **Grow the test corpus.** We have 12 tuned fixtures, 2 holdout and 4 real sites. Add real-world page
+- **Grow the test corpus.** We have 14 tuned fixtures, 2 holdout and 4 real sites. Add real-world page
   shapes to `bench/pages/` with a matching `.truth.json`. This is the highest-value thing
   anyone can do — every bug we've found came from a new page shape, without exception.
 - **Test on a low-end laptop.** Every number above is from an M5. We genuinely don't

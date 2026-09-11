@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ta">
+<head>
+  <meta charset="utf-8">
+  <title>நல உதவித் திட்டம் — விண்ணப்பம்</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; max-width: 720px; }
+    .f { margin: 12px 0; }
+    .f span { display: block; font-size: 14px; color: #444; margin-bottom: 4px; }
+    input { width: 320px; padding: 6px 8px; border: 1px solid #bbb; border-radius: 4px; }
+    table { border-collapse: collapse; margin-top: 20px; }
+    td, th { border: 1px solid #ccc; padding: 6px 10px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>நல உதவித் திட்டம் — விண்ணப்பம்</h1>
+
+  <!--
+    The Tamil counterpart of hindi-opaque.html, and built to the same rule: every
+    attribute name is OPAQUE (f1, f2, ...), so the visible Tamil label is the only thing
+    that identifies the field. A detector with an English-and-Hindi vocabulary sees
+    nothing here at all.
+
+    The trap is the last row. "மொத்தம்" is "total" — a 12-digit figure that satisfies the
+    Aadhaar checksum. It must NOT be redacted, or redaction precision collapses on every
+    Tamil-language financial page.
+  -->
+  <div class="f"><span>விண்ணப்பதாரர் பெயர்</span><input id="f1" value="Meenakshi Sundaram"></div>
+  <div class="f"><span>ஆதார் எண்</span><input id="f2" value="2234 5678 9012"></div>
+  <div class="f"><span>கைபேசி எண்</span><input id="f3" value="9840123456"></div>
+  <div class="f"><span>மின்னஞ்சல் முகவரி</span><input id="f4" value="m.sundaram@example.com"></div>
+  <div class="f"><span>முகவரி</span><input id="f5" value="14, Gandhi Street, Madurai 625001"></div>
+  <div class="f"><span>கடவுச்சொல்</span><input id="f6" type="password" value="Kovai@2026"></div>
+
+  <table>
+    <tr><th>விவரம்</th><th>எண்</th></tr>
+    <tr><td>மொத்தம்</td><td id="f7">999999999999</td></tr>
+  </table>
+
+  <button id="submit">சமர்ப்பிக்கவும்</button>
+</body>
+</html>

@@ -239,7 +239,8 @@ def main():
         ("•  On-device face detection and blurring", 12, False, INK, 4),
         ("•  Privacy Ledger with raw-payload inspection", 12, False, INK, 4),
         ("•  Hostile-page defences: 16 of 24 validator cases refused", 12, False, INK, 4),
-        ("•  Graceful failure — 8/8 drills", 12, False, INK, 12),
+        ("•  Graceful failure — 8/8 drills", 12, False, INK, 4),
+        ("•  Field labels in 11 Indian languages, not just English", 12, False, INK, 12),
         ("Challenges, and how they were handled", 15, True, AMBER, 8),
         ("Chrome's offscreen document is timer-throttled to ~1 s — a 16×16 "
          "canvas takes 1004 ms there. Work moved to an unthrottled context: "
@@ -262,12 +263,12 @@ def main():
         ("Low-end figures are from a 6x CPU-throttled run, not an estimate.",
          9, False, GREY, 10),
         ("Honest limits", 13, True, AMBER, 6),
-        ("•  Hindi is the only Indian language covered. A form labelled solely "
-         "in Tamil, Bengali or Telugu is not yet handled, and we say so rather "
-         "than wait to be asked.", 12, False, GREY, 4),
-        ("•  Devanagari names in running prose are missed — the name tokeniser "
-         "is Latin-only. Devanagari form fields do work.", 12, False, GREY, 4),
-        ("•  Test corpus is 12 tuned fixtures, 2 holdout and 4 real sites. Small, "
+        ("•  Eleven languages have field vocabularies, but only Tamil and Bengali "
+         "are backed by fixtures. The other eight need a native reader's review, "
+         "and we say so rather than claim eleven.", 12, False, GREY, 4),
+        ("•  Names in running prose are Latin-only — the tokeniser does not segment "
+         "Indic scripts. Form fields in all eleven do work.", 12, False, GREY, 4),
+        ("•  Test corpus is 14 tuned fixtures, 2 holdout and 4 real sites. Small, "
          "and stated as such: every page shape added has found a real defect — "
          "the newest found a leak through the screenshot.", 12, False, GREY, 2),
     ])

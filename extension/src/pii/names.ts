@@ -6,7 +6,7 @@
  *
  * MEASURED CONTRIBUTION (bench/score.ts --no-layer3 runs the counterfactual)
  *
- *   tuned    layer 3 OFF   recall  86.8%   precision 100.0%   F1 93.0%
+ *   tuned    layer 3 OFF   recall  90.4%   precision 100.0%   F1 94.9%
  *   tuned    layer 3 ON    recall 100.0%   precision 100.0%   F1 100.0%
  *   holdout  layer 3 OFF   recall  91.7%   precision 100.0%   F1 95.7%
  *   holdout  layer 3 ON    recall 100.0%   precision 100.0%   F1 100.0%
@@ -206,6 +206,43 @@ export function detectNames(text: string): NameSpan[] {
       push({
         start: a.start, end: b!.end, text: text.slice(a.start, b!.end),
         confidence: 0.75, reason: 'given name in gazetteer + trailing token',
+      });
+      i += 2;
+      continue;
+    }
+
+    /**
+     * THE MIRROR CASE: unknown token + KNOWN SURNAME.
+     *
+     * Without this, a recognised surname made detection WORSE than an unrecognised one.
+     * "Sudipto Chatterjee": `chatterjee` is in the family list and `sudipto` is in
+     * neither list, so every gazetteer branch above needs `aGiven` and fails — while the
+     * dictionary-absence branch below is gated on `!bFamily` and refuses to look. The
+     * name leaked. Change the surname to something no list contains and it is caught.
+     *
+     * More evidence producing less detection is always a structural bug rather than a
+     * tuning problem, which is why this is a branch and not a threshold change.
+     *
+     * Surname-final is the dominant order in most of India and in English, so the
+     * unknown token here is the given name — exactly where an uncommon or regional name
+     * sits, and exactly what a list will never have.
+     *
+     * NEITHER token may be an ordinary English word, and the surname is the half that
+     * matters. `Number`, `Name` and `Bank` are all genuine surnames sitting in the
+     * gazetteer, so the first cut of this rule read "Aadhaar Number" as a person and
+     * destroyed the label cell of every government form — holdout redaction precision
+     * 100% -> 90%, the exact failure this project already paid for once.
+     *
+     * A gazetteer entry that is also an ordinary word is not evidence.
+     */
+    if (adjacent && !aGiven && !aFamily && bFamily
+        && DICTIONARY.size > 0
+        && !DICTIONARY.has(norm(a.text))
+        && !DICTIONARY.has(norm(b!.text))
+        && a.text.length >= 3) {
+      push({
+        start: a.start, end: b!.end, text: text.slice(a.start, b!.end),
+        confidence: 0.75, reason: 'unknown given token + surname in gazetteer',
       });
       i += 2;
       continue;
