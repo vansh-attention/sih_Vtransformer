@@ -156,8 +156,8 @@ def main():
           "after the deadline.”</i>"),
         P("The <b>same document</b> says 30th Aug on an earlier page, and press coverage says "
           "30 September. The sources genuinely contradict each other, so I am not presenting one as "
-          "settled. <b>The safe assumption is 15 September.</b> Confirming which is correct is "
-          "question 1 below.", "body"),
+          "settled. <b>The safe assumption is 15 September.</b> I have written to AICTE to confirm "
+          "which applies.", "body"),
     ], bg=WARNBG, edge=colors.HexColor("#E0B9A6")))
     f.append(Spacer(1, 7))
 
@@ -182,8 +182,9 @@ def main():
 
     # ---------------- what it takes ----------------
     f.append(P("What participation actually requires of the Institute", "h"))
-    f.append(B("<b>A faculty SPOC</b>, registered on the portal. Needs the Institute’s "
-               "<b>AISHE / AICTE code</b>."))
+    f.append(B("<b>A faculty SPOC</b>, registered on the portal. The Institute’s AISHE code is "
+               "<b>U-1283</b> — already to hand, so registration needs only a faculty name, "
+               "official email and phone number."))
     f.append(B("<b>An internal hackathon is mandatory.</b> Only teams selected in it may be nominated."))
     f.append(B("<b>The SPOC must upload an internal-hackathon report</b> of up to 15 pages: event "
                "overview, participating team and student counts, event photographs, jury panel and "
@@ -192,8 +193,8 @@ def main():
                "compressed timeline is hard.</b>"))
     f.append(B("<b>A nomination letter per team on Institute letterhead</b>, naming the team and all 6 "
                "members plus up to 2 mentors, signed by the Director/Dean and bearing the Institute seal."))
-    f.append(B("Caps: <b>50 teams per college</b> (45 shortlisted + 5 waitlisted), <b>100 per university</b>. "
-               "Nominating one team does not use up meaningful capacity."))
+    f.append(B("Caps: 50 teams per college, <b>100 per university</b>. <b>U-1283 is a university-level "
+               "AISHE code</b>, so the ceiling is 100. I am asking about one team."))
     f.append(Spacer(1, 3))
 
     # ---------------- team rules ----------------
@@ -216,18 +217,17 @@ def main():
                "further.", "small"))
     f.append(qtable([
         ("1.", "Is the Institute willing to <b>appoint a faculty member as SPOC</b> and register on "
-                "sih.gov.in? If yes, who, and can it be initiated this week?"),
+                "sih.gov.in? If yes, who, and can it be initiated this week? AISHE code <b>U-1283</b> "
+                "is ready."),
         ("2.", "If not — is that a <b>final no for SIH 2026</b>? I will then stop pursuing this route "
                 "through IIM Mumbai and go via IIT Madras. I need the answer, not a favourable one."),
-        ("3.", "Does the Institute hold an <b>AISHE or AICTE code</b>, and who can supply it? The "
-                "registration form requires it."),
-        ("4.", "Who would <b>sign and seal the nomination letter</b> — the Director, or a Dean?"),
-        ("5.", "Is the Institute willing to run a <b>minimal internal hackathon</b> and produce the "
+        ("3.", "Who would <b>sign and seal the nomination letter</b> — the Director, or a Dean?"),
+        ("4.", "Is the Institute willing to run a <b>minimal internal hackathon</b> and produce the "
                 "required report? Given the timeline this may be the deciding constraint, and I would "
                 "rather hear that plainly than have it stall later."),
-        ("6.", "Has the Institute been approached about SIH in previous years and declined? If there is "
+        ("5.", "Has the Institute been approached about SIH in previous years and declined? If there is "
                 "an existing policy position, knowing it saves everyone time."),
-        ("7.", "If SIH 2026 is not possible, would the Institute consider <b>registering a SPOC now for "
+        ("6.", "If SIH 2026 is not possible, would the Institute consider <b>registering a SPOC now for "
                 "SIH 2027</b>? Registration opens around July each year, and the absence of any IIM from "
                 "the national list looks like an opportunity rather than a deliberate choice."),
     ]))
