@@ -10,7 +10,7 @@ happened during development.
 ```bash
 cd sih_Vtransformer
 git pull && node build.mjs          # never demo a stale build
-./test-all.sh                       # 15/15 expected; do not demo on red
+./test-all.sh                       # 16/16 expected; do not demo on red
 ```
 
 **1. Start the local AI.**
@@ -88,6 +88,16 @@ Order Total     999999999999          sent as-is
 Then open **"Raw bytes transmitted"**:
 
 > This is the exact payload. You can read it. There's no PAN in it.
+
+Point at the **"struck out of image"** counter:
+
+> And redacting the text isn't enough on its own. We also send a screenshot, so we strike
+> every one of those values out of the picture before it leaves — a solid bar, not a blur,
+> because text survives a blur. Both channels agree, and a test fails the build if they
+> ever stop agreeing.
+
+That is worth saying out loud even unprompted: it is the failure most privacy demos have
+and do not know about.
 
 ### 4. The hostile page (60s)
 

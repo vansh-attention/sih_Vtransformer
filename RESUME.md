@@ -19,8 +19,8 @@ Local: `~/sih-browser-agent` · released **v0.1.0**, **v0.1.1**
 
 ```bash
 ./setup.sh             # clone -> working, one command
-./test-all.sh          # 15 checks, no browser needed
-./test-all.sh --full   # 20 checks: + real browsers + live model
+./test-all.sh          # 16 checks, no browser needed
+./test-all.sh --full   # 21 checks: + real browsers + live model
 ```
 
 ---
@@ -110,9 +110,40 @@ JSON payload, so it caught none of them.
 2. Shadow DOM — never traversed at all
 3. Text beyond the character cap — silently truncated
 4. The same value appearing twice, redacted in one place only
+5. **The screenshot itself — found and fixed 11 Sep.** See below.
 
-If a fifth exists it will look like that. Current defence: **withhold the screenshot**
-when part of the page is unreadable (`closedShadowHosts`, `piiBeyondTextCap`).
+Defences: **withhold the screenshot** when part of the page is unreadable
+(`closedShadowHosts`, `piiBeyondTextCap`), and **strike out** every redacted value's
+on-screen box before the image is transmitted.
+
+### The fifth: the image was never redacted at all
+
+The prediction above was right, and the case was the most general one. A value could be
+**perfectly tokenised in the JSON and perfectly legible in the picture sent with it**:
+
+- `blurRegions` was only ever called with **face** boxes. No text was ever masked.
+- `bench/leak-test.ts` contains no reference to `screenshot` — it only inspects JSON,
+  exactly as this section warned.
+- A screenshot is sent whenever `visionQueue` is non-empty, downscaled to 1024px wide.
+
+Measured on the corpus: **`checkout.html` — the demo page — redacts 10 values from the
+payload and transmits an image of all 10.** Same for `profile.html` (6) and the holdout
+`gov-form.html` (5). A judge opening "Raw bytes transmitted" would have seen clean JSON
+next to a photograph of the PAN.
+
+**Fix.** `sanitize()` now returns `piiBoxes` — the viewport box of every visible node it
+redacted. The orchestrator passes them to the offscreen document, which scales them into
+image pixels and fills them solid before encoding. A **solid fill, not a blur**: the blur
+radius is tuned to destroy a face, and text survives a blur far better than a face does.
+
+It **fails closed** — if fewer regions are masked than were requested, the screenshot is
+withheld entirely rather than sent clean. The count is shown in the ledger, because the
+audit already taught us that an invisible protection scores 3/10.
+
+`bench/screenshot-leak-test.ts` guards it, and was **verified to fail** by reverting the
+fix: 3 pages red. It also asserts the CSS-px → image-px mapping at 1x, 2x and 0.5x,
+because Spike C's lesson is that a box in the wrong coordinate space paints a bar
+somewhere harmless and hides nothing.
 
 ## Findings that cost real time — do not regress
 

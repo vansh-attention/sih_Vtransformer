@@ -57,6 +57,7 @@ done
 
 section "Privacy invariants"
 run "leak test — no vault value in any payload"  $NODE bench/leak-test.ts
+run "screenshot leak — image agrees with payload" $NODE bench/screenshot-leak-test.ts
 run "prompt injection — hostile page defences"   $NODE bench/injection-test.ts
 
 section "Scorecard"

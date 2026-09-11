@@ -183,6 +183,27 @@ export async function prepareForTransmission(
 }
 
 /**
+ * Map boxes measured in CSS viewport pixels into the captured frame's pixels.
+ *
+ * Spike C: `getBoundingClientRect()` is CSS px in viewport space, `captureVisibleTab()`
+ * is device px. On a Retina display those differ by 2x and NEITHER API announces it.
+ * Get this wrong and a redaction bar is painted somewhere other than over the value,
+ * which looks processed and hides nothing — silent unless something asserts on numbers.
+ *
+ * Scale is derived from the viewport the boxes were actually measured in, not from
+ * `devicePixelRatio`, which is a different question and is wrong under browser zoom.
+ */
+export function scaleToImage(
+  boxes: BoundingBox[],
+  viewport: { innerWidth: number; innerHeight: number } | undefined,
+  image: { width: number; height: number },
+): BoundingBox[] {
+  const sx = viewport?.innerWidth ? image.width / viewport.innerWidth : 1;
+  const sy = viewport?.innerHeight ? image.height / viewport.innerHeight : 1;
+  return boxes.map((b) => ({ x: b.x * sx, y: b.y * sy, w: b.w * sx, h: b.h * sy }));
+}
+
+/**
  * Blur the detected regions, in place, and return the redacted image.
  *
  * Uses canvas `filter: blur()` at a radius proportional to the face, so a small face is
@@ -192,7 +213,17 @@ export async function prepareForTransmission(
 export async function blurRegions(
   bitmap: ImageBitmap,
   boxes: BoundingBox[],
-): Promise<{ canvas: OffscreenCanvas; applied: BoundingBox[] }> {
+  /**
+   * Regions to STRIKE OUT rather than blur — the on-screen positions of values already
+   * replaced by a token in the JSON. A solid fill, not a blur: blur is tuned to destroy
+   * a face, and text is far more recoverable from a blur than a face is. These need to
+   * be unreadable, not unrecognisable.
+   *
+   * Already in image pixels; the caller does the CSS->image scaling because only it
+   * knows the viewport the boxes were measured in.
+   */
+  maskBoxes: BoundingBox[] = [],
+): Promise<{ canvas: OffscreenCanvas; applied: BoundingBox[]; masked: BoundingBox[] }> {
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(bitmap, 0, 0);
@@ -219,5 +250,23 @@ export async function blurRegions(
     applied.push({ x: box.x, y: box.y, w, h });
   }
 
-  return { canvas, applied };
+  /**
+   * A 2px pad, because a glyph routinely paints a fraction outside its layout box and a
+   * surviving sliver of a digit is still information. Kept small so the surrounding
+   * layout the server reads for context stays intact.
+   */
+  const masked: BoundingBox[] = [];
+  ctx.filter = 'none';
+  ctx.fillStyle = '#111111';
+  for (const raw of maskBoxes) {
+    const x = Math.max(0, Math.floor(raw.x) - 2);
+    const y = Math.max(0, Math.floor(raw.y) - 2);
+    const w = Math.min(Math.ceil(raw.w) + 4, bitmap.width - x);
+    const h = Math.min(Math.ceil(raw.h) + 4, bitmap.height - y);
+    if (w <= 0 || h <= 0) continue;
+    ctx.fillRect(x, y, w, h);
+    masked.push({ x, y, w, h });
+  }
+
+  return { canvas, applied, masked };
 }

@@ -60,6 +60,12 @@ export interface TurnRecord {
   origin: string;
   withheld: Array<{ kind: string; count: number }>;
   facesBlurred: number;
+  /**
+   * On-screen regions struck out of the screenshot because the payload had already
+   * replaced them with a token. Surfaced because a protection nobody can see is one
+   * nobody believes — the same reason the withheld-screenshot banner exists.
+   */
+  piiMasked: number;
   actions: Array<{ action: AgentAction; allowed: boolean; reason?: string; executed?: boolean }>;
   /** Masked shadows captured at observe time, before anything could navigate. */
   previews: Array<{ token: string; kind: string; masked: string }>;
@@ -114,8 +120,11 @@ async function downscaleInPage(tabId: number, dataUrl: string): Promise<string> 
 async function captureAndRedact(
   windowId: number,
   tabId: number,
+  /** On-screen boxes of values already tokenised in the JSON. Struck out of the image. */
+  piiBoxes: Array<{ x: number; y: number; w: number; h: number }> = [],
+  maskViewport?: { innerWidth: number; innerHeight: number },
 ): Promise<{
-  screenshot?: string; rawForCrops?: string; faces: number; visionMs: number;
+  screenshot?: string; rawForCrops?: string; faces: number; piiMasked?: number; visionMs: number;
   imageSize?: { width: number; height: number }; error?: string;
   skipped?: boolean;
   breakdown?: Record<string, unknown>;
@@ -137,6 +146,9 @@ async function captureAndRedact(
     const tDetect = performance.now();
     const det = await chrome.runtime.sendMessage({
       target: 'offscreen', type: 'detect-faces', dataUrl: raw, threshold: 0.7, blur: true,
+      // Tokenising a PAN in the JSON while shipping a photograph of the same PAN is not
+      // redaction. These boxes are what make the two channels agree.
+      maskRegions: piiBoxes, maskViewport,
       // The full-resolution frame stays in the offscreen document; we only need the
       // handle to it.
       wantFullFrame: false,
@@ -148,6 +160,27 @@ async function captureAndRedact(
 
     const detectMs = Math.round(performance.now() - tDetect);
     const faces = det.detections?.length ?? 0;
+
+    /**
+     * FAIL CLOSED IF THE MASKS DID NOT LAND.
+     *
+     * The fallback below ships `downscaleInPage(raw)` — the UNMASKED frame. That is the
+     * right behaviour when there was nothing to hide, and exactly the wrong one when
+     * there was: a failure in the offscreen document would silently downgrade a masked
+     * screenshot to a clean photograph of the user's PAN.
+     *
+     * So when masks were requested, a masked frame is the only acceptable output.
+     */
+    const masksRequested = piiBoxes.length;
+    const masksApplied = (det.maskedBoxes as unknown[] | undefined)?.length ?? 0;
+    if (masksRequested > 0 && (masksApplied < masksRequested || !det.transmit?.dataUrl)) {
+      return {
+        faces, visionMs: Math.round(performance.now() - t0),
+        error: `screenshot withheld: ${masksApplied}/${masksRequested} on-screen PII `
+             + 'regions could be masked, so the image would carry values the payload hides',
+      };
+    }
+
     return {
       breakdown: { captureMs, detectMs, ...det.stages, encodeBytes: det.transmit?.bytes },
       // `transmit` is the downscaled, JPEG-encoded frame — blurred if faces were found,
@@ -163,6 +196,7 @@ async function captureAndRedact(
       rawForCrops: det.frameToken,
       imageSize: { width: det.width, height: det.height },
       faces,
+      piiMasked: masksApplied,
       visionMs: Math.round(performance.now() - t0),
     };
   } catch (e) {
@@ -378,7 +412,10 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
        */
       vision = { faces: 0, visionMs: 0, skipped: true };
     } else {
-      vision = await captureAndRedact(windowId, tabId);
+      vision = await captureAndRedact(
+        windowId, tabId, obs.piiBoxes ?? [],
+        obs.context && { innerWidth: obs.context.innerWidth, innerHeight: obs.context.innerHeight },
+      );
     }
 
     const payload: SanitizedPayload = { ...obs.payload, screenshot: vision.screenshot };
@@ -438,6 +475,7 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
       origin: payload.origin,
       withheld: obs.withheld ?? [],
       facesBlurred: vision.faces,
+      piiMasked: vision.piiMasked ?? 0,
       actions: report.results.map((r, i) => ({
         action: r.action,
         allowed: r.allowed,

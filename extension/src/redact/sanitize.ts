@@ -37,6 +37,18 @@ export interface SanitizeResult {
   payload: SanitizedPayload;
   /** Counts per kind, for the Privacy Ledger. Never the values themselves. */
   withheld: Array<{ kind: PiiKind; count: number }>;
+  /**
+   * Viewport boxes (CSS px) of every VISIBLE node something was redacted out of.
+   *
+   * Redacting the JSON does not erase the value from the user's screen, and the
+   * screenshot is a photograph of that screen. Without these boxes a PAN is replaced by
+   * `<PII_PAN_1>` in the payload and transmitted in full as pixels in the same request —
+   * the fourth instance of this project's recurring leak shape, and the one the leak
+   * test could never see because it only inspects the JSON.
+   *
+   * The caller masks these regions in the image before transmitting it.
+   */
+  piiBoxes: Array<{ x: number; y: number; w: number; h: number }>;
 }
 
 /**
@@ -229,11 +241,26 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
   const { vault, signals } = opts;
   const allPlaceholders: Placeholder[] = [];
   const acknowledged: Acknowledgement[] = [];
+  const piiBoxes: Array<{ x: number; y: number; w: number; h: number }> = [];
+
+  /**
+   * Record a node's box if this pass redacted anything out of it AND it is on screen.
+   * Invisible nodes are skipped deliberately: they contribute nothing to the screenshot,
+   * and masking them would blank regions of the image for no privacy gain.
+   */
+  function noteRedaction(node: { box?: { x: number; y: number; w: number; h: number };
+                                visible?: boolean }, before: number): void {
+    if (allPlaceholders.length === before) return;
+    if (!node.visible || !node.box) return;
+    if (node.box.w <= 0 || node.box.h <= 0) return;
+    piiBoxes.push(node.box);
+  }
 
   function walk(node: ElementNode): SanitizedNode {
     const sig = signals(node.id);
 
     const kept: Array<{ kind: PiiKind; reason: string }> = [];
+    const placeholdersBefore = allPlaceholders.length;
 
     let value = node.value;
     if (value) {
@@ -258,6 +285,8 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
     }
 
     for (const k of kept) acknowledged.push({ id: node.id, kind: k.kind, reason: k.reason });
+
+    noteRedaction(node, placeholdersBefore);
 
     return {
       id: node.id,
@@ -285,6 +314,8 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
   // finished, because only then is the vault complete — a secret discovered in the
   // last form field still has to be scrubbed from text that appeared near the top.
   (function sweep(node: SanitizedNode) {
+    const before = allPlaceholders.length;
+    let swept = false;
     if (node.value) {
       const r = sweepVaultLeaks(node.value, vault);
       node.value = r.text;
@@ -292,8 +323,22 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
         allPlaceholders.push({ token, kind, source: 'dom', confidence: 1, verified: true });
       }
     }
-    if (node.label) node.label = sweepVaultLeaks(node.label, vault).text;
-    if (node.contextLabel) node.contextLabel = sweepVaultLeaks(node.contextLabel, vault).text;
+    // The label/contextLabel sweeps mint no placeholders, so a changed string is the
+    // only evidence they fired. Without this check a value caught ONLY by the second
+    // pass would be masked in the JSON and left legible in the image.
+    if (node.label) {
+      const t = sweepVaultLeaks(node.label, vault).text;
+      if (t !== node.label) swept = true;
+      node.label = t;
+    }
+    if (node.contextLabel) {
+      const t = sweepVaultLeaks(node.contextLabel, vault).text;
+      if (t !== node.contextLabel) swept = true;
+      node.contextLabel = t;
+    }
+    if (swept) piiBoxes.push(...(node.visible && node.box
+      && node.box.w > 0 && node.box.h > 0 ? [node.box] : []));
+    else noteRedaction(node, before);
     node.children?.forEach(sweep);
   })(root);
 
@@ -323,5 +368,7 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
       history: opts.history ?? [],
     },
     withheld: [...counts].map(([kind, count]) => ({ kind, count })),
+    // De-duplicated: a node redacted in both passes would otherwise be masked twice.
+    piiBoxes: [...new Map(piiBoxes.map((b) => [`${b.x},${b.y},${b.w},${b.h}`, b])).values()],
   };
 }

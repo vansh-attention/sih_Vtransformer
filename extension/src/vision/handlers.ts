@@ -13,7 +13,10 @@
  * aspirational.
  */
 
-import { loadFaceModel, detectFaces, blurRegions, prepareForTransmission } from './detect.ts';
+import type { BoundingBox } from '../contracts.ts';
+import {
+  loadFaceModel, detectFaces, blurRegions, prepareForTransmission, scaleToImage,
+} from './detect.ts';
 import { loadClassifier, classifyCrop } from './classify.ts';
 
 /** Where models resolve their files from. Set once by whichever host boots first. */
@@ -71,9 +74,27 @@ async function detectFacesHandler(msg: VisionMessage): Promise<unknown> {
   const frameToken = `f_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   lastFrame = { bitmap, token: frameToken };
 
-  if (msg.blur !== false && result.detections.length) {
-    const { canvas, applied: a } = await blurRegions(bitmap, result.detections.map((d) => d.box));
+  /**
+   * PII regions arrive in CSS viewport pixels and the frame is in device pixels — the
+   * exact mismatch Spike C found, where a 2x Retina ratio silently drew every box in
+   * the wrong place. Scale from the viewport the boxes were measured in, not from an
+   * assumed devicePixelRatio.
+   */
+  const maskBoxes = scaleToImage(
+    (msg.maskRegions as BoundingBox[] | undefined) ?? [],
+    msg.maskViewport as { innerWidth: number; innerHeight: number } | undefined,
+    bitmap,
+  );
+
+  let masked: unknown[] = [];
+  // Note the `|| maskBoxes.length`: a page can carry PII and no face at all, and that
+  // is the common case. Gating this on a face detection would leave every text value
+  // legible on exactly the pages that matter most.
+  if (msg.blur !== false && (result.detections.length || maskBoxes.length)) {
+    const { canvas, applied: a, masked: m } = await blurRegions(
+      bitmap, result.detections.map((d) => d.box), maskBoxes);
     applied = a;
+    masked = m;
     // createImageBitmap COPIES; transferToImageBitmap would DETACH the canvas and leave
     // convertToBlob encoding an empty surface.
     lastFrame = { bitmap: await createImageBitmap(canvas), token: frameToken };
@@ -97,6 +118,7 @@ async function detectFacesHandler(msg: VisionMessage): Promise<unknown> {
     },
     totalMs: Math.round(performance.now() - t0),
     appliedBoxes: applied,
+    maskedBoxes: masked,
     redactedDataUrl,
     frameToken,
     transmit,

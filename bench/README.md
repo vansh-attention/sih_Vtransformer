@@ -1,11 +1,16 @@
 # The benchmark
 
 ```bash
-node --experimental-strip-types bench/score.ts            # tuned corpus
-node --experimental-strip-types bench/score.ts --holdout  # the sacred set
-node --experimental-strip-types bench/leak-test.ts        # the hard invariant
-node --experimental-strip-types bench/agent-loop.ts "goal"  # end-to-end with the model
+node --experimental-strip-types bench/score.ts             # tuned corpus
+node --experimental-strip-types bench/score.ts --holdout   # the sacred set
+node --experimental-strip-types bench/leak-test.ts         # the hard invariant, JSON channel
+node --experimental-strip-types bench/screenshot-leak-test.ts  # ...and the image channel
+node --experimental-strip-types bench/agent-loop.ts "goal"   # end-to-end with the model
 ```
+
+**Two channels leave the machine, and both are tested.** `leak-test.ts` proves no vault
+value appears in the outbound JSON. It never looked at the screenshot, which is sent in
+the same request — and until 11 Sep nothing did. See "the second channel" below.
 
 ## Results — 11 Sep 2026
 
@@ -59,6 +64,31 @@ contribution never shows in the numbers.
 - **Text beyond 2000 characters.** Reported via `piiBeyondTextCap`, and the orchestrator
   withholds the screenshot when it fires — but the value is neither transmitted nor
   redactable.
+
+## The second channel — the screenshot
+
+Found 11 Sep, and the most general instance of this project's recurring leak shape.
+
+`blurRegions` had only ever been called with **face** boxes: no text was masked in the
+image, ever. A screenshot is transmitted whenever `visionQueue` is non-empty. So a value
+could be tokenised in the JSON and fully legible in the picture beside it — and the leak
+test could not see it, because it only inspects JSON.
+
+Measured on this corpus, before the fix:
+
+| page | values redacted from JSON | screenshot sent | masked in image |
+|---|---|---|---|
+| `checkout` (the demo page) | 10 | **yes** | **0** |
+| `profile` | 6 | **yes** | **0** |
+| `gov-form` (holdout) | 5 | **yes** | **0** |
+
+`sanitize()` now returns `piiBoxes`, and the orchestrator strikes them out — a solid
+fill, since a blur tuned for faces does not reliably destroy text. It fails closed: if
+fewer regions are masked than requested, no image is sent at all.
+
+`screenshot-leak-test.ts` asserts the two channels agree, refuses to pass if no fixture
+exercises the case (coverage before correctness), and checks the CSS-px → image-px
+mapping at 1x, 2x and 0.5x. **Verified to fail** by reverting the fix: 3 pages red.
 
 ## The holdout rule
 

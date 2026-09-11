@@ -23,6 +23,11 @@ function renderTurn(rec: any, previews: Map<string, Preview>): string {
   const faces = rec.facesBlurred
     ? `<span class="chip"><b>${rec.facesBlurred}</b> FACE blurred</span>` : '';
 
+  // The screenshot half of the redaction. Without this the panel says a PAN was withheld
+  // while the image beside it carried the PAN in pixels, and nothing on screen said so.
+  const struck = rec.piiMasked
+    ? `<span class="chip"><b>${rec.piiMasked}</b> struck out of screenshot</span>` : '';
+
   const actions = (rec.actions ?? []).map((a: any) => `
     <div class="row">
       <span class="${a.allowed ? 'allow' : 'deny'}">${a.allowed ? 'ALLOW' : 'DENY '}</span>
@@ -46,7 +51,7 @@ function renderTurn(rec: any, previews: Map<string, Preview>): string {
   return `<div class="turn">
     <h2>Turn ${rec.turn} &middot; ${esc(rec.origin)}</h2>
     ${withheldShot}
-    <div class="row">${chips}${faces}</div>
+    <div class="row">${chips}${faces}${struck}</div>
     ${masked}
     ${actions}
     <details><summary>Raw bytes transmitted this turn — inspect it yourself</summary>
@@ -276,10 +281,12 @@ $('run').addEventListener('click', async () => {
       const totalWithheld = res.records.reduce(
         (a: number, r: any) => a + (r.withheld ?? []).reduce((x: number, w: any) => x + w.count, 0), 0);
       const totalFaces = res.records.reduce((a: number, r: any) => a + (r.facesBlurred ?? 0), 0);
+      const totalMasked = res.records.reduce((a: number, r: any) => a + (r.piiMasked ?? 0), 0);
       const totalMs = res.records.reduce((a: number, r: any) => a + r.timings.totalMs, 0);
       const totals = `<div class="totals">
         <div><div class="n">${totalWithheld}</div><div class="lbl">values withheld</div></div>
         <div><div class="n">${totalFaces}</div><div class="lbl">faces blurred</div></div>
+        <div><div class="n">${totalMasked}</div><div class="lbl">struck out of image</div></div>
         <div><div class="n">0</div><div class="lbl">values leaked</div></div>
         <div><div class="n">${(totalMs / 1000).toFixed(1)}s</div><div class="lbl">total time</div></div>
       </div>`;

@@ -79,7 +79,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     const extractMs = performance.now() - t0;
 
     const t1 = performance.now();
-    const { payload, withheld } = sanitize(result.structure, {
+    const { payload, withheld, piiBoxes } = sanitize(result.structure, {
       goal: msg.goal ?? '',
       vault,
       history: msg.history ?? [],
@@ -103,6 +103,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       stable,
       payload,
       withheld,
+      // On-screen positions of everything redacted out of the payload, so the caller can
+      // strike them out of the screenshot too. Boxes only — never the values.
+      piiBoxes,
       context: after,
       visionQueue: result.visionQueue,
       closedShadowHosts: result.closedShadowHosts,
