@@ -106,7 +106,7 @@ not a promise about anyone's code being bug-free. A mistake in the networking co
 | | tuned tests | **unseen tests** |
 |---|---|---|
 | visual context accuracy | 100% | **100%** |
-| PII detection recall | 100% | **91.7%** |
+| PII detection recall | 100% | **100%** |
 | PII detection precision | 100% | **100%** |
 | redaction precision | 100% | **100%** |
 | data leaks | **0** | **0** |
@@ -123,8 +123,9 @@ prompt-injection resistance, graceful failure.
 **1. Never tune against `bench/holdout/`.**
 Those test pages simulate the finale, where the evaluation sites are revealed *on the
 day*. If we fix a holdout failure by special-casing its content, we've deleted the only
-evidence we have that this works on pages we haven't seen. One holdout test is currently
-failing on purpose — read `bench/README.md` before touching it.
+evidence we have that this works on pages we haven't seen. The holdout is fully green
+today — read `bench/README.md` for how its last failure was closed, because the method
+matters more than the number.
 
 **2. No hardcoded CSS selectors, ever.**
 Same reason. Anything tuned to a specific site is worthless at the finale.
@@ -161,9 +162,9 @@ Rebuild after any change to `extension/src/` or Chrome will keep running the old
 
 Open items are at the bottom of `RESUME.md`. Good first tasks:
 
-- **Grow the test corpus.** We have 5 pages. Add real-world page shapes to
-  `bench/pages/` with a matching `.truth.json`. This is the highest-value thing anyone
-  can do — every bug we've found came from a new page shape.
+- **Grow the test corpus.** We have 12 fixtures plus 4 real sites. Add real-world page
+  shapes to `bench/pages/` with a matching `.truth.json`. This is the highest-value thing
+  anyone can do — every bug we've found came from a new page shape, without exception.
 - **Test on a low-end laptop.** Every number above is from an M5. We genuinely don't
   know what a judge's machine will show, and that gap could matter.
 - **UI polish on the side panel.** It's functional, not designed.

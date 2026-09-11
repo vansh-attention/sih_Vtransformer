@@ -18,7 +18,7 @@ is correct.
 | 10 | Settings | 6 | **10** | Test button, "Find my server" across six ports, Reset, status in the summary |
 | 11 | PII detection | 9 | **10** | **Holdout now 100% recall AND 100% precision** — dictionary-absence catches names no list contains |
 | 12 | Face blur | 9 | **10** | Verified on pixels: 89% detail destroyed, zero collateral |
-| 13 | Validator | 9 | **10** | 18 attack cases refused, including a real exfiltration path |
+| 13 | Validator | 9 | **10** | Refuses 16 of its 24 cases, 6 re-proven end to end on a live hostile page — including a real exfiltration path |
 | 14 | Failure handling | 9 | **10** | Typed stop reasons, 8/8 drills, fails closed on unreadable regions |
 | 15 | Firefox parity | 8 | **10** | `node build.mjs` emits `dist-firefox/` ready to load — no manifest juggling |
 | 16 | Performance | 8 | **10** | Model time 5.3 s → 3.8 s; screenshot skipped when the DOM suffices |

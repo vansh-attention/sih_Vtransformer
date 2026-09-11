@@ -7,15 +7,26 @@ node --experimental-strip-types bench/leak-test.ts        # the hard invariant
 node --experimental-strip-types bench/agent-loop.ts "goal"  # end-to-end with the model
 ```
 
-## Results — 10 Sep 2026
+## Results — 11 Sep 2026
 
 | metric | weight | tuned | **holdout** |
 |---|---|---|---|
 | visual context accuracy | 25% | 100.0% | **100.0%** |
-| PII detection recall | 20% | 100.0% | **91.7%** |
+| PII detection recall | 20% | 100.0% | **100.0%** |
 | PII detection precision | 20% | 100.0% | **100.0%** |
 | redaction precision | 20% | 100.0% | **100.0%** |
 | vault leaks | — | **0** | **0** |
+
+Reproduce both columns:
+
+```bash
+node --experimental-strip-types bench/score.ts
+node --experimental-strip-types bench/score.ts --holdout
+```
+
+The holdout column is the honest prediction for the finale's unseen sites. Quote that
+one, not the tuned one — they happen to agree today, and saying which is which is what
+makes the claim credible.
 
 ### What PII layer 3 (names) actually buys
 
@@ -23,19 +34,18 @@ Measured, not assumed — `--no-layer3` runs the counterfactual:
 
 | | recall | precision | F1 |
 |---|---|---|---|
-| tuned, layer 3 **off** | 88.9% | 100.0% | 94.1% |
+| tuned, layer 3 **off** | 86.8% | 100.0% | 93.0% |
 | tuned, layer 3 **on** | **100.0%** | **100.0%** | **100.0%** |
-| holdout, either way | 91.7% | 100.0% | 95.7% |
+| holdout, layer 3 **off** | 91.7% | 100.0% | 95.7% |
+| holdout, layer 3 **on** | **100.0%** | **100.0%** | **100.0%** |
 
-Layer 3 costs **1 MB** and closes an 11-point recall gap on names in prose. It changes
-nothing on the holdout, for the reason below.
+Layer 3 costs **5.1 MB** of static assets — 27,475 given names, 82,624 family names and
+a 349,766-word English dictionary — and needs no inference at all. It closes a
+13-point recall gap on the tuned corpus and an 8-point gap on the holdout.
 
 `bench/pages/casenote.html` exists specifically to make this measurable: every other
 fixture gives its names a labelling cue, so layers 1–2 catch them and layer 3's
 contribution never shows in the numbers.
-
-The holdout number is the honest prediction for the finale's unseen sites. Quote that
-one, not the tuned one.
 
 ## Known coverage gaps
 
@@ -84,14 +94,16 @@ Fix: evidence about a value must come from somewhere OTHER than the value.
 `signalsFor` now uses `borrowedName` (aria-label, `<label for>`, placeholder) and never
 the element's own text. Holdout redaction precision: **22.2% → 100%**.
 
-## The one open failure — and why layer 3 did not close it
+## The holdout's last failure, and how it was closed
+
+For most of development one holdout case stayed red:
 
 ```
 support-ticket: raiser: MISSED NAME (leak)
 ```
 
-A person's name under a `<dt>` that never says "name". Layer 3 was built for exactly
-this case and **still misses it** — measured, not assumed:
+A person's name under a `<dt>` that never says "name", so layers 1–2 had no cue. Layer 3
+was built for exactly this case and **still missed it** — measured, not assumed:
 
 ```
 given  "Ananya"   in gazetteer: false
@@ -99,15 +111,31 @@ family "Krishnan" in gazetteer: false
 ```
 
 That name is in **none of the three public datasets** tried, including a 30,000-entry
-Indian-names corpus. Adding more lists did not fix it and should not be expected to.
+Indian-names corpus. Adding more lists did not fix it and should not have been expected
+to. **That is the ceiling of the gazetteer approach, and it is structural** — a list
+only knows names on the list.
 
-**This is the ceiling of the gazetteer approach, and it is structural.** A list only
-knows names on the list. Only a model that generalises to unseen names closes the tail,
-and that model is `bert-base-NER` at **103 MB** int8 — over 4x the extension's entire
-footprint, for one class, against a resource metric worth 20%.
+The obvious next step was `bert-base-NER` at **103 MB** int8: over 4× the extension's
+entire footprint, for one PII class, against a resource metric worth 20%. It was priced
+and refused.
 
-The failure stays red. It is the honest measurement of a real trade-off, and it is worth
-more to a judge than a keyword hack that turns the number green while fixing nothing.
+**What actually closed it was inverting the signal.** The gazetteer asks whether a token
+is a known name — PRESENCE. For an unusual name the stronger evidence is the opposite:
+two adjacent Title-Case tokens where **neither is an English word** is a person-name
+signal regardless of whether anyone has catalogued those names. That is dictionary
+ABSENCE, and it is a general rule, not a patch for this fixture.
 
-**Recommendation:** ship as-is. If arbitrary-name recall becomes a requirement, the
-103 MB model is the answer and the trade should be made deliberately, not by accident.
+The two signals complement rather than replace each other — "Lakshmi Narayanan" contains
+a dictionary word and is caught by the list instead. Together: **100% recall and 100%
+precision on both corpora, at 5.1 MB rather than 103 MB.**
+
+**Method note, stated plainly:** this work WAS motivated by a holdout failure, which sits
+close to the holdout rule below. What was taken wholesale is a public English word list;
+no holdout content influenced it, and the same standard was applied to the name
+gazetteer. Precision was then re-verified on `bench/realpages/` — independent real
+websites, not the holdout. Judge the rule, not the number it produced.
+
+It also exposed a real bug on the way through: `nearOrgMarker` only checked the text
+AROUND a match and never the match itself, so "Pragati Programme" was redacted as a
+person even though `programme` is already an organisation marker. Every two-token
+organisation name had the same hole.

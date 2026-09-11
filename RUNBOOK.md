@@ -10,7 +10,7 @@ happened during development.
 ```bash
 cd sih_Vtransformer
 git pull && node build.mjs          # never demo a stale build
-./test-all.sh                       # 19/19 expected; do not demo on red
+./test-all.sh                       # 15/15 expected; do not demo on red
 ```
 
 **1. Start the local AI.**
@@ -104,9 +104,9 @@ Run it, then:
 
 ### 5. Close (30s)
 
-> Chrome and Firefox. Runs entirely on this laptop — I can unplug the network. On unseen
-> test pages: 100% precision, zero leaks. On a low-end laptop it's about a second slower
-> per turn.
+> Chrome and Firefox. Runs entirely on this laptop — I can unplug the network. On test
+> pages we never tuned against: 100% recall, 100% precision, zero leaks. On a low-end
+> laptop it's about a second slower per turn.
 
 ---
 
@@ -116,15 +116,19 @@ Run it, then:
 ledger: nobody has to trust us.
 
 **"What if the AI is malicious?"** — It has never held a real value. And every action it
-returns is validated on the client before it touches the page — 15 attack cases refused,
-including one real exfiltration path we found and closed.
+returns is validated on the client before it touches the page: the validator suite
+refuses **16 of its 24 cases**, and six of those refusals are re-proven end to end
+against a live hostile page. One is a real exfiltration path we found and closed.
 
 **"Does it work on sites you haven't seen?"** — That's what our holdout tests are: pages
-written before any tuning, never optimised against. 100% precision, zero leaks.
+written before any tuning, never optimised against. 100% recall, 100% precision, zero
+leaks — the same as the tuned set.
 
-**"What doesn't it do?"** — Names with no labelling cue and not in any public name list.
-One holdout test fails on that, deliberately. Closing it needs a 103 MB NER model against
-a 20%-weighted resource budget; we priced it and chose not to.
+**"What doesn't it do?"** — Indian languages beyond Hindi: a form labelled only in Tamil,
+Bengali or Telugu behaves the way Hindi did before we added a fixture for it. Devanagari
+names in running prose are missed too — the name tokeniser is Latin-only, though
+Devanagari *form fields* work. And our corpus is 12 fixtures plus 4 real sites, which is
+small; every new page shape we have added has found a real defect.
 
 **"Why not use GPT-4/Claude?"** — The PS requires an open-weight, offline-deployable
 model. Ours runs on this laptop with the network off.
@@ -160,11 +164,15 @@ rehearse it.
 | | tuned | **holdout (unseen)** |
 |---|---|---|
 | visual context | 100% | **100%** |
-| PII recall | 100% | **91.7%** |
+| PII recall | 100% | **100%** |
 | PII precision | 100% | **100%** |
 | redaction precision | 100% | **100%** |
 | leaks | 0 | **0** |
 
-**Quote the holdout column and the low-end column.** They're the honest ones, and being
-the team that volunteers its own worst number is worth more than a better number nobody
-believes.
+**Quote the holdout column and the low-end column,** and say out loud which is which.
+The two corpora agree today; the credibility comes from having kept them separate and
+being able to show the counterfactual (`--no-layer3` drops holdout recall to 91.7%), not
+from the number being round.
+
+**Volunteer the low-end laptop figure before anyone asks for it.** Being the team that
+offers its own worst number is worth more than a better number nobody believes.

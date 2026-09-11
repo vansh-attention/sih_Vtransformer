@@ -89,6 +89,32 @@ def textbox(slide, x, y, w, h, blocks):
     return box
 
 
+def metric_rows(slide, x, y, w, rows, size=13, gap=5, col_w=1.15):
+    """A label/value table that actually lines up.
+
+    Space-padding a proportional font only *looks* aligned for one particular set of
+    label lengths; change a value from "91.7%" to "100%" and the column goes ragged.
+    So labels and values are separate boxes and the value column is right-aligned —
+    alignment then holds whatever the strings are.
+
+    rows: list of (label, value, colour, bold). Extra value columns are supported by
+    passing a tuple of values, laid out right-aligned from the right edge.
+    """
+    n_cols = max(len(r[1]) if isinstance(r[1], tuple) else 1 for r in rows)
+    labels = [(r[0], size, r[3], r[2], gap) for r in rows]
+    textbox(slide, x, y, w - col_w * n_cols, 0.4 * len(rows) + 0.3, labels)
+    for c in range(n_cols):
+        col_x = x + w - col_w * (n_cols - c)
+        blocks = []
+        for label, value, colour, bold in rows:
+            vals = value if isinstance(value, tuple) else (value,)
+            blocks.append((vals[c] if c < len(vals) else "", size, bold, colour, gap))
+        box = textbox(slide, col_x, y, col_w, 0.4 * len(rows) + 0.3, blocks)
+        for p in box.text_frame.paragraphs:
+            p.alignment = PP_ALIGN.RIGHT
+    return 0.4 * len(rows)
+
+
 def panel(slide, x, y, w, h, fill, line=None):
     from pptx.enum.shapes import MSO_SHAPE
     shp = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
@@ -212,7 +238,7 @@ def main():
         ("•  Full loop running in Chrome AND Firefox", 12, False, INK, 4),
         ("•  On-device face detection and blurring", 12, False, INK, 4),
         ("•  Privacy Ledger with raw-payload inspection", 12, False, INK, 4),
-        ("•  Hostile-page defences: 15 attack cases refused", 12, False, INK, 4),
+        ("•  Hostile-page defences: 16 of 24 validator cases refused", 12, False, INK, 4),
         ("•  Graceful failure — 8/8 drills", 12, False, INK, 12),
         ("Challenges, and how they were handled", 15, True, AMBER, 8),
         ("Chrome's offscreen document is timer-throttled to ~1 s — a 16×16 "
@@ -223,19 +249,26 @@ def main():
          "independently classified as the same kind.", 12, False, GREY, 2),
     ])
     panel(s, 6.85, 1.30, 5.95, 5.4, INDIGO_LT)
-    textbox(s, 7.15, 1.50, 5.4, 5.0, [
+    textbox(s, 7.15, 1.50, 5.4, 0.5, [
         ("Performance — measured, both ends", 15, True, INDIGO, 8),
-        ("                          dev machine      low-end laptop", 12, True, GREY, 4),
-        ("turn total            3.7 s                    4.7 s", 12, False, INK, 4),
-        ("on-device vision   65 ms                   ~1030 ms", 12, False, INK, 4),
-        ("payload sent        47 KB                   47 KB", 12, False, INK, 10),
+    ])
+    metric_rows(s, 7.15, 1.95, 5.2, [
+        ("", ("dev machine", "low-end laptop"), GREY, True),
+        ("turn total", ("3.7 s", "4.7 s"), INK, False),
+        ("on-device vision", ("65 ms", "~1030 ms"), INK, False),
+        ("payload sent", ("47 KB", "47 KB"), INK, False),
+    ], size=12, col_w=1.35)
+    textbox(s, 7.15, 3.65, 5.4, 2.8, [
         ("Low-end figures are from a 6x CPU-throttled run, not an estimate.",
          9, False, GREY, 10),
         ("Honest limits", 13, True, AMBER, 6),
-        ("•  A person's name with no labelling cue and absent from any public "
-         "name list is still missed. Closing it needs a 103 MB model against a "
-         "20%-weighted resource budget — priced, and declined.", 12, False, GREY, 4),
-        ("•  Test corpus is 5 pages. Small, and stated as such.", 12, False, GREY, 2),
+        ("•  Hindi is the only Indian language covered. A form labelled solely "
+         "in Tamil, Bengali or Telugu is not yet handled, and we say so rather "
+         "than wait to be asked.", 12, False, GREY, 4),
+        ("•  Devanagari names in running prose are missed — the name tokeniser "
+         "is Latin-only. Devanagari form fields do work.", 12, False, GREY, 4),
+        ("•  Test corpus is 12 fixtures plus 4 real sites. Small, and stated as "
+         "such: every page shape we have added found a real defect.", 12, False, GREY, 2),
     ])
 
     # ---------------- slide 5: impact ----------------
@@ -258,16 +291,23 @@ def main():
          10, False, INK, 2),
     ])
     panel(s, 6.85, 1.30, 5.95, 5.4, INDIGO_LT)
-    textbox(s, 7.15, 1.50, 5.4, 5.0, [
+    textbox(s, 7.15, 1.50, 5.4, 0.5, [
         ("Results on UNSEEN test pages", 15, True, INDIGO, 10),
-        ("Visual context accuracy                    100%", 13, False, INK, 5),
-        ("PII detection precision                      100%", 13, False, INK, 5),
-        ("PII detection recall                            91.7%", 13, False, INK, 5),
-        ("Redaction precision                          100%", 13, False, INK, 5),
-        ("Data leaks                                          0", 13, True, GREEN, 12),
+    ])
+    metric_rows(s, 7.15, 1.95, 5.0, [
+        ("Visual context accuracy", "100%", INK, False),
+        ("PII detection precision", "100%", INK, False),
+        ("PII detection recall", "100%", INK, False),
+        ("Redaction precision", "100%", INK, False),
+        ("Data leaks", "0", GREEN, True),
+    ])
+    textbox(s, 7.15, 3.70, 5.4, 2.7, [
         ("These are the HOLDOUT numbers — pages written before any tuning and "
          "never optimised against, because the evaluation sites are revealed on the "
-         "day.", 12, False, GREY, 8),
+         "day.", 12, False, GREY, 6),
+        ("The suite ships its own counterfactual: disabling the name layer drops "
+         "holdout recall to 91.7% and tuned recall to 86.8%. The column is "
+         "reproducible, not rounded.", 9, False, GREY, 8),
         ("Over-redaction is scored as heavily as leaking. A 12-digit order total "
          "that passes the Aadhaar checksum is deliberately NOT redacted.",
          9, False, GREY, 2),

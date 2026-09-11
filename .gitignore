@@ -16,3 +16,6 @@ deck/*.pdf
 deck/slide-*.jpg
 dist-firefox/
 server/.drill-fault
+
+# macOS
+.DS_Store

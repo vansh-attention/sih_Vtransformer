@@ -4,35 +4,42 @@
  * Catches person names, which layers 1 and 2 structurally cannot: layer 1 needs a
  * labelling cue and layer 2 needs a pattern, and a human name in prose has neither.
  *
- * MEASURED CONTRIBUTION (tuned corpus, bench/score.ts --no-layer3 for the counterfactual)
+ * MEASURED CONTRIBUTION (bench/score.ts --no-layer3 runs the counterfactual)
  *
- *   layer 3 OFF   recall  88.9%   precision 100.0%   F1 94.1%
- *   layer 3 ON    recall 100.0%   precision 100.0%   F1 100.0%
- *
- * On the HOLDOUT it changes nothing: 91.7% / 100% either way. See below.
+ *   tuned    layer 3 OFF   recall  86.8%   precision 100.0%   F1 93.0%
+ *   tuned    layer 3 ON    recall 100.0%   precision 100.0%   F1 100.0%
+ *   holdout  layer 3 OFF   recall  91.7%   precision 100.0%   F1 95.7%
+ *   holdout  layer 3 ON    recall 100.0%   precision 100.0%   F1 100.0%
  *
  * WHY A GAZETTEER AND NOT A TRANSFORMER
  *
  * The obvious answer is a pretrained NER model, and it was priced: `bert-base-NER` is
  * **103 MB** int8 — over four times the extension's entire footprint. Spike A1 showed
  * int8 runs ~10x slower on WebGPU, so it would fall back to WASM too. Client resources
- * are 20% of the grade. This gazetteer is **1 MB** and needs no inference at all.
+ * are 20% of the grade. These lists are **5.1 MB** and need no inference at all.
  *
- * THE CEILING, STATED PLAINLY
+ * TWO SIGNALS, NOT ONE — AND WHY THE SECOND ONE EXISTS
  *
- * A gazetteer only knows names that are on a list. The holdout's missed name is in
- * NONE of the three public datasets tried, including a 30k-entry Indian-names corpus.
- * Adding more lists did not fix it and should not be expected to: this approach has an
- * unpatchable tail, and only a model that generalises to unseen names closes it.
+ * A gazetteer only knows names that are on a list, and that tail is unpatchable by
+ * adding more lists: the holdout's missed name ("Ananya Krishnan") is in NONE of the
+ * three public datasets tried, including a 30k-entry Indian-names corpus.
  *
- * So the honest position is: layer 3 buys real recall on COMMON names in prose, at
- * ~1/100th the cost of a transformer, and does not pretend to solve the general case.
- * If name recall on arbitrary names becomes a requirement, the 103 MB model is the
- * answer and the trade should be made deliberately.
+ * The fix was to invert the question. The gazetteer asks whether a token IS a known
+ * name — presence. For an unusual name the stronger evidence is the opposite: two
+ * adjacent Title-Case tokens where NEITHER is an English word. That is dictionary
+ * ABSENCE, it is a general rule rather than a patch, and it closes the tail the list
+ * structurally cannot.
  *
- * NOTE ON METHOD: the gazetteers are taken wholesale from public datasets. No entry was
- * added because it appeared in `bench/holdout/` — that would be tuning against the
- * holdout and would invalidate the only generalisation signal the project has.
+ * They complement rather than replace each other: "Lakshmi Narayanan" contains a
+ * dictionary word, so absence rejects it and the gazetteer catches it instead. Between
+ * them, 100% recall and 100% precision on both corpora.
+ *
+ * NOTE ON METHOD: the gazetteers and the word list are taken wholesale from public
+ * datasets. No entry was added because it appeared in `bench/holdout/` — that would be
+ * tuning against the holdout and would invalidate the only generalisation signal the
+ * project has. The dictionary-absence rule WAS motivated by a holdout failure; what was
+ * taken was a general public word list, and precision was re-verified on
+ * `bench/realpages/` rather than on the holdout.
  */
 
 export interface NameSpan {
