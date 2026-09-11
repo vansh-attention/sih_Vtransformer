@@ -3,7 +3,8 @@
 **READ THIS FIRST.**
 
 ISRO / Department of Space · Software · Smart Automation
-Idea submission deadline **30 September 2026** · Grand finale December 2026
+⚠ Idea submission deadline **DISPUTED — official PDF says 15 Sept 2026**, secondary
+sources say 30 Sept. CONFIRM WITH AICTE. · Grand finale December 2026
 Repo: `vansh-attention/sih_Vtransformer` — Vansh's repo, Harsh has WRITE
 Local: `~/sih-browser-agent` · released **v0.1.0**, **v0.1.1**
 
@@ -27,17 +28,42 @@ Local: `~/sih-browser-agent` · released **v0.1.0**, **v0.1.1**
 
 ## ⛔ THE ONLY THING BLOCKING SUBMISSION — ASK HIM
 
-**Does IIM Mumbai have a SPOC registered on sih.gov.in?** SPOC registration closed
-**31 July 2026**. No SPOC means the team cannot enter at all this year. Raised at every
-checkpoint across this whole session and still unanswered.
+**ANSWERED 11 Sep 2026 by checking the official registry: IIM Mumbai is NOT registered,
+and neither is any other IIM.**
+
+Verified against `sih.gov.in/know-your-spoc`, which server-renders the complete list:
+**3,000 institutes, zero IIMs nationwide.** Also checked **NITIE** — IIM Mumbai's name
+until its 2023 rename — not present either. Every IIT *is* listed, including
+"Indian Institute of Technology, Chennai" (IIT Madras).
+
+Two corrections to what this file said before:
+
+- The deadline was **not** 31 July. It was extended to **14 August 2026**. Still passed.
+- **The registration form is STILL LIVE.** `sih.gov.in/collegeRegistration` returns
+  HTTP 200 with a working New-User flow (19 fields, OTP verification) and carries no
+  "closed" notice. A live form is not permission — only AICTE can say whether a late
+  registration is honoured — but it means this was never confirmed to be a dead end.
+
+⚠ **AND THE REAL DEADLINE MAY BE 15 SEPT, NOT 30 SEPT.** The official
+`SIH2026-Guidelines-College-SPOC-updated.pdf` says, verbatim: *"The last date for team
+nomination and idea submission by College SPOC and Team leader on SIH portal is till
+15th Sept 2026 only. No request will be entertained after the deadline."* The same PDF
+elsewhere says 30th Aug, and blogs say 30 Sept — it is internally inconsistent. **Assume
+15 Sept until AICTE says otherwise.**
+
+**Ask AICTE today:** sih@aicte-india.org and hackathon@aicte-india.org.
+
+**The live route is IITM BS** — IIT Madras is registered. Unknown, and worth one email:
+whether the IIT Madras SPOC nominates students of the *online BS* programme.
 
 Also needed from the portal, for deck slide 1 — rendered in amber «guillemets» so they
 cannot ship blank: **Theme, Team ID, Team Name**. Then **re-export the PDF from
 PowerPoint**, not from the LibreOffice copy in `deck/`.
 
-Third: **the internal hackathon date**. That is the real deadline and it is earlier than
-30 Sep. Fallback if IIM Mumbai has no SPOC — he is also enrolled at **IITM BS**, and IIT
-Madras reliably participates.
+Third: **the internal hackathon date**. Earlier still than the portal deadline.
+
+Nomination caps, from the same PDF: **50 teams per college** (45 + 5 waitlist), **100 for
+a university**.
 
 **The two official forms are already downloaded** — `~/Downloads/`,
 `College-Consent-Letter-for-SPOC-SIH2026.docx` and
