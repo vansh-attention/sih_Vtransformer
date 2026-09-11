@@ -26,10 +26,26 @@ Local: `~/sih-browser-agent` · released **v0.1.0**, **v0.1.1**
 
 ---
 
-## ⛔ THE ONLY THING BLOCKING SUBMISSION — ASK HIM
+## ⛔ WHERE THIS STANDS — READ BEFORE DOING ANYTHING ELSE
 
-**ANSWERED 11 Sep 2026 by checking the official registry: IIM Mumbai is NOT registered,
-and neither is any other IIM.**
+### Actions waiting on HIM (nothing technical is blocked)
+
+1. **Send the AICTE email.** NOT SENT as of end of 11 Sep. Two of the outreach PDFs
+   state that he has written to AICTE — **that is not true yet**. Either send it or
+   tell me to soften the wording; a document should not claim something that has not
+   happened.
+2. **Confirm the team composition.** Six students, **at least one female member**, and
+   **all from the same college — inter-college teams are forbidden.** That last rule is
+   what makes IIM Mumbai and IIT Madras mutually exclusive. Unknown whether the current
+   team satisfies it, and it decides which route is even usable.
+3. **Ask IITM BS** whether the IIT Madras SPOC nominates online-BS students. Fastest
+   yes/no available, and it needs nobody to register anything.
+4. Portal fields for deck slide 1: **Theme, Team ID, Team Name**, then re-export the
+   PDF **from PowerPoint**.
+
+### The SPOC question — ANSWERED 11 Sep 2026, do not re-derive
+
+**IIM Mumbai is NOT registered, and neither is any other IIM.**
 
 Verified against `sih.gov.in/know-your-spoc`, which server-renders the complete list:
 **3,000 institutes, zero IIMs nationwide.** Also checked **NITIE** — IIM Mumbai's name
@@ -51,19 +67,23 @@ nomination and idea submission by College SPOC and Team leader on SIH portal is 
 elsewhere says 30th Aug, and blogs say 30 Sept — it is internally inconsistent. **Assume
 15 Sept until AICTE says otherwise.**
 
-**Ask AICTE today:** sih@aicte-india.org and hackathon@aicte-india.org.
+**Ask AICTE:** sih@aicte-india.org and hackathon@aicte-india.org.
 
-**The live route is IITM BS** — IIT Madras is registered. Unknown, and worth one email:
-whether the IIT Madras SPOC nominates students of the *online BS* programme.
+**The live route is IITM BS** — IIT Madras is registered as "Indian Institute of
+Technology, Chennai".
 
-Also needed from the portal, for deck slide 1 — rendered in amber «guillemets» so they
-cannot ship blank: **Theme, Team ID, Team Name**. Then **re-export the PDF from
-PowerPoint**, not from the LibreOffice copy in `deck/`.
+**IIM Mumbai AISHE code: `U-1283`** (supplied 11 Sep). The `U-` prefix is a
+university-level registration, so the nomination ceiling is **100 teams, not 50**.
 
-Third: **the internal hackathon date**. Earlier still than the portal deadline.
+Other hard rules from the official guidelines PDF:
 
-Nomination caps, from the same PDF: **50 teams per college** (45 + 5 waitlist), **100 for
-a university**.
+- An **internal hackathon is mandatory** — only teams selected in one may be nominated.
+  The SPOC must upload a report of up to 15 pages including event photographs, jury
+  panel details, judging process, news coverage and social-media promotion. **This is
+  the heaviest requirement and the main reason a compressed timeline is hard.**
+- Teams are **exactly 6 students**, at least one female, **all from the same college**.
+- Up to 2 mentors, optional. One team may enter at most 2 problem statements.
+- A problem statement **freezes nationally at 500 submitted ideas**.
 
 **The two official forms are already downloaded** — `~/Downloads/`,
 `College-Consent-Letter-for-SPOC-SIH2026.docx` and
@@ -218,6 +238,29 @@ writing a test *for* rule 4.
 
 ---
 
+## Outreach documents — built 11 Sep, in `outreach/`
+
+Three PDFs for three different readers. Each has a build script beside it; edit the
+script, never the PDF.
+
+| file | reader | job |
+|---|---|---|
+| `Project-Brief-Privacy-Browser-Agent.pdf` | **the Director** | what he built, 2 pages |
+| `SIH2026-Questions-for-Institute.pdf` | faculty / Programme Office | 7 questions, his voice, 1 page |
+| `SIH2026-IIM-Mumbai-Briefing.pdf` | whoever needs the full case | facts + questions + sources |
+
+The project brief states authorship from the record — `git shortlog` shows **57 of 58
+commits** as Harsh's — and says plainly that the repo is hosted under a teammate's
+account. **He has not confirmed that framing**; if he wants it presented as a team
+project throughout, rebuild.
+
+`reportlab` traps paid for twice this session, both caught by looking at the render and
+not the build log:
+
+- **`registerFontFamily` is mandatory** or `<b>`/`<i>` silently render at regular weight.
+- **A `Paragraph` carries its own alignment**, so a table's `ALIGN=CENTER` does nothing
+  for cells containing one.
+
 ## Still open — none blocking
 
 - Eight of the eleven language vocabularies are **unreviewed by a native reader** —
@@ -230,6 +273,14 @@ writing a test *for* rule 4.
   needs a design, not a flag flip
 - Corpus is 14 tuned fixtures + 2 holdout + 4 real sites. **Growing it has found a real bug every single
   time — the best task for a teammate**
+- **The screenshot masking has NEVER been verified on real pixels.** The boxes are
+  computed, the coordinate mapping is asserted at 1x/2x/0.5x, and the logic is unit
+  tested — but the offscreen canvas -> encode -> transmit path only runs in a real
+  browser and jsdom cannot exercise it. Spike D proved the *face* blur on pixels; the
+  text masking has no equivalent proof. **Closing it needs `./test-all.sh --full`,
+  which needs Chrome for Testing (`scripts/get-chrome-for-testing.sh`, ~150 MB, not
+  installed) and `ollama serve`.** This is the one claim on the deck not backed by a
+  measurement, and it is the highest-value remaining engineering task
 - Git Bash on Windows cannot background uvicorn, so the server drills skip there; WSL
   works. Documented, not hidden
 
