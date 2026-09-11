@@ -19,3 +19,6 @@ server/.drill-fault
 
 # macOS
 .DS_Store
+
+# briefing PDF preview renders
+outreach/pg-*.jpg
