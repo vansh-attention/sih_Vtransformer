@@ -137,7 +137,7 @@ leaks — the same as the tuned set.
 **"What doesn't it do?"** — Indian languages beyond Hindi: a form labelled only in Tamil,
 Bengali or Telugu behaves the way Hindi did before we added a fixture for it. Devanagari
 names in running prose are missed too — the name tokeniser is Latin-only, though
-Devanagari *form fields* work. And our corpus is 12 fixtures plus 4 real sites, which is
+Devanagari *form fields* work. And our corpus is 12 tuned fixtures, 2 holdout and 4 real sites, which is
 small; every new page shape we have added has found a real defect.
 
 **"Why not use GPT-4/Claude?"** — The PS requires an open-weight, offline-deployable

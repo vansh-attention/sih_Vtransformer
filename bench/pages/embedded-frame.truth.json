@@ -1,0 +1,10 @@
+{
+  "name": "embedded-frame",
+  "elements": [
+    { "id": "aname", "kind": "NAME", "redact": true },
+    { "id": "apan",  "kind": "PAN",  "redact": true },
+    { "id": "aref",  "kind": null,   "redact": false, "why": "application reference, not PII" }
+  ],
+  "mustFind": ["Continue to review"],
+  "visionQueueMin": 1
+}

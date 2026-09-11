@@ -441,6 +441,21 @@ export interface ExtractResult {
    * the payload for us to redact — so the screenshot must be withheld.
    */
   piiBeyondTextCap: boolean;
+  /**
+   * Visible regions whose CONTENT we never read: frames.
+   *
+   * `chrome.scripting.executeScript` is called without `allFrames`, so the content
+   * script runs in the top frame only. An <iframe> is therefore a rectangle we cannot
+   * see into — but `captureVisibleTab` photographs its pixels along with everything
+   * else. A PAN rendered inside a frame is on screen, absent from the payload, and
+   * perfectly legible in the transmitted image: the same leak shape as a closed shadow
+   * root, with a different cause.
+   *
+   * Reported as BOXES rather than as a withhold signal so the caller can strike out
+   * just the frame instead of discarding the whole screenshot. A page with one ad
+   * iframe should not lose all of its visual context.
+   */
+  unreadableRegions: Array<{ x: number; y: number; w: number; h: number }>;
   /** True when the budget was hit. Surfaced to the server so it knows the view is partial. */
   truncated: boolean;
   nodeCount: number;
@@ -468,6 +483,8 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
   // Custom elements whose contents we could not read. Reported, never ignored: their
   // values may be on screen and therefore in the screenshot.
   const closedShadowHosts: string[] = [];
+  // Frames: on screen, in the screenshot, never read by us. See ExtractResult.
+  const unreadableRegions: Array<{ x: number; y: number; w: number; h: number }> = [];
 
   function walk(el: Element): ElementNode | null {
     if (count >= maxNodes) { truncated = true; return null; }
@@ -513,6 +530,18 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
       // A custom element with no reachable shadow root: either not yet upgraded, or
       // closed. Either way its contents may be on screen and unredactable.
       closedShadowHosts.push(el.tagName.toLowerCase());
+    }
+
+    /**
+     * A frame is a hole in the redactor's view. We never inject into subframes, so its
+     * text is never scanned, never vaulted, and never masked — while the screenshot
+     * captures it in full.
+     *
+     * Only VISIBLE frames with real area count. A 1x1 tracking pixel carries nothing a
+     * human could read, and treating it as a leak would strike out a region for nothing.
+     */
+    if (role === 'iframe' && visible && box.w > 4 && box.h > 4) {
+      unreadableRegions.push({ x: box.x, y: box.y, w: box.w, h: box.h });
     }
 
     // Sibling iteration, NOT Array.from(el.children). `children` is a live
@@ -630,6 +659,7 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
     nodeCount: count,
     visionQueue,
     closedShadowHosts: [...new Set(closedShadowHosts)],
+    unreadableRegions,
     // Check the DISCARDED tails only. Cheap, because truncation is rare, and it turns a
     // silent leak into a visible decision.
     piiBeyondTextCap: truncatedText.some((t) => scanText(t.slice(2000)).some((d) => d.verified)),

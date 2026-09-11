@@ -30,6 +30,9 @@ interface Case {
   visionQueue: number;
   tokens: number;
   boxes: number;
+  frames: number;
+  /** Counted from the fixture's own DOM, NOT from the extractor. See below. */
+  framesExpected: number;
   screenshotSent: boolean;
 }
 
@@ -59,7 +62,7 @@ function run(dir: string, file: string): Case {
   globalThis.CSS = window.CSS;
   globalThis.getComputedStyle = (el: Element) => window.getComputedStyle(el);
 
-  const { structure, visionQueue } = extractPage(window.document);
+  const { structure, visionQueue, unreadableRegions } = extractPage(window.document);
   const vault = new Vault();
   const { payload, piiBoxes } = sanitize(structure, {
     goal: 'screenshot leak test',
@@ -72,7 +75,25 @@ function run(dir: string, file: string): Case {
     page: file.replace(/\.html$/, ''),
     visionQueue: visionQueue.length,
     tokens: tokens.size,
-    boxes: piiBoxes.length,
+    // What the content script actually sends: redacted boxes PLUS frames it cannot read.
+    boxes: piiBoxes.length + unreadableRegions.length,
+    frames: unreadableRegions.length,
+    /**
+     * INDEPENDENT EXPECTATION.
+     *
+     * Taking the expected count from `unreadableRegions` would make the assertion
+     * circular: break the detection and the expectation drops to zero with it, so the
+     * test goes green while the leak is live. That is exactly the `[].every()` trap this
+     * project has already been bitten by once, and the first version of this check had
+     * it — caught by sabotaging the detection and watching the test still pass.
+     *
+     * So count the frames from the fixture's own DOM instead.
+     */
+    framesExpected: [...window.document.querySelectorAll('iframe, frame')]
+      .filter((el) => {
+        const st = window.getComputedStyle(el);
+        return st.display !== 'none' && st.visibility !== 'hidden';
+      }).length,
     // The orchestrator transmits an image exactly when the vision queue is non-empty.
     screenshotSent: visionQueue.length > 0,
   };
@@ -86,21 +107,26 @@ for (const dir of ['pages', 'holdout']) {
 }
 
 console.log('=== THE TWO CHANNELS MUST AGREE ===\n');
-console.log('page              vision  tokens  masks  screenshot');
-console.log('-'.repeat(56));
+console.log('page              vision  tokens  frames  masks  screenshot');
+console.log('-'.repeat(64));
 
 let fail = 0;
 let covered = 0;
 for (const c of cases) {
   // The failure condition: an image goes out, values were redacted from the JSON, and
   // nothing tells the caller to strike them out of the image.
-  const bad = c.screenshotSent && c.tokens > 0 && c.boxes === 0;
-  if (bad) fail++;
-  if (c.screenshotSent && c.tokens > 0) covered++;
+  const needsMasking = c.tokens > 0 || c.framesExpected > 0;
+  const bad = c.screenshotSent && needsMasking && c.boxes === 0;
+  // A frame is a region we never read. Every visible one MUST be reported as unreadable,
+  // whether or not this page happened to redact anything of its own.
+  const frameBad = c.framesExpected > c.frames;
+  if (bad || frameBad) fail++;
+  if (c.screenshotSent && needsMasking) covered++;
   console.log(
     `${c.page.padEnd(17)} ${String(c.visionQueue).padStart(5)}  `
-    + `${String(c.tokens).padStart(6)}  ${String(c.boxes).padStart(5)}  `
-    + `${c.screenshotSent ? 'SENT' : 'skipped'}${bad ? '   <-- LEAK' : ''}`);
+    + `${String(c.tokens).padStart(6)}  ${String(c.frames)}/${c.framesExpected}`.padEnd(11)
+    + `${String(c.boxes).padStart(5)}  `
+    + `${c.screenshotSent ? 'SENT' : 'skipped'}${bad || frameBad ? '   <-- LEAK' : ''}`);
 }
 
 /**

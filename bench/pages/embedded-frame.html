@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Loan application — document upload</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; max-width: 760px; }
+    .card { border: 1px solid #d0d4dc; border-radius: 8px; padding: 16px; margin: 16px 0; }
+    label { display: block; margin: 10px 0 4px; font-size: 14px; color: #444; }
+    input { width: 320px; padding: 6px 8px; border: 1px solid #bbb; border-radius: 4px; }
+    iframe { width: 460px; height: 180px; border: 1px solid #c8ccd4; border-radius: 6px; }
+    button { margin-top: 16px; padding: 8px 18px; }
+  </style>
+</head>
+<body>
+  <h1>Loan application &mdash; step 3 of 4</h1>
+
+  <!--
+    A page shape the corpus did not have: part of the form is delivered in a FRAME.
+
+    This is ordinary on Indian banking and government portals, where a KYC or payment
+    step is embedded from another service. It matters to this project because the
+    content script is injected without `allFrames`, so everything below is on screen,
+    in the screenshot, and completely invisible to the redactor.
+
+    The frame's own markup is deliberately NOT loaded here — there is nothing to load.
+    The point of the fixture is the hole itself: an unreadable rectangle of real size.
+  -->
+  <div class="card">
+    <h2>Verified KYC record</h2>
+    <p>Supplied by the KYC registry. Shown here for your confirmation.</p>
+    <iframe title="KYC registry record" src="about:blank"></iframe>
+  </div>
+
+  <div class="card">
+    <h2>Your details</h2>
+    <label for="aname">Applicant name</label>
+    <input id="aname" value="Rohit Deshmukh">
+
+    <label for="apan">PAN</label>
+    <input id="apan" value="BNZPD4321K">
+
+    <label for="aref">Application reference</label>
+    <input id="aref" value="LN-2026-004182">
+
+    <button id="continue">Continue to review</button>
+  </div>
+</body>
+</html>

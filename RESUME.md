@@ -69,7 +69,7 @@ property of the architecture, not a claim about code correctness.
 
 ## Numbers — all measured, none estimated
 
-| | tuned (12 fixtures) | **holdout** |
+| | tuned (12 fixtures) | **holdout (2)** |
 |---|---|---|
 | visual context accuracy | 100% | **100%** |
 | PII recall / precision | 100% / 100% | **100% / 100%** |
@@ -145,6 +145,25 @@ fix: 3 pages red. It also asserts the CSS-px → image-px mapping at 1x, 2x and 
 because Spike C's lesson is that a box in the wrong coordinate space paints a bar
 somewhere harmless and hides nothing.
 
+### …and the same hole through a frame
+
+`chrome.scripting.executeScript` is called **without `allFrames`**, so the content script
+runs in the top frame only. An `<iframe>` is a rectangle we never see into — and
+`captureVisibleTab` photographs its pixels regardless. A PAN inside a frame is on screen,
+absent from the payload, and legible in the image.
+
+Frames are now reported as `unreadableRegions` and masked like any other redacted box.
+Masking the frame rather than withholding the whole screenshot is deliberate: one ad
+iframe should not cost the page all of its visual context. `bench/pages/embedded-frame.html`
+covers it — an ordinary shape on Indian banking and government portals, where the KYC or
+payment step is embedded from another service.
+
+**The first version of that check had no teeth**, and sabotaging the detection proved it:
+the expected frame count was read from the extractor's own output, so breaking the
+extractor set expectation and actual to zero together and the test stayed green. It now
+counts frames from the fixture's DOM instead. Rule 4 catches you even when you are
+writing a test *for* rule 4.
+
 ## Findings that cost real time — do not regress
 
 - A positive PII keyword beats negative context ("PAN (for invoices…)" leaked a real PAN)
@@ -178,7 +197,10 @@ somewhere harmless and hides nothing.
 - Indian languages beyond Hindi (Tamil, Bengali, Telugu behave as Hindi did before
   `hindi-opaque.html` was added)
 - Devanagari names in **prose** — form fields work; the name tokeniser is Latin-only
-- Corpus is 12 fixtures + 4 real sites. **Growing it has found a real bug every single
+- Frames are masked, not read. Injecting with `allFrames` and merging per-frame vaults
+  would recover the context, but merging vaults across frames is where leaks live — it
+  needs a design, not a flag flip
+- Corpus is 12 tuned fixtures + 2 holdout + 4 real sites. **Growing it has found a real bug every single
   time — the best task for a teammate**
 - Git Bash on Windows cannot background uvicorn, so the server drills skip there; WSL
   works. Documented, not hidden

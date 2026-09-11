@@ -267,8 +267,9 @@ def main():
          "than wait to be asked.", 12, False, GREY, 4),
         ("•  Devanagari names in running prose are missed — the name tokeniser "
          "is Latin-only. Devanagari form fields do work.", 12, False, GREY, 4),
-        ("•  Test corpus is 12 fixtures plus 4 real sites. Small, and stated as "
-         "such: every page shape we have added found a real defect.", 12, False, GREY, 2),
+        ("•  Test corpus is 12 tuned fixtures, 2 holdout and 4 real sites. Small, "
+         "and stated as such: every page shape added has found a real defect — "
+         "the newest found a leak through the screenshot.", 12, False, GREY, 2),
     ])
 
     # ---------------- slide 5: impact ----------------

@@ -105,7 +105,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       withheld,
       // On-screen positions of everything redacted out of the payload, so the caller can
       // strike them out of the screenshot too. Boxes only — never the values.
-      piiBoxes,
+      //
+      // Frames are added here as well. We never read inside one, so its contents are
+      // absent from the payload and would otherwise be transmitted as plain pixels.
+      piiBoxes: [...piiBoxes, ...result.unreadableRegions],
       context: after,
       visionQueue: result.visionQueue,
       closedShadowHosts: result.closedShadowHosts,

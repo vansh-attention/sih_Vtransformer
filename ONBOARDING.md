@@ -148,7 +148,8 @@ One verification passed while the extractor was returning *zero nodes*, because
 ./test-all.sh --full                                        # + real browsers + live model
 node --experimental-strip-types bench/score.ts              # the scorecard
 node --experimental-strip-types bench/score.ts --holdout    # the unseen set
-node --experimental-strip-types bench/leak-test.ts          # the leak invariant
+node --experimental-strip-types bench/leak-test.ts          # the leak invariant (JSON)
+node --experimental-strip-types bench/screenshot-leak-test.ts  # ...and the image
 node --experimental-strip-types bench/injection-test.ts     # hostile-page defences
 ./bench/failure-drills.sh                                   # things going wrong
 node build.mjs                                              # rebuild after changes
@@ -162,7 +163,7 @@ Rebuild after any change to `extension/src/` or Chrome will keep running the old
 
 Open items are at the bottom of `RESUME.md`. Good first tasks:
 
-- **Grow the test corpus.** We have 12 fixtures plus 4 real sites. Add real-world page
+- **Grow the test corpus.** We have 12 tuned fixtures, 2 holdout and 4 real sites. Add real-world page
   shapes to `bench/pages/` with a matching `.truth.json`. This is the highest-value thing
   anyone can do — every bug we've found came from a new page shape, without exception.
 - **Test on a low-end laptop.** Every number above is from an M5. We genuinely don't
