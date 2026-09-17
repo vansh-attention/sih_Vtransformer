@@ -116,6 +116,11 @@
     <button id="run">Run on this tab</button>
     <button id="stop" hidden>Stop</button>
   </div>
+  <!-- Scan needs no model and no server, so it works on any site with nothing
+       installed but this extension. It is the button to press first. -->
+  <div class="btns">
+    <button id="scan" title="Read this page and show what would be sent. No model needed.">Scan this page (no model needed)</button>
+  </div>
   <details id="settings">
     <summary>Settings <span id="setsummary" class="t"></span></summary>
     <label for="server">Reasoning server</label>

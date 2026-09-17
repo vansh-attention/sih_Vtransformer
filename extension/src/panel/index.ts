@@ -308,3 +308,85 @@ chrome.runtime.onMessage.addListener((msg) => {
     renderProgress(msg.event.turn, msg.event.phase);
   }
 });
+
+
+/**
+ * SCAN THIS PAGE: the demonstration that works on a site nobody chose in advance.
+ *
+ * No model, no server, no download. It observes whatever page is open, redacts it, and
+ * shows exactly what WOULD have been transmitted, without transmitting it. The point is
+ * that a sceptic can navigate to their own bank, their own government portal, anything
+ * at all, press this, and read the answer for that page.
+ *
+ * It also surfaces the refusals. A page we could not fully read, or one whose PII sits
+ * beyond a cap, is a page whose screenshot the agent would decline to send, and saying
+ * so is more convincing than a clean result would be.
+ */
+$('scan').addEventListener('click', async () => {
+  const btn = $('scan') as HTMLButtonElement;
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.textContent = 'Reading this page…';
+  $('ledger').innerHTML = '';
+  $('empty').hidden = true;
+
+  try {
+    const r = await chrome.runtime.sendMessage({ target: 'background', type: 'scan-page' });
+    if (r?.error) {
+      $('phase').innerHTML = `<span class="deny">cannot scan:</span> ${esc(r.error)}`;
+      return;
+    }
+
+    const total = (r.withheld ?? []).reduce((n: number, w: { count: number }) => n + w.count, 0);
+    const kinds = (r.withheld ?? []).map((w: { kind: string; count: number }) =>
+      `${w.count} ${w.kind}`).join(', ') || 'nothing personal found';
+
+    const warn = [
+      r.unreadable?.length ? `${r.unreadable.length} region(s) unreadable, screenshot would be withheld` : '',
+      r.piiBeyondTextCap ? 'PII-shaped text beyond the length cap, screenshot would be withheld' : '',
+      r.piiBeyondNodeCap ? 'PII-shaped content below the node budget, screenshot would be withheld' : '',
+      r.truncated ? `page exceeded the node budget; form controls were rescued` : '',
+    ].filter(Boolean);
+
+    $('phase').innerHTML =
+      `<b>${total}</b> value(s) would be withheld from <b>${esc(r.title ?? r.url ?? 'this page')}</b>`
+      + `<span class="t">${r.nodeCount} elements read, ${r.bytes} bytes would be sent</span>`;
+
+    $('ledger').innerHTML =
+      `<div class="entry"><header><b>Scan only</b> <span class="t">nothing was transmitted</span></header>`
+      + `<div style="padding:10px 14px"><div class="t">Withheld: ${esc(kinds)}</div>`
+      + (r.previews?.length
+          ? `<table class="fields"><tr><th>On screen</th><th>Sent instead</th></tr>`
+            + r.previews.map((p: Preview) =>
+                `<tr><td class="mask">${esc(p.masked)}</td><td class="tok">${esc(p.token)}</td></tr>`).join('')
+            + `</table>`
+          : `<div class="t" style="margin-top:8px">`
+            // The likeliest first experience is an empty result, because a page holds
+            // no personal data until somebody types some. Saying only "none found"
+            // reads as "it does not work", so say what to do next.
+            + `<b>No personal values on this page.</b> Most pages hold none until you `
+            + `type something.<br><br>Try this: put a name or a made-up PAN such as `
+            + `<span class="tok">ABCPE1234F</span> into a field you can SEE, then scan `
+            + `again. Hidden fields are ignored on purpose.</div>`)
+      // A successful scan ends with a table and no idea what it proved. The claim worth
+      // making here is the one the reader can check for herself in ten seconds, so make
+      // it, and say where to go next rather than leaving the panel a dead end.
+      + (r.previews?.length
+          ? `<div class="t" style="margin-top:12px"><b>Nothing left this machine.</b> `
+            + `Open DevTools, switch to the Network tab and press Scan again: no request `
+            + `appears. The values on the left never leave the page; only the tags on the `
+            + `right would be sent.<br><br>Next, open <span class="tok">why.html</span> in `
+            + `the same folder as this extension: the same page sent with and without this, `
+            + `side by side.</div>`
+          : '')
+      + (warn.length
+          ? `<div class="t" style="margin-top:10px;color:#f0883e">${warn.map(esc).join('<br>')}</div>`
+          : '')
+      + `</div></div>`;
+  } catch (e) {
+    $('phase').innerHTML = `<span class="deny">cannot scan:</span> ${esc(String(e))}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prev;
+  }
+});
