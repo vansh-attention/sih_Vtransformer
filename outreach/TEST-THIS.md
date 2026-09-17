@@ -27,7 +27,7 @@ The longer version is in `TEAM-EXPLAINER.pdf`. You do not need it to test.
 
 ### Install
 
-1. Download `privacy-agent-extension.zip` and unzip it. It is 1.6 MB.
+1. Download `privacy-agent-extension.zip` and unzip it. It is 1.4 MB.
 2. Open **Chrome**. Go to `chrome://extensions`
 3. Turn on **Developer mode**, top right.
 4. Press **Load unpacked** and choose the unzipped folder, the one holding `manifest.json`.

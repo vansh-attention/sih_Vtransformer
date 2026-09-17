@@ -22,7 +22,7 @@ is hers, not ours.
 
 ### Option B, step by step
 
-Send her `privacy-agent-extension.zip` (**1.6 MB**, so it attaches to an email). Build it with
+Send her `privacy-agent-extension.zip` (**1.4 MB**, so it attaches to an email). Build it with
 `./scripts/package-extension.sh`. It contains a `READ-ME-FIRST.txt` saying the same
 things, so she does not need this document.
 

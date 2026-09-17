@@ -3,8 +3,18 @@
  * verbatim because MV3 forbids remote code, so everything must ship locally.
  */
 import * as esbuild from 'esbuild';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 
+/**
+ * Clear the output first.
+ *
+ * Code-split chunks are named by content hash, so every change to the vision handlers
+ * left the previous chunk behind and nothing ever removed it. Four handler chunks had
+ * accumulated here, three of them dead, and they went into the extension zip: 1.6 MB
+ * shipped where a clean build produces 1.4 MB. A fresh clone built 200 KB smaller than
+ * this machine did, which is the only reason it was noticed.
+ */
+rmSync('extension/dist', { recursive: true, force: true });
 mkdirSync('extension/dist', { recursive: true });
 
 const common = {
