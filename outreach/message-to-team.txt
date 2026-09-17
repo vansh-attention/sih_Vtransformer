@@ -1,0 +1,75 @@
+PASTE-READY MESSAGES FOR THE TEAM
+=================================
+
+Slack and WhatsApp both render *single asterisks* as bold. Do not use double.
+
+
+--------------------------------------------------------------------------
+1. THE ASK  (Slack #general or the WhatsApp group)
+--------------------------------------------------------------------------
+
+Hi all, the SIH build is ready to be tested and I need ten minutes from each of you.
+
+*Please try to break it.* That is not a figure of speech. Five of us on five laptops
+testing five websites we have never seen is worth more than anything I can do on mine,
+and whatever you find now is something Ma'am will not find later.
+
+What to do:
+
+1. Download the zip I have attached and unzip it
+2. Chrome > chrome://extensions > turn on Developer mode > Load unpacked > pick the folder
+3. Open a website of *your* choice with a form. Your bank login, the college portal,
+   IRCTC, a job application, anything
+4. Type made-up values into a field you can see. Please not your real ones.
+   Name: Vikram Sharma   PAN: ABCPE1234F   Mobile: 9876543210
+5. Click the extension icon, press "Scan this page"
+
+Then post this in the group, filled in:
+
+Site:
+What I typed:
+What it caught:
+What it MISSED:
+What it caught that was NOT personal:
+Anything confusing:
+Chrome version + OS:
+
+The two lines that matter most are MISSED and the false catch. Over-redaction is scored
+exactly as heavily as a leak, so an order number wrongly hidden is as much a finding as
+a PAN wrongly sent.
+
+Full instructions are in the PDF, including what is not a bug.
+
+Vansh and Manas, there is a Part 2 for you in the same PDF: clone the repo and run
+./test-all.sh on your own machine. If it fails there, that is a real finding.
+
+
+--------------------------------------------------------------------------
+2. THE THREE THINGS I NEED BACK  (post separately, a day later)
+--------------------------------------------------------------------------
+
+Three quick things so we can send this to Ma'am:
+
+1. *Your yes on the email draft* (Email-Draft-for-Team-Review.pdf). All six of our names
+   are on it, so I am not sending it until everyone has read it
+2. *A team name and a project name.* Options are in NAME-OPTIONS.pdf. Pick a favourite
+   each and we will take the most-voted
+3. *Vansh:* the repo needs to move from your personal account to a team organisation.
+   Only you can do it and it takes about five minutes. Steps are in ORG-MIGRATION.pdf
+
+The portal closes *30 September*. None of this is big; it is the waiting that costs us.
+
+
+--------------------------------------------------------------------------
+3. IF SOMEBODY SAYS "I DO NOT WANT TO INSTALL AN EXTENSION"
+--------------------------------------------------------------------------
+
+That is a completely fair thing to say and it is the same thing Ma'am may say.
+
+Open why.html from inside the same folder instead. It is an ordinary web page, it needs
+nothing installed, and it shows one screen sent two ways: the way an ordinary AI
+assistant sends it, and the way ours does.
+
+If you want to check the install itself: the extension makes no network request at all
+during a scan. Open DevTools, Network tab, press Scan, and nothing appears. That is the
+whole demonstration.
