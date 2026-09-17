@@ -25,7 +25,8 @@ item below is waiting on another person, not on the next session.
 2. **Everyone's yes on the email draft**, then send `outreach/email-to-spoc.md` to
    `pujasarkar@iimmumbai.ac.in` with `SIH26171-Project-Report.pdf` attached
 3. **Vansh archives** `vansh-attention/sih_Vtransformer`, or the two copies diverge
-4. **Portal Team ID and Theme** — the last two placeholders, on deck slide 1
+4. **Portal Team ID** — the **last remaining** placeholder on deck slide 1, and the only
+   value that genuinely cannot exist until the team registers
 5. Optional: the org's About still reads "vision transfer problem statement of the SIH"
 
 ⚠ **Found 17 Sep evening, after the block above was written: the built deck was STALE.**
@@ -56,7 +57,45 @@ accepted and dropped, caught only by looking at the output file's mtime.
 
 ⛔ **Both are gitignored on purpose** (`deck/*.pdf`, `deck/slide-*.jpg`): the `.pptx` is the
 tracked source. So `git status` can be clean while these are stale — check them by hand.
-**A re-export is still needed once the portal supplies Team ID and Theme.**
+**A re-export is still needed once the portal supplies the Team ID.**
+
+### ⛔ THE THEME WAS NEVER UNKNOWN — corrected 18 Sep after he asked why I couldn't get it
+
+**It is `Smart Automation`.** It belongs to the **problem statement**, not to the team: it is
+printed on SIH26171's own page on sih.gov.in and we captured it on **11 Sep**. It was written
+in `RESUME.md`, `README.md`, `ONBOARDING.md`, `build-project-report.py` and
+`build-project-brief-pdf.py` — and `outreach/WHO-OWNS-WHAT.md` states plainly that Theme
+*"is 'Smart Automation', which is confirmed. The other two arrive when we register."*
+
+`deck/build.py` had it under a comment reading *"fields only the SIH portal can supply"*,
+grouped with Team ID. **So the deck advertised a blank for a value the repo held in six
+places, and this file repeated that for a day.** `TEAM_ID` is now the only placeholder.
+
+⚠ **The lesson is not about the deck.** Before calling a field blocked, grep the repo for the
+value — a placeholder is a claim that something is unknown, and that claim goes stale like any
+other. `«…»` in an artefact means *"nobody has looked recently"* at least as often as it means
+*"nobody can know this"*.
+
+### ✅ THE PROJECT IS PRESENTED AS AAVARAN ON THE DECK (his call, 18 Sep)
+
+Three placements: the **slide 1 title** (replacing the template's `TITLE PAGE` fill-in), a
+**`Solution – Aavaran`** row in the slide 1 field block, and the **lead line of slide 2**.
+The team oval on slides 2–6 still carries **Vagabonds**, which is what that oval is for.
+
+Slide 2's heading was the template's *other* fill-in, `IDEA TITLE`, and had been missed for
+the same reason as `TITLE PAGE`. It now reads **REDACT BEFORE YOU SEND** — ⚠ **my wording,
+not his.** The `IDEA_TITLE` constant at the top of `build.py` changes it in one line.
+Slides 3–6 carry real section headings and are untouched.
+
+⚠ **Two python-pptx traps, both commented in `build.py`:**
+- That placeholder holds **two runs** — a vertical-tab break, then the words. Writing *every*
+  run doubled the string past `clear_body`'s 40-character title test, so **`clear_body` then
+  deleted the heading.** It failed **silently**: the build printed 6 slides and the PDF looked
+  right until the pixels were checked. Replace only the run containing the words.
+- Setting `text_frame.text` instead of the run's text **drops the template's font.**
+- The PDF's text layer extracts the title as `AA V ARAN` — that is Times New Roman kerning in
+  the extractor, not a rendering fault. **Grepping the text layer for `AAVARAN` returns 0 on a
+  perfectly correct deck.** Check the JPGs.
 
 ⚠ **The three 11 Sep outreach PDFs are stale and now factually wrong.**
 `Project-Brief-Privacy-Browser-Agent.pdf`, `SIH2026-Questions-for-Institute.pdf` and
