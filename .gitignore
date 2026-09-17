@@ -30,3 +30,6 @@ __pycache__/
 
 # Scratch probes used to reproduce a defect. Kept locally, never part of the repo.
 probe*.ts
+
+# Office lock files - appear whenever the deck is opened in PowerPoint
+~$*
