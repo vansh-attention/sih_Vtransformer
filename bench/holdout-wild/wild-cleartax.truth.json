@@ -1,0 +1,43 @@
+{
+ "name": "wild-cleartax",
+ "note": "HELD OUT. Real markup from cleartax.html; injected block is synthetic. Do not tune against this file.",
+ "elements": [
+  {
+   "id": "wh_n7",
+   "kind": "NAME",
+   "redact": true
+  },
+  {
+   "id": "wh_pan7",
+   "kind": "PAN",
+   "redact": true
+  },
+  {
+   "id": "wh_card7",
+   "kind": "CARD",
+   "redact": true
+  },
+  {
+   "id": "wh_ad7",
+   "kind": "ADDRESS",
+   "redact": true
+  },
+  {
+   "id": "wh_ay7",
+   "kind": null,
+   "redact": false,
+   "why": "a tax year, not a personal value"
+  },
+  {
+   "id": "wh_sec7",
+   "kind": null,
+   "redact": false,
+   "why": "a section of the Act, not an identifier"
+  }
+ ],
+ "mustFind": [
+  "Submit"
+ ],
+ "mustNotFind": [],
+ "visionQueueMin": 0
+}

@@ -37,7 +37,13 @@ if (!NO_LAYER3) {
 }
 
 const HOLDOUT = process.argv.includes('--holdout');
-const DIR = HOLDOUT ? 'holdout' : 'pages';
+/**
+ * The wild corpus: real captured pages with a synthetic, exactly-labelled block injected.
+ * The markup is not ours, which is the half that breaks things; the values are, because
+ * ground truth on a stranger's page cannot be invented. Built by make-wild-holdout.mjs.
+ */
+const WILD = process.argv.includes('--wild');
+const DIR = WILD ? 'holdout-wild' : HOLDOUT ? 'holdout' : 'pages';
 
 interface TruthElement {
   id: string;
@@ -250,6 +256,9 @@ if (failures.length) {
   for (const f of failures) console.log(`  ${f}`);
 }
 
-// Leaks are always fatal. Detection misses are reported but do not fail the run on the
-// holdout, because the holdout exists to MEASURE generalisation, not to be passed.
+// Leaks are always fatal. Detection misses are reported but do not fail the run on a
+// held-out corpus, because such a corpus exists to MEASURE generalisation, not to be
+// passed: gating on it would create steady pressure to tune against it, which is the one
+// thing that would destroy its value. The suite names this explicitly rather than
+// printing a tick that a reader would take for a clean bill of health.
 process.exit(leaks > 0 ? 1 : 0);

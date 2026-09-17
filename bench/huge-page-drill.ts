@@ -99,8 +99,33 @@ const check = (name: string, ok: boolean, detail = '') => {
 // table, tbody) must survive the cut, or the tree collapses to nothing the moment the
 // budget is reached. The allowance is the maximum nesting depth, not a fudge factor.
 const MAX_CONTAINER_OVERSHOOT = 16;
-check('budget respected', nodeCount <= 1500 + MAX_CONTAINER_OVERSHOOT && truncated,
-  `${nodeCount} nodes (budget 1500 + ${MAX_CONTAINER_OVERSHOOT} for containers), truncated=${truncated}`);
+
+/**
+ * A SECOND, DELIBERATE OVERSHOOT: RESCUED FORM CONTROLS.
+ *
+ * The budget walks in document order and stops at the cap, which spends the whole
+ * allowance on whatever comes first. On a real page that is layout. The MyGov capture
+ * has 2,638 elements: 1,009 divs, 541 spans, 379 links, and fifteen form controls. So
+ * the fields holding a PAN fell off the end while scaffolding filled the budget.
+ *
+ * Measured on the ten-page wild corpus, that cost 7 of 39 values and both Submit
+ * buttons: recall 82.1% and visual context 80%. Rescuing controls and buttons after the
+ * walk took those to 100% and 100%.
+ *
+ * So the overshoot is bought deliberately, and the thing this check must now enforce is
+ * that it stays BOUNDED. An unbounded rescue would simply be a budget that does not
+ * bind, which is what this drill exists to prevent.
+ */
+const MAX_RESCUED = 120;
+const CEILING = 1500 + MAX_CONTAINER_OVERSHOOT + MAX_RESCUED;
+check('budget respected', nodeCount <= CEILING && truncated,
+  `${nodeCount} nodes (1500 + ${MAX_CONTAINER_OVERSHOOT} containers + ${MAX_RESCUED} rescued `
+  + `= ${CEILING}), truncated=${truncated}`);
+
+// And the rescue must not be what makes it pass: on a 120,000-node page the walk itself
+// has to have stopped, or the cap is doing nothing at all.
+check('walk itself still bound by the budget', nodeCount - MAX_RESCUED <= 1500 + MAX_CONTAINER_OVERSHOOT,
+  `${nodeCount - MAX_RESCUED} nodes excluding the rescue allowance`);
 
 // TIMING HERE IS A JSDOM-RELATIVE REGRESSION GUARD, NOT A BROWSER NUMBER.
 //

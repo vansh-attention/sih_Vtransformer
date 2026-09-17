@@ -1,0 +1,48 @@
+{
+ "name": "wild-indiagov",
+ "note": "HELD OUT. Real markup from india_gov.html; injected block is synthetic. Do not tune against this file.",
+ "elements": [
+  {
+   "id": "wh_n3",
+   "kind": "NAME",
+   "redact": true
+  },
+  {
+   "id": "wh_a3",
+   "kind": "AADHAAR",
+   "redact": true
+  },
+  {
+   "id": "wh_p3",
+   "kind": "PHONE",
+   "redact": true
+  },
+  {
+   "id": "wh_e3",
+   "kind": "EMAIL",
+   "redact": true
+  },
+  {
+   "id": "wh_ad3",
+   "kind": "ADDRESS",
+   "redact": true
+  },
+  {
+   "id": "wh_sch3",
+   "kind": null,
+   "redact": false,
+   "why": "Verhoeff-valid decoy: a scheme code, not an Aadhaar"
+  },
+  {
+   "id": "wh_off3",
+   "kind": null,
+   "redact": false,
+   "why": "an office, not a person"
+  }
+ ],
+ "mustFind": [
+  "Submit"
+ ],
+ "mustNotFind": [],
+ "visionQueueMin": 0
+}

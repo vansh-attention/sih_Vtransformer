@@ -189,4 +189,91 @@ if (scaleFail) {
   process.exit(1);
 }
 
+/**
+ * THE SIXTH INSTANCE OF THE SAME LEAK, THIS TIME AT THE NODE BUDGET.
+ *
+ * `closedShadowHosts` and `piiBeyondTextCap` both cause the screenshot to be withheld.
+ * Neither covers the node budget: when a page exceeds `maxNodes` the walk stops, and
+ * everything below the cap is invisible to the redactor while remaining perfectly
+ * visible on screen. The withholding rules never consulted `truncated`, so the image
+ * went out carrying values the payload had never seen.
+ *
+ * Found by the wild corpus on its first run: the Wikipedia capture is 5,993 nodes
+ * against a 1,500 budget, and an injected GSTIN sat below the cap.
+ *
+ * Expectations come from the fixtures, not from the extractor, so breaking extraction
+ * cannot drive expectation and actual to zero together.
+ */
+console.log('\n--- PII below the node budget ---');
+let capFail = 0;
+const capCases: Array<[string, number, boolean]> = [
+  // file, node budget, must the screenshot be withheld?
+  //
+  // wild-wikipedia truncates and hides a GSTIN, and USED to require withholding. It no
+  // longer does, and that is the fix working rather than the guard weakening: form
+  // controls below the cap are now rescued, so the GSTIN reaches the payload and is
+  // redacted normally. Withholding an image whose secrets we have already covered would
+  // cost visual context for nothing.
+  ['holdout-wild/wild-wikipedia.html', 1500, false],
+  ['holdout-wild/wild-hn.html', 1500, false],         // fits inside the budget
+  ['pages/checkout.html', 1500, false],               // small page, nothing hidden
+];
+for (const [file, maxNodes, mustWithhold] of capCases) {
+  const dom = new JSDOM(readFileSync(new URL(`./${file}`, import.meta.url), 'utf8'),
+                        { url: 'https://cap.test/' });
+  const w = dom.window;
+  let t = 0;
+  (w as any).Element.prototype.getBoundingClientRect = function () {
+    t += 20;
+    return { x: 10, y: t % 700, width: 200, height: 18, top: t % 700,
+             left: 10, right: 210, bottom: (t % 700) + 18, toJSON() {} } as DOMRect;
+  };
+  globalThis.Node = w.Node; globalThis.CSS = w.CSS;
+  globalThis.getComputedStyle = (el: Element) => w.getComputedStyle(el);
+  const r = extractPage(w.document, { maxNodes }) as unknown as
+    { truncated: boolean; piiBeyondNodeCap: boolean };
+  const ok = r.piiBeyondNodeCap === mustWithhold;
+  if (!ok) capFail++;
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${file.padEnd(34)} `
+    + `truncated=${String(r.truncated).padEnd(5)} withhold=${r.piiBeyondNodeCap} `
+    + `(want ${mustWithhold})`);
+}
+/**
+ * THE GUARD STILL HAS TO FIRE FOR PROSE.
+ *
+ * The rescue pass covers inputs, selects, textareas and buttons, because that is where
+ * a user's own data lives. It does NOT cover a PAN sitting in a paragraph, and that
+ * remains exactly the original hazard: on screen, below the cap, never extracted, and
+ * photographed anyway.
+ *
+ * Without this case the previous check would have been silently satisfied by the rescue
+ * and the guard could have been deleted without any test noticing.
+ */
+{
+  const filler = Array.from({ length: 3000 },
+    (_unused, i) => `<div><span>row ${i}</span></div>`).join('');
+  const prose = '<p>Assessment completed. The reference on file is ABCPE1234F.</p>';
+  const dom = new JSDOM(`<body>${filler}${prose}</body>`, { url: 'https://cap.test/' });
+  const w = dom.window;
+  let t = 0;
+  (w as any).Element.prototype.getBoundingClientRect = function () {
+    t += 20;
+    return { x: 10, y: t % 700, width: 200, height: 18, top: t % 700,
+             left: 10, right: 210, bottom: (t % 700) + 18, toJSON() {} } as DOMRect;
+  };
+  globalThis.Node = w.Node; globalThis.CSS = w.CSS;
+  globalThis.getComputedStyle = (el: Element) => w.getComputedStyle(el);
+  const r = extractPage(w.document, { maxNodes: 1500 }) as unknown as
+    { truncated: boolean; piiBeyondNodeCap: boolean };
+  const ok = r.truncated === true && r.piiBeyondNodeCap === true;
+  if (!ok) capFail++;
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'}  PAN in PROSE below the cap still withholds   `
+    + `truncated=${r.truncated} withhold=${r.piiBeyondNodeCap} (want true)`);
+}
+
+if (capFail) {
+  console.log(`\n${capFail} NODE-BUDGET FAILURES`);
+  process.exit(1);
+}
+
 console.log('\nboth channels agree');

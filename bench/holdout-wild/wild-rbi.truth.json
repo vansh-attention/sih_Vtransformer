@@ -1,0 +1,32 @@
+{
+ "name": "wild-rbi",
+ "note": "HELD OUT. Real markup from rbi.html; injected block is synthetic. Do not tune against this file.",
+ "elements": [
+  {
+   "id": "wh_aad",
+   "kind": "AADHAAR",
+   "redact": true
+  },
+  {
+   "id": "wh_ifsc",
+   "kind": "IFSC",
+   "redact": true
+  },
+  {
+   "id": "wh_addr",
+   "kind": "ADDRESS",
+   "redact": true
+  },
+  {
+   "id": "wh_amt",
+   "kind": null,
+   "redact": false,
+   "why": "Verhoeff-valid decoy: a rupee figure, not an Aadhaar"
+  }
+ ],
+ "mustFind": [
+  "Submit"
+ ],
+ "mustNotFind": [],
+ "visionQueueMin": 0
+}

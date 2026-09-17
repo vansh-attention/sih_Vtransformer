@@ -1,0 +1,48 @@
+{
+ "name": "wild-uidai",
+ "note": "HELD OUT. Real markup from uidai.html; injected block is synthetic. Do not tune against this file.",
+ "elements": [
+  {
+   "id": "wh_n4",
+   "kind": "NAME",
+   "redact": true
+  },
+  {
+   "id": "wh_a4",
+   "kind": "AADHAAR",
+   "redact": true
+  },
+  {
+   "id": "wh_p4",
+   "kind": "PHONE",
+   "redact": true
+  },
+  {
+   "id": "wh_pan4",
+   "kind": "PAN",
+   "redact": true
+  },
+  {
+   "id": "wh_pw4",
+   "kind": "PASSWORD",
+   "redact": true
+  },
+  {
+   "id": "wh_enr4",
+   "kind": null,
+   "redact": false,
+   "why": "enrolment id, not an Aadhaar number"
+  },
+  {
+   "id": "wh_ctr4",
+   "kind": null,
+   "redact": false,
+   "why": "a place, not a person"
+  }
+ ],
+ "mustFind": [
+  "Submit"
+ ],
+ "mustNotFind": [],
+ "visionQueueMin": 0
+}

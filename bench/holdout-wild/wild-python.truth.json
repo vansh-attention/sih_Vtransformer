@@ -1,0 +1,32 @@
+{
+ "name": "wild-python",
+ "note": "HELD OUT. Real markup from python_org.html; injected block is synthetic. Do not tune against this file.",
+ "elements": [
+  {
+   "id": "wh_card",
+   "kind": "CARD",
+   "redact": true
+  },
+  {
+   "id": "wh_pin",
+   "kind": "PASSWORD",
+   "redact": true
+  },
+  {
+   "id": "wh_mob",
+   "kind": "PHONE",
+   "redact": true
+  },
+  {
+   "id": "wh_awb",
+   "kind": null,
+   "redact": false,
+   "why": "Luhn-valid decoy: an airway bill, not a card"
+  }
+ ],
+ "mustFind": [
+  "Submit"
+ ],
+ "mustNotFind": [],
+ "visionQueueMin": 0
+}

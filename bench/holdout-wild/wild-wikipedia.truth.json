@@ -1,0 +1,32 @@
+{
+ "name": "wild-wikipedia",
+ "note": "HELD OUT. Real markup from wikipedia.html; injected block is synthetic. Do not tune against this file.",
+ "elements": [
+  {
+   "id": "wh_gst",
+   "kind": "GSTIN",
+   "redact": true
+  },
+  {
+   "id": "wh_nm2",
+   "kind": "NAME",
+   "redact": true
+  },
+  {
+   "id": "wh_em2",
+   "kind": "EMAIL",
+   "redact": true
+  },
+  {
+   "id": "wh_desig",
+   "kind": null,
+   "redact": false,
+   "why": "a job title, not a person"
+  }
+ ],
+ "mustFind": [
+  "Submit"
+ ],
+ "mustNotFind": [],
+ "visionQueueMin": 0
+}

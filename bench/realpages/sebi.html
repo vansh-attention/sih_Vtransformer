@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="lang" content="en" />
+	<title>Securities and Exchange Board of India</title>
+	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+	<meta name="google-site-verification" content="YyXGmHXE1XgmgYlO-1Z8Dl2tBNHPM3trmMQRoz-hghk" />
+	<link rel="shortcut icon" href="images/icons/sebi-icon.png" type="text/css" media="all" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2.0" />
+	<link rel="stylesheet" href="fonts/fonts.css" type="text/css" />
+	<link rel="stylesheet" href="css/reset.css" type="text/css" media="all" />
+	<link rel="stylesheet" href="css/style.css" type="text/css" media="all" />
+	<link rel="stylesheet" href="css/modal.css" type="text/css" />
+	<link rel="stylesheet" href="css/webslidemenu.css" type="text/css" media="all" />
+	<link rel="stylesheet" href="css/prettyPhoto.css" type="text/css" media="screen" />
+	<link rel="stylesheet" href="css/flexslider.css" type="text/css" media="screen" />
+	<link rel="stylesheet" href="css/responsive.css" type="text/css" media="all">
+    <link rel="stylesheet" href="css/en_overlay.css" type="text/css" media="overlay">
+	<script type="text/javascript" src="js/common.js"></script>
+	<script type="text/javascript" src="js/home.js"></script>
+	<style>
+        .scroll-s {
+            height: 310px !important;
+        }
+        .slider{
+            margin-top: -34px !important;
+        }
+        .btn-style{
+            border: solid 1px #000;
+            background-color: #154063;
+            color: #fff;
+        }
+        .modal-footer :hover{
+            color: #154063;
+            background-color: #fff;
+        }
+        .modal-header .close {
+            margin-top: -20px;
+        }
+        #overlay {
+  position:fixed; inset:0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(1px);
+  z-index:1000;
+  display:none;
+}
+
+.lang-modal {
+  position: fixed;
+  left:50%;
+  top:50%;
+  transform: translate(-50%,-50%);
+  width: min(750px, 100%);
+  max-width: 800px; /* wider to fit Hindi matras */
+  background: #ffffff;
+  border-radius: 8px;
+  border: 4px solid #205DB1;
+  box-shadow: 0 10px 25px rgba(18,40,80,0.18);
+  z-index:1001;
+  display:none;
+  padding: 20px 20px;
+  box-sizing: border-box;
+}
+
+.titles {
+  text-align: center;
+  display: block;
+  margin-bottom: 20px;
+}
+
+
+.title-hi, .title-en {
+  display: block;
+  text-align: center;
+  margin: 0 0 8px;
+}
+
+.title-hi {
+  color: #205DB1;
+  font-weight: 700;
+  font-size: 20px;       /* slightly smaller font to fit one line */
+  line-height: 1.2;
+  
+  white-space: nowrap;     /* keep single line */
+  width: 100% !important; 
+  text-overflow: ellipsis;
+}
+
+.title-en {
+  color: #205DB1;
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.2;
+  width: 100% !important; 
+}
+
+.modal-body {
+  text-align:center;
+  margin-top: 16px;
+  padding: 12px 4px 0;
+}
+
+.modal-body .hi-sub { 
+  color: #923F17;
+  font-size: 20px; 
+  font-weight:500; 
+  display:block; 
+  margin-bottom:10px; 
+}
+
+.modal-body .en-sub { 
+  color: #923F17; 
+  font-size: 20px;
+  margin-bottom: 14px; 
+  display:block; 
+}
+
+.buttons { display:flex; gap:16px; justify-content:center; margin-top: 8px; flex-wrap:wrap; }
+.lang-btn {
+  min-width:120px;
+  padding:12px 22px;
+  border-radius:10px;
+  border: 0;
+  font-size:16px;
+  font-weight:700;
+  color:#fff;
+  background: linear-gradient(180deg,#355ea6, #2b4f94);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.12), inset 0 -2px 0 rgba(0,0,0,0.06);
+  cursor:pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.lang-btn:active{ transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.08); }
+.lang-btn.secondary{ background: linear-gradient(180deg,#3f63a8,#2f4f8a); }
+
+@media (max-width:500px){
+  .title-hi { font-size:16px; }
+  .title-en { font-size:18px; }
+  .lang-modal{ padding:28px 14px; border-width:3px; width: 90%; }
+  .modal-body .hi-sub{ font-size:0.95rem; }
+  .modal-body .en-sub{ font-size:0.9rem; }
+  .lang-btn { font-size:14px; min-width:100px; padding:8px 16px; }
+}
+
+    </style>
+</head>
+<body id="mainContainer">
+    <div id="overlay" aria-hidden="true"></div>
+
+<section
+  id="languageModal"
+  class="lang-modal"
+  role="dialog"
+  aria-labelledby="modalTitleEN modalTitleHI"
+  aria-modal="true"
+  aria-hidden="true"
+>
+  <div class="titles">
+    <h2 id="modalTitleHI" class="title-hi" lang="hi">
+      सेबी की वेबसाइट पर आपका स्वागत है
+    </h2>
+    <span id="modalTitleEN" class="title-en">
+      Welcome to website of Securities and Exchange Board of India
+    </span>
+  </div>
+
+  <div class="modal-body">
+    <span class="hi-sub" lang="hi">वेबसाइट देखने के लिए अपनी पसंदीदा भाषा चुनें </span>
+    <span class="en-sub">Select your preferred language to access the website</span>
+
+    <div class="buttons" role="group" aria-label="Language choices">
+      <button class="lang-btn" id="btnHindi" type="button">हिन्दी</button>
+      <button class="lang-btn secondary" id="btnEnglish" type="button">English</button>
+    </div>
+  </div>
+</section>
+<script>
+const hindiLink = "https://www.sebi.gov.in/hindi/index.html";
+const englishLink = "https://www.sebi.gov.in";
+
+const overlay = document.getElementById('overlay');
+const modal = document.getElementById('languageModal');
+const btnHindi = document.getElementById('btnHindi');
+const btnEnglish = document.getElementById('btnEnglish');
+
+let lastActiveElement = null;
+
+function showModal(){
+  lastActiveElement = document.activeElement;
+  overlay.style.display = 'block';
+  modal.style.display = 'block';
+  overlay.setAttribute('aria-hidden', 'false');
+  modal.setAttribute('aria-hidden', 'false');
+  document.documentElement.classList.add('modal-open');
+  document.body.classList.add('modal-open');
+  setTimeout(()=> btnHindi.focus(), 40);
+}
+
+function hideModal(){
+  overlay.style.display = 'none';
+  modal.style.display = 'none';
+  overlay.setAttribute('aria-hidden', 'true');
+  modal.setAttribute('aria-hidden', 'true');
+  document.documentElement.classList.remove('modal-open');
+  document.body.classList.remove('modal-open');
+  try{ if(lastActiveElement && typeof lastActiveElement.focus === 'function') lastActiveElement.focus(); }catch(e){}
+}
+
+function redirectTo(lang){
+  if(lang === 'hi') {
+    window.location.href = hindiLink;
+  } else {
+    hideModal(); // just close modal for English
+  }
+}
+
+// Show modal every page load
+window.addEventListener('load', () => showModal());
+
+// Button events
+btnHindi.addEventListener('click', () => redirectTo('hi'));
+btnEnglish.addEventListener('click', () => redirectTo('en'));
+
+/* focus trap inside modal */
+(function(){
+  const focusableSelectors = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+  modal.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Tab') return;
+    const focusables = Array.from(modal.querySelectorAll(focusableSelectors)).filter(el => el.offsetParent !== null);
+    if(focusables.length === 0) return;
+    const first = focusables[0];
+    const last  = focusables[focusables.length -1];
+    if(e.shiftKey){
+      if(document.activeElement === first){ last.focus(); e.preventDefault(); }
+    } else {
+      if(document.activeElement === last){ first.focus(); e.preventDefault(); }
+    }
+  });
+})();
+</script>
+<form name="homeForm" method="post" onsubmit="return false;">
+	<header id="header">
+		<script type="text/javascript" src="js/header.js"></script>	
+	</header>
+	<div class="full_width_menu">
+		<div id="header-bottom" class="wrapper clearfix" >
+			<div class="wsmenucontainer clearfix">
+				<div class="overlapblackbg"></div>
+				<div class="wsmobileheader clearfix"> 
+					<button id="wsnavtoggle" class="animated-arrow"><span></span></button> 
+				</div>
+				<div class="header">
+					<nav class="wsmenu clearfix">
+						<script type="text/javascript" src="js/menu.js"></script>
+					</nav>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="clear"></div>
+	<div class="header-marquee">
+		<div id="marquee-horizontal"></div>
+	</div>	
+    <div class="wrapper clearfix" id="main-content">
+        <div class="full" id="member-wrapper">
+            <div id="slider-wrapper" class="clearfix">
+                <div class="payment-link">
+                    <div class="title" style="padding: 2px;text-align:center;font-weight: bold;font-size: 13px;cursor: pointer;">
+                        <a href="#" class="btn-primary" data-toggle="modal" data-target="#sebifee_Modal" style="color: #154063;">Click here to make payment of SEBI Fees</a>
+                    </div>
+                </div>
+                <div class="payment-link">
+                    <div class="title" style="padding: 2px;text-align:center;font-weight: bold;font-size: 13px;cursor: pointer;">
+                        <a class="btn-primary" href="https://eazypay.icicibank.com/eazypayLink?P1=R1ws3SZl9MhbXRHocyY3FA==" style="color: #154063;" target="_blank">Click here to make payment to SEBI IPEF</a>
+                    </div>
+                </div>
+				<div class="dnvs-link">
+                    <div class="title" style="padding: 2px;text-align:center;font-weight: bold;font-size: 13px;cursor: pointer;">
+                        <a class="btn-primary" href="https://www.sebi.gov.in/sebiweb/dnvs-authentication-v2.html" style="color: #154063;" target="_blank">Authenticate Document Issued by SEBI</a>
+                    </div>
+                </div><br>
+                <section id="latest-news" class="content-box">
+                    <header>
+                    <div class="title"><h2 id='sebi-latest-news'><strong>What's New </strong></h2><a id='sebi-view-all' aria-labelledby='sebi-latest-news sebi-view-all' href="/sebiweb/home/HomeAction.do?doListingAll=yes" class="view-all" title="Click here to go to What's New Listing page" style="margin-top:-21.5px;">View All</a></div>
+                    <span id="triangle">&nbsp;</span> <span id="arrow">&nbsp;</span> </header>
+                    <div class="scroll-s" id="ajax_div"></div>
+                    <div id="latest-news-bottom"></div>
+                </section>
+                <section class="slider content-box"><a href="https://www.sebi.gov.in/" title="Slider Loading">
+				<img class="loading-gif" src="images/slider/loading.png" alt="Loading, Please Wait"/></a>
+                    <div class="flexslider">
+                        <ul class="slides">
+                            <li><figure><a href ='https://cybersuraksha-ai.sebi.gov.in/' target='_blank' title='Launch of Cyber Suraksha Portal'><img class="thumbnails" alt='' src='https://www.sebi.gov.in/sebi_data/mediafiles/sep-2026/1788949527778_1.jpg'/><span>Launch of Cyber Suraksha Portal</span></a><figcaption class="slide-content"><p class="slider-text">A centralized hub for cybersecurity knowledge, advisories, and threat intelligence in the securities market.</p></figcaption></figure></li><li><figure><a href ='https://www.indiamarketaccess.in/' target='_blank' title='Launch of ‘India Market Access’ Website for Foreign Portfolio Investors (FPIs)'><img class="thumbnails" alt='' src='https://www.sebi.gov.in/sebi_data/mediafiles/oct-2025/1761210420871_1.jpg'/><span>Launch of ‘India Market Access’ Website for Foreign Portfolio Investors (FPIs)</span></a><figcaption class="slide-content"><p class="slider-text">A unified initiative of SEBI and Market Infrastructure Institutions (MIIs)—NSE, BSE, ICCL, NCL, CDSL, and NSDL, this Website has been developed as a dedicated platform for current and prospective FPIs.</p></figcaption></figure></li><li><figure><a href ='https://pledge.cvc.nic.in/' target='_blank' title='Vigilance Awareness Week- 2025'><img class="thumbnails" alt='' src='https://www.sebi.gov.in/sebi_data/mediafiles/oct-2025/1761202177683_1.jpg'/><span>Vigilance Awareness Week- 2025</span></a><figcaption class="slide-content"><p class="slider-text">“Vigilance: Our Shared Responsibility”<br/>Participate in fight against corruption- Take Online Integrity Pledge at https://pledge.cvc.nic.in/</p></figcaption></figure></li><li><figure><a href ='https://www.sebi.gov.in/sebi_data/commondocs/nov-2025/Bharat Ka Share Bazaar - IIFT 2025_p.pdf' target='_blank' title='Bharat Ka Share Bazaar @ INDIA INTERNATIONAL TRADE FAIR – 2025'><img class="thumbnails" alt='' src='https://www.sebi.gov.in/sebi_data/mediafiles/nov-2025/1762766782418_1.jpg'/><span>Bharat Ka Share Bazaar @ INDIA INTERNATIONAL TRADE FAIR – 2025</span></a><figcaption class="slide-content"><p class="slider-text">The ‘India International Trade Fair’ (IITF) is one of the largest trade fairs in the world, will be held at Bharat Mandapam in New Delhi from November 14 to 27, 2025.  This year’s theme, ‘Ek Bharat, Shreshtha Bharat’, highlights India’s cultural diversity and development.</p></figcaption></figure></li><li><figure><a href ='https://www.sebi.gov.in/sebi_data/commondocs/nov-2025/arth_yatra_results_p.pdf' target='_blank' title='SEBI Arth Yatra Contest 2025 Results'><img class="thumbnails" alt='' src='https://www.sebi.gov.in/sebi_data/mediafiles/nov-2025/1764053173323_1.jpg'/><span>SEBI Arth Yatra Contest 2025 Results</span></a><figcaption class="slide-content"><p class="slider-text">Results of SEBI Arth Yatra Contest 2025 held from 25th August 2025 to 15th October 2025</p></figcaption></figure></li><li><figure><a href ='https://www.mfcentral.com/' target='_blank' title='MITRA - Gateway to unclaimed Mutual Funds'><img class="thumbnails" alt='' src='https://www.sebi.gov.in/sebi_data/mediafiles/dec-2025/1765211303061_1.jpg'/><span>MITRA - Gateway to unclaimed Mutual Funds</span></a><figcaption class="slide-content"><p class="slider-text">MITRA (Mutual Fund Investment Tracing and Retrieval Assistant) - Your Gateway to Forgotten Mutual Fund Investments</p></figcaption></figure></li><li><figure><a href ='https://mism.org/pointer/an-interview-with-dr-montek' target='_blank' title='Now Live | Dharohar - Milestones in the Indian Securities Market'><img class="thumbnails" alt='' src='https://www.sebi.gov.in/sebi_data/mediafiles/aug-2026/1787313507376_1.jpg'/><span>Now Live | Dharohar - Milestones in the Indian Securities Market</span></a><figcaption class="slide-content"><p class="slider-text">The exclusive interview with Dr. Montek Singh Ahluwalia is now available on Dharohar. Watch the complete discussion and explore the rich history of India's securities market through our growing digital archive. <br/>Visit: https://mism.org/</p></figcaption></figure></li><li><figure><a href ='https://www.sebi.gov.in/sebi_data/commondocs/nov-2025/trai_dnd_eng_p.pdf' target='_blank' title='Download the TRAI DND App and Report Spam'><img class="thumbnails" alt='' src='https://www.sebi.gov.in/sebi_data/mediafiles/nov-2025/1762776153042_1.jpg'/><span>Download the TRAI DND App and Report Spam</span></a><figcaption class="slide-content"><p class="slider-text">In order to curb Unsolicited commercial communication, Telecom Regulatory Authority of India (TRAI) has Do Not Disturb (DND) mobile<br/>application, available on the play store. This app empowers users to exercise options not to receive Unsolicited Commercial Communications (UCC), report violations, and track the status of their complaints.</p></figcaption></figure></li><li><figure><a href ='https://ncfe.org.in/announcements/' target='_blank' title='Join NCFE as a Financial Education Trainer today!'><img class="thumbnails" alt='' src='https://www.sebi.gov.in/sebi_data/mediafiles/jun-2025/1748941750042_1.jpg'/><span>Join NCFE as a Financial Education Trainer today!</span></a><figcaption class="slide-content"><p class="slider-text"></p></figcaption></figure></li><li><figure><a href ='https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf' target='_blank' title='FAQ on Cybersecurity and Cyber Resilience Framework (CSCRF)'><img class="thumbnails" alt='' src='https://www.sebi.gov.in/sebi_data/mediafiles/jun-2025/1749654329834_1.jpeg'/><span>FAQ on Cybersecurity and Cyber Resilience Framework (CSCRF)</span></a><figcaption class="slide-content"><p class="slider-text">Frequently Asked Questions (FAQs) on Cybersecurity and Cyber<br/>Resilience Framework (CSCRF) for SEBI REs and Framework for<br/>Adoption of Cloud Services by SEBI REs</p></figcaption></figure></li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+        </div>
+        <div class="content-box clearfix info">
+            <header class="dept-box-header clearfix">
+                <h2>Info For</h2>
+            </header>
+            <div class="widget scroll-i">
+                <div class="main_row">
+					<ul class="bullet-icon">
+						<li><a href="PACL.html">PACL Matters</a></li>					
+						<li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=25">Alternative Investment Funds (AIFs)</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=22">Bankers to an Issue</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=4">Collective Investment Schemes (C.I.S)</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=29">Commodity Derivatives</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=16">Corp. Debt Market</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=21">Credit Rating Agencies</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=71">COVID-19 Measures</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=23">Debenture Trustees</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=9">Depository Participants</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=10">Derivatives</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=8">Foreign Portfolio Investors (FPI)</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=5">International Affairs</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=11">Investigation</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=26">Investment Advisers</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=65">Listing Regulations</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=47">Investor Survey</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=1">Issues And Listing</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=7">Legal Affairs</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=18">Merchant Bankers</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=3">Mutual Fund</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=13">Portfolio Managers</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=14">Prosecution</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=59">Infrastructure Investment Trusts (InvITs)</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=17">Registrars to an Issue and Share Transfer Agents</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=28">Research Analysts</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=24">Stock Brokers</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=6">Takeover</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=2">Trading, etc</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=64">Real Estate Investment Trusts (REITs)</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=19">Underwriters</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=12">Venture Capital</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=74">Electronic Gold Receipts</a></li><li><a href="/sebiweb/home/HomeAction.do?doListingAll=yes&cid=77">Municipal Debt Securities</a></li>
+					</ul>
+                </div>
+            </div>
+        </div>
+        <div class="content-box clearfix dept">
+            <header class="dept-box-header clearfix">
+                <h2>Departments & Divisions</h2>
+            </header>
+            <!--end:entry-header-->
+            <div class="list-carousel responsive">
+                <a id="prev1" class="prev" href="#" aria-label="Previous Department"><em class="fa">&#xf053;</em></a> <a id="next1" class="next" href="#" aria-label="Next Department"><em class="fa">&#xf054;</em></a>
+                <ul id="feature-news">
+                    <li>
+                        <div>
+                            <div class="feature-item clearfix">
+                                <h3><a href="alldepartment.html"> The Preamble of the Securities and Exchange Board of India</a></h3>
+                                <div class="entry-content">
+                                
+                                    <p class="entry-title">"...to protect the interests of investors in securities and to promote the development of, and to regulate the securities market and for matters connected therewith or incidental thereto" </p>
+                                
+                                <a href="alldepartment.html" class="click-link" title='Click here to go to FUNCTIONS OF DEPARTMENTS/ DIVISIONS page'><span aria-hidden="true"></span><strong>View All Departments</strong></a>
+
+                            </div>
+                        </div>
+                    </li>
+                    <li><article><div class="feature-item clearfix"><h3 id="dept-title-AFD"><a href='department/alternative-investment-fund-and-foreign-portfolio-investors-department-75/overview.html'>Alternative Investment Fund and Foreign Portfolio Investors Department (AFD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/alternative-investment-fund-and-foreign-portfolio-investors-department-75/overview.html'>AFD handles all work related to Alternative Investment Funds (AIF), Venture Capital Funds (VCF), Foreign Venture Capital Investors (FVCI), Foreign Portfolio Investors (FPI), Designated Depository Participant (DDP) and Custodians.</a></h6><a href='department/alternative-investment-fund-and-foreign-portfolio-investors-department-75/overview.html' id="dept-link-AFD" aria-labelledby="dept-link-AFD dept-title-AFD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-Board Cell"><a href='department/board-cell-95/overview.html'>Board Cell (Board Cell)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/board-cell-95/overview.html'>Board Cell</a></h6><a href='department/board-cell-95/overview.html' id="dept-link-Board Cell" aria-labelledby="dept-link-Board Cell dept-title-Board Cell" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-CD"><a href='department/communications-department-42/overview.html'>Communications Department (CD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/communications-department-42/overview.html'>The division would be responsible for all communications of SEBI. These include: 
+- Media releases and other forms of communication including the publication of SEBI materials.
+- News conferences and responding to inquiries from the press.</a></h6><a href='department/communications-department-42/overview.html' id="dept-link-CD" aria-labelledby="dept-link-CD dept-title-CD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-CFD"><a href='department/corporation-finance-department-1/overview.html'>Corporation Finance Department (CFD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/corporation-finance-department-1/overview.html'>The Corporation Finance Department deals with matters relating to
+ (i)  Issuance and listing of securities, including initial and continuous listing requirements 
+ (ii) Corporate governance and accounting/auditing standards 
+ (iii) Corporate restructuring through Takeovers / buy backs
+ (iv)  Social Stock Exchange- Policy Formulation, Regulatory Supervision, Creation of eco-system etc. 
+ (v) Delisting etc.</a></h6><a href='department/corporation-finance-department-1/overview.html' id="dept-link-CFD" aria-labelledby="dept-link-CFD dept-title-CFD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-CFID"><a href='department/corporation-finance-investigation-department-73/overview.html'>Corporation Finance Investigation Department (CFID)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/corporation-finance-investigation-department-73/overview.html'>Corporation Finance Investigation Department</a></h6><a href='department/corporation-finance-investigation-department-73/overview.html' id="dept-link-CFID" aria-labelledby="dept-link-CFID dept-title-CFID" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-DEPA"><a href='department/department-economic-and-policy-analysis-3/overview.html'>Department Economic and Policy Analysis (DEPA)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/department-economic-and-policy-analysis-3/overview.html'>The Department will handle its functions through the following Divisions:
+1.Statistics Division
+2.Publication Division
+3.Regulatory Research Division
+4.History Cell
+5.Policy Research Division
+6.Systematic Stability Unit
+7.Division Of Commodity Research (Agriculture) &
+ (Non Agriculture)</a></h6><a href='department/department-economic-and-policy-analysis-3/overview.html' id="dept-link-DEPA" aria-labelledby="dept-link-DEPA dept-title-DEPA" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-DDHS"><a href='department/department-of-debt-and-hybrid-securities-64/overview.html'>Department of Debt and Hybrid Securities (DDHS)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/department-of-debt-and-hybrid-securities-64/overview.html'>The Department of Debt and Hybrid Securities is responsibe for matters related to Corporate Bonds, listed debt securities, Real Estate Investment Trust, Infrastructure Investment Trust, deemed public issues of debt securities and complaints in respect of aforementioned areas of work.</a></h6><a href='department/department-of-debt-and-hybrid-securities-64/overview.html' id="dept-link-DDHS" aria-labelledby="dept-link-DDHS dept-title-DDHS" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-EFD1"><a href='department/enforcement-department-1-6/overview.html'>Enforcement Department - 1 (EFD1)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/enforcement-department-1-6/overview.html'>Contents required from department.</a></h6><a href='department/enforcement-department-1-6/overview.html' id="dept-link-EFD1" aria-labelledby="dept-link-EFD1 dept-title-EFD1" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-EAD"><a href='department/enquiries-and-adjudication-department-5/overview.html'>Enquiries and Adjudication Department (EAD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/enquiries-and-adjudication-department-5/overview.html'>The Enquiries and Adjudication Department would handle quasi-judicial matters and provide timely hearings and initiates adjudication brought by the other Departments  against alleged violators who are within SEBI's disciplinary jurisdiction.   </a></h6><a href='department/enquiries-and-adjudication-department-5/overview.html' id="dept-link-EAD" aria-labelledby="dept-link-EAD dept-title-EAD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-GSD - 1"><a href='department/general-services-department-1-85/overview.html'>General Services Department - 1 (GSD - 1)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/general-services-department-1-85/overview.html'>GSD - 1</a></h6><a href='department/general-services-department-1-85/overview.html' id="dept-link-GSD - 1" aria-labelledby="dept-link-GSD - 1 dept-title-GSD - 1" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-GSD - 2"><a href='department/general-services-department-2-84/overview.html'>General Services Department - 2 (GSD - 2)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/general-services-department-2-84/overview.html'>GSD - 2</a></h6><a href='department/general-services-department-2-84/overview.html' id="dept-link-GSD - 2" aria-labelledby="dept-link-GSD - 2 dept-title-GSD - 2" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-GSD - 3"><a href='department/general-services-department-3-83/overview.html'>General Services Department - 3 (GSD - 3)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/general-services-department-3-83/overview.html'>GSD - 3</a></h6><a href='department/general-services-department-3-83/overview.html' id="dept-link-GSD - 3" aria-labelledby="dept-link-GSD - 3 dept-title-GSD - 3" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-HRD"><a href='department/human-resources-department-37/overview.html'>Human Resources Department (HRD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/human-resources-department-37/overview.html'>The Human Resources Division will perform all the functions in its role as the principal personnel and human resources authority in SEBI.</a></h6><a href='department/human-resources-department-37/overview.html' id="dept-link-HRD" aria-labelledby="dept-link-HRD dept-title-HRD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-ITD"><a href='department/information-technology-department-35/overview.html'>Information Technology Department (ITD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/information-technology-department-35/overview.html'>The Information Technology Department (ITD) of SEBI is the enabler of technology landscape in the organisation. ITD is committed to its vision of leveraging technology in partnership with every department of SEBI to achieve the following goals: \n1.	Development and implementation of Enterprise wide solutions like Portals and gateways, Network Infrastructure, Private Cloud Infrastructure, Mail and messaging solution, Data lake, Document Management system, SAP Solution etc. \n2.	Facilitating Ease of doing Business for market intermediaries by enhancing the digital interfaces between them and SEBI in respect of a large range of functions such as Regulations, Compliance and Reporting. \n3.	Developing Data Warehouse system for surveillance, inspections and supervision activities. \n4.	Driving data analytics practice at SEBI. \n5.	Ensuring deployment of strong cyber security measures and information technology (IT) resilience in the market Infrastructure to facilitate uninterrupted trading and privacy of investor data. \n6.	Undertaking IT inspections and audit for MIIs and intermediaries. \n7.	Development of framework for information interchange with various government agencies. \n8.	Facilitating innovation in markets through SEBI’s Innovation Sandbox Framework.</a></h6><a href='department/information-technology-department-35/overview.html' id="dept-link-ITD" aria-labelledby="dept-link-ITD dept-title-ITD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-ISD"><a href='department/integrated-surveillance-department-10/overview.html'>Integrated Surveillance Department (ISD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/integrated-surveillance-department-10/overview.html'>The integrated Surveillance department is responsible for monitoring market activity through market systems, data from other departments and analytical software.  </a></h6><a href='department/integrated-surveillance-department-10/overview.html' id="dept-link-ISD" aria-labelledby="dept-link-ISD dept-title-ISD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-IVD"><a href='department/investigations-department-11/overview.html'>Investigations Department (IVD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/investigations-department-11/overview.html'>The Investigations department is responsible for: 
+- Conducting investigations on potentially illegal market activities. 
+- Providing referrals to the enforcement department. 
+- Assisting the enforcement department in enforcing SEBI action against violators.</a></h6><a href='department/investigations-department-11/overview.html' id="dept-link-IVD" aria-labelledby="dept-link-IVD dept-title-IVD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-IID"><a href='department/internal-inspection-department-79/overview.html'>Internal Inspection Department (IID)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/internal-inspection-department-79/overview.html'>Internal Inspection Department</a></h6><a href='department/internal-inspection-department-79/overview.html' id="dept-link-IID" aria-labelledby="dept-link-IID dept-title-IID" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-IMD"><a href='department/investment-management-department-9/overview.html'>Investment Management Department (IMD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/investment-management-department-9/overview.html'>The Investment Management department is responsible for registering and regulating mutual funds, venture capital funds, foreign venture capital investors, collective investment schemes, including plantation schemes, Foreign Institutional Investors, Portfolio Managers and Custodians</a></h6><a href='department/investment-management-department-9/overview.html' id="dept-link-IMD" aria-labelledby="dept-link-IMD dept-title-IMD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-LAD1 Vertical-I"><a href='department/legal-affairs-department-1-lad-1-vertical-i-78/overview.html'>Legal Affairs Department 1 (LAD 1) Vertical-I (LAD1 Vertical-I)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/legal-affairs-department-1-lad-1-vertical-i-78/overview.html'>CGM: Shri D. V. Sekhar,
+Tel No.:- +91 022 26449570
+Email Id: dvsekhar@sebi.gov.in</a></h6><a href='department/legal-affairs-department-1-lad-1-vertical-i-78/overview.html' id="dept-link-LAD1 Vertical-I" aria-labelledby="dept-link-LAD1 Vertical-I dept-title-LAD1 Vertical-I" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-LAD2 (V2)"><a href='department/legal-affairs-department-1-vertical-2--76/overview.html'>Legal Affairs Department 1 (Vertical 2) (LAD2 (V2))</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/legal-affairs-department-1-vertical-2--76/overview.html'>The Legal Affairs Department 2 (LAD2) is responsible for all the litigations wherein SEBI is a party (except appeals before the Hon’ble Securities Appellate Tribunal (SAT) and criminal/prosecution matters). Presently, there are three divisions in LAD2 that handle the functions of the Department.</a></h6><a href='department/legal-affairs-department-1-vertical-2--76/overview.html' id="dept-link-LAD2 (V2)" aria-labelledby="dept-link-LAD2 (V2) dept-title-LAD2 (V2)" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-MIRSD"><a href='department/market-intermediaries-regulation-and-supervision-department-14/overview.html'>Market Intermediaries Regulation and Supervision Department (MIRSD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/market-intermediaries-regulation-and-supervision-department-14/overview.html'>The Market Intermediaries Regulation and Supervision Department is responsible for the registration, supervision, compliance monitoring and inspections of all market intermediaries in respect of all segments of the markets viz. equity, equity derivatives, currency derivatives, debt and debt related derivatives.</a></h6><a href='department/market-intermediaries-regulation-and-supervision-department-14/overview.html' id="dept-link-MIRSD" aria-labelledby="dept-link-MIRSD dept-title-MIRSD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-MRD"><a href='department/market-regulation-department-15/overview.html'>Market Regulation Department (MRD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/market-regulation-department-15/overview.html'>The Market Regulation Department (MRD) is responsible for formulation of policy and supervision of functioning and operations of Market Infrastructure Institutions (MIIs) such as, Stock Exchanges, Depositories and Clearing Corporations. MRD consists of the following divisions:</a></h6><a href='department/market-regulation-department-15/overview.html' id="dept-link-MRD" aria-labelledby="dept-link-MRD dept-title-MRD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-NISM"><a href='department/national-institute-of-securities-markets-86/overview.html'>National Institute of Securities Markets (NISM)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/national-institute-of-securities-markets-86/overview.html'>NISM</a></h6><a href='department/national-institute-of-securities-markets-86/overview.html' id="dept-link-NISM" aria-labelledby="dept-link-NISM dept-title-NISM" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-OIA"><a href='department/office-of-international-affairs-36/overview.html'>Office of International Affairs (OIA)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/office-of-international-affairs-36/overview.html'>The office would perform the following: 
+-Implement information-sharing initiatives with international regulators
+-Participate in international regulatory organizations
+-Handle all matters related to foreign assisted projects
+-Establish guidelines for interaction with foreign Government agencies and foreign</a></h6><a href='department/office-of-international-affairs-36/overview.html' id="dept-link-OIA" aria-labelledby="dept-link-OIA dept-title-OIA" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-OIAE"><a href='department/office-of-investor-assistance-and-education-19/overview.html'>Office of Investor Assistance and Education (OIAE)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/office-of-investor-assistance-and-education-19/overview.html'>The Office will support SEBI's operation by handling investor complaints centrally and be the focal point of SEBI's investor education effort.The Office would be the single point interface with investors and would receive complaints relating to all departments, forward to the concerned departments.</a></h6><a href='department/office-of-investor-assistance-and-education-19/overview.html' id="dept-link-OIAE" aria-labelledby="dept-link-OIAE dept-title-OIAE" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-OEC"><a href='department/office-of-ethics-and-compliance-98/overview.html'>Office of Ethics and Compliance (OEC)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/office-of-ethics-and-compliance-98/overview.html'>The Office of Ethics and Compliance (OEC) has been established for administering and strengthening ethics and compliance framework for SEBI employees. The functions of OEC include establishing and administrating conflict of interest framework, overseeing whistleblower system for reporting conflicts of interest, maintaining disclosures made by employees concerning financial assets, immovable properties,  etc</a></h6><a href='department/office-of-ethics-and-compliance-98/overview.html' id="dept-link-OEC" aria-labelledby="dept-link-OEC dept-title-OEC" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-OCH"><a href='department/office-of-the-chairperson-17/overview.html'>Office of the Chairperson (OCH)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/office-of-the-chairperson-17/overview.html'>The Department will handle its functions through the following Divisions:
+- Office of the Executive Assistant to Chairman</a></h6><a href='department/office-of-the-chairperson-17/overview.html' id="dept-link-OCH" aria-labelledby="dept-link-OCH dept-title-OCH" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-OWTM"><a href='department/office-of-wtm-91/overview.html'>Office of WTM (OWTM)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/office-of-wtm-91/overview.html'>OWTM</a></h6><a href='department/office-of-wtm-91/overview.html' id="dept-link-OWTM" aria-labelledby="dept-link-OWTM dept-title-OWTM" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-PACL Committtee"><a href='department/pacl-committtee-93/overview.html'>PACL Committtee (PACL Committtee)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/pacl-committtee-93/overview.html'>PACL Committtee</a></h6><a href='department/pacl-committtee-93/overview.html' id="dept-link-PACL Committtee" aria-labelledby="dept-link-PACL Committtee dept-title-PACL Committtee" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-PQ Cell & RTI Cell"><a href='department/parliament-questions-pq-cell-and-right-to-information-rti-cell-97/overview.html'>Parliament Questions (PQ) Cell & Right to Information (RTI) Cell (PQ Cell & RTI Cell)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/parliament-questions-pq-cell-and-right-to-information-rti-cell-97/overview.html'>PQ Cell & RTI Cell</a></h6><a href='department/parliament-questions-pq-cell-and-right-to-information-rti-cell-97/overview.html' id="dept-link-PQ Cell & RTI Cell" aria-labelledby="dept-link-PQ Cell & RTI Cell dept-title-PQ Cell & RTI Cell" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-PSD"><a href='department/prosecution-and-settlement-department-81/overview.html'>Prosecution and Settlement Department (PSD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/prosecution-and-settlement-department-81/overview.html'>Prosecution and Settlement Department</a></h6><a href='department/prosecution-and-settlement-department-81/overview.html' id="dept-link-PSD" aria-labelledby="dept-link-PSD dept-title-PSD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-QJC"><a href='department/quasi-judicial-cell-77/overview.html'>Quasi-Judicial Cell (QJC)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/quasi-judicial-cell-77/overview.html'>To execute Quasi-judicial functions of the Board</a></h6><a href='department/quasi-judicial-cell-77/overview.html' id="dept-link-QJC" aria-labelledby="dept-link-QJC dept-title-QJC" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-RO's"><a href='department/regional-offices-43/overview.html'>Regional Offices (RO's)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/regional-offices-43/overview.html'>The Regional Office will handle work as per existing delegation and shall continue to report to functional heads for specific departmental functions while reporting administratively to SEBI Executive Directors.</a></h6><a href='department/regional-offices-43/overview.html' id="dept-link-RO's" aria-labelledby="dept-link-RO's dept-title-RO's" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-Vigilance Dept."><a href='department/vigilance-department-67/overview.html'>Vigilance Department (Vigilance Dept.)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/vigilance-department-67/overview.html'>Vigilance Department is headed by Chief Vigilance officer (CVO)</a></h6><a href='department/vigilance-department-67/overview.html' id="dept-link-Vigilance Dept." aria-labelledby="dept-link-Vigilance Dept. dept-title-Vigilance Dept." class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-RRD"><a href='department/recovery-and-refund-department-68/overview.html'>Recovery and Refund department (RRD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/recovery-and-refund-department-68/overview.html'>The Recovery and Refund Department deals with recovery proceedings against the defaulters who have failed to pay the penalty, fees, disgorgement amount or monies directed to be refunded to investors and refund of such monies.</a></h6><a href='department/recovery-and-refund-department-68/overview.html' id="dept-link-RRD" aria-labelledby="dept-link-RRD dept-title-RRD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-RRC"><a href='department/regulatory-review-cell-88/overview.html'>Regulatory Review Cell (RRC)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/regulatory-review-cell-88/overview.html'>RRC</a></h6><a href='department/regulatory-review-cell-88/overview.html' id="dept-link-RRC" aria-labelledby="dept-link-RRC dept-title-RRC" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li><li><article><div class="feature-item clearfix"><h3 id="dept-title-SSLD"><a href='department/sat-sc-department-90/overview.html'>SAT - SC Department (SSLD)</a></h3><div class="entry-content"><h6 class="entry-title"><a href='department/sat-sc-department-90/overview.html'>SSLD</a></h6><a href='department/sat-sc-department-90/overview.html' id="dept-link-SSLD" aria-labelledby="dept-link-SSLD dept-title-SSLD" class="click-link" style="text-align:right;"><strong>Go to Department Section</strong></a></div></div></article></li>
+                </ul>
+                <div class="clearfix"></div>
+			</div>
+        </div>
+        <div class="clearfix"></div>
+        <div class="full" style="margin-top:20px;">
+            <div class="inst content-box">
+                <header class="inst-box-header clearfix">
+                    <h2>Investor Complaints</h2>
+					<a title="Investor Complaints Website" class="view-all" href="https://scores.sebi.gov.in/"  target="_blank" onclick='return external_alert();'><em class='fa'>&#xf08e;</em></a>
+                </header>
+                <article class="widget"  style="padding-top:20px;">
+                    <div class="adv-300-250 clearfix"><a href="https://scores.sebi.gov.in/" title="Go to Investor Complaints Page" target="_blank" onclick='return external_alert();'><img src="images/icons/scores-investor-complaints.jpg" alt="Scores Investor-Complaints" /></a></div>
+                    <ul>
+                        <li><a href="https://scores.sebi.gov.in/en/investor-complaint" title='Click here to register your complaint' target="_blank" onclick='return external_alert();'>Complaint Registration</a></li>
+                        <!-- <li><a href="https://www.scores.gov.in/scores/SendReminder.html" title='Click here to Send Reminder' target="_blank" onclick='return external_alert();'>Send Reminder</a></li> -->
+                        <li><a href="https://scores.sebi.gov.in/complaint-status" title='Click here to view complaint status'  target="_blank" onclick='return external_alert();'>View Complaint Status</a></li>
+                        <li><a href="toll-free-helpline.html" title='Click here to dial 1800 266 7575'>Toll Free Helpline: <strong>1800 266 7575 or 1800 22 7575</strong></a></li>
+                        <li><a href="https://investor.sebi.gov.in/iscs_contacts.html" title='Click here to view Common Investor Service Centres of Stock Exchanges'  target="_blank">Common Investor Service Centres of Stock Exchanges</a></li>
+                    </ul>
+                </article>
+            </div>
+            <div class="opi">
+                <article class="widget" style="padding-top:20px; padding-bottom:10px;">
+                    <ul class="adv-300-100">
+                        <!-- <div class="btn-img7"><a href="SettlementScheme.html" title='SEBI Settlement Scheme, 2022'><span>SEBI Settlement Scheme, 2022</span></a></div> -->
+                        <li class="btn-img1"><a href="intermediaries.html" title='Intermediaries / Market Infrastructure Institutions'><span>Intermediaries / Market Infrastructure Institutions</span></a></li>
+                        <li class="btn-img2"><a href="/statistics/statistics.html" title='Statistics'><span>Statistics</span></a></li>
+                        <li class="btn-img5"><a href="sebiweb/about/AboutAction.do?doVacancies=yes" title='Careers'><span>Careers</span></a></li>
+                        <li class="btn-img6"><a href="https://siportal.sebi.gov.in/intermediary/settlementApplication.html" title='Settlement Application'><span>Settlement Application</span></a></li>						
+						<li class="btn-img6"><a href="https://www.sebi.gov.in/set-cal.html" target='_blank'  title='Settlement Calculator'><span>Settlement Calculator&nbsp;<sup>BETA</sup></span></a></li>
+						<li class="btn-img6"><a href="https://www.sebi.gov.in/settlement_schemes.html" title='Settlement Schemes'><span>Settlement Schemes</span></a></li>
+                    </ul>
+                </article>
+            </div>
+            <div class="video content-box">
+                <header class="entry-box-header clearfix">
+                    <h2>Video</h2>
+                <a href="media/video1.html" class="view-all" title='Click here to go to media gallery page'>View All</a> </header>
+                <aside class="widget">
+                    <article class="recent-article" style="padding-bottom:10px;"><a href='https://www.youtube.com/watch?v=bM2dlMq2d78&feature?rel=0' data-gal="prettyPhoto" class="link-thumbnails-video" style="text-decoration:none; display:block;"><img src='https://www.sebi.gov.in/sebi_data/mediafiles/dec-2017/1514612130211.png' class="thumbnails" alt="" style="display:block;"><div class="entry-content"><h3 class="entry-title" style="padding:0px 20px; font-size:14px; color:inherit;">CIS Unrealistic Returns</h3></div></a></article>
+                </aside>
+                 
+            </div>
+               <div class="video">
+                <header class="entry-box-header clearfix">
+                </header>
+                <aside class="widget">
+                </aside>
+                 <a href='informant-protection.html' class="office_prot">
+					Office of Informant Protection
+				</a> 
+            </div>
+        </div>
+       
+    </div>
+    <div class="clearfix"></div>
+
+<!-- SEBI Fee Modal -->
+<div class="modal fade" id="sebifee_Modal" tabindex="-1" role="dialog" aria-label="My Modal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="width: 45%;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exampleModalLongTitle" style="font-size: 14px;">Disclaimer:</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p style="text-align: center;font-size: 14px;">SI portal users kindly note that this link is only for non-SI portal users or for payment of fees not available in SI portal. The link is <b style="text-decoration: underline;">not</b> to be used for payment of self-registration fees, registration fees and renewal fees.<br><br><strong>“SEBI is exempted from Income Tax under Section 25 of the SEBI Act, 1992.  Hence, TDS is not applicable on the fee payable to SEBI and fee needs to be remitted in full along with GST @ 18%.”</strong></p>
+        </div>
+        <div class="modal-footer">
+          <a class="btn btn-primary btn-style"  href="https://eservices.sebi.gov.in/paymentmodule" target="_blank">Proceed</a>
+        </div>
+      </div>
+    </div>
+</div>
+<!-- SEBI Fee Modal End -->
+
+    <div id="footer-aside">
+        <script type="text/javascript" src="js/footer.js"></script>
+    </div>
+    <div id="entryModal" class="modal fade" role="dialog"></div>
+	<script type="text/javascript" src="js/logindiv.js" ></script>
+    <script type="text/javascript" src="js/jquery-2.2.4.min.js" defer onload=""></script>
+    <script type="text/javascript" src="js/go-to-top.js" defer onload=""></script>
+	<script type='text/javascript' src="js/jquery-2.1.4.min.js" defer onload=""></script>
+	<script type="text/javascript" src="js/jquery.min.js" defer onload=""></script>
+	<script type="text/javascript" src="js/b_min.js" defer onload=""></script>
+	<script type="text/javascript" src="js/webslidemenu1.js" defer onload=""></script>
+	<script type="text/javascript" src="js/jquery-1.7.1.min.js" defer onload=""></script>
+	<script type="text/javascript" src="js/jquery.flexslider.js" defer onload=""></script>
+	<script type="text/javascript" src="js/jquery.carouFredSel-5.6.1.js" defer onload=""></script>
+	<script type="text/javascript" src="js/jquery.prettyPhoto.js" defer onload=""></script>
+	<script type="text/javascript" src="js/jflickrfeed.min.js" defer onload=""></script>
+	<script type="text/javascript" src="js/kendo.web.min.js" defer onload=""></script>
+	<script type="text/javascript" src="js/cufon-yui.js" defer onload=""></script>
+	<script type="text/javascript" src="js/sticky.js" defer onload=""></script>
+	<script type="text/javascript" src="js/custom_pretty.js" defer onload=""></script>
+	<script type='text/javascript' src="js/responsivevoice.js" defer onload=""></script>
+    <script type="text/javascript">
+        function addLoadEvent(func) {
+            var oldonload = window.onload;
+            if (typeof window.onload != 'function') {
+                window.onload = func;
+            } else {
+                window.onload = function() {
+                    if (oldonload) {
+                        oldonload();
+                    }
+                }
+            }
+        }        
+        addLoadEvent(setEntry());
+        addLoadEvent(chcklogin());
+		document.getElementById("wsnavtoggle").focus();
+		addLoadEvent(getmarquee());
+        addLoadEvent(function() {
+        })
+    </script>
+</form>
+</body>
+</html

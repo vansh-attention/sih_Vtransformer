@@ -1,0 +1,42 @@
+{
+ "name": "wild-wikipan",
+ "note": "HELD OUT. Real markup from wiki_pan.html; injected block is synthetic. Do not tune against this file.",
+ "elements": [
+  {
+   "id": "wh_n8",
+   "kind": "NAME",
+   "redact": true
+  },
+  {
+   "id": "wh_pan8",
+   "kind": "PAN",
+   "redact": true
+  },
+  {
+   "id": "wh_gst8",
+   "kind": "GSTIN",
+   "redact": true
+  },
+  {
+   "id": "wh_e8",
+   "kind": "EMAIL",
+   "redact": true
+  },
+  {
+   "id": "wh_p8",
+   "kind": "PHONE",
+   "redact": true
+  },
+  {
+   "id": "wh_form8",
+   "kind": null,
+   "redact": false,
+   "why": "a form name, not an identifier of a person"
+  }
+ ],
+ "mustFind": [
+  "Submit"
+ ],
+ "mustNotFind": [],
+ "visionQueueMin": 0
+}

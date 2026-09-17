@@ -1,0 +1,43 @@
+{
+ "name": "wild-mygov",
+ "note": "HELD OUT. Real markup from mygov.html; injected block is synthetic. Do not tune against this file.",
+ "elements": [
+  {
+   "id": "wh_n5",
+   "kind": "NAME",
+   "redact": true
+  },
+  {
+   "id": "wh_e5",
+   "kind": "EMAIL",
+   "redact": true
+  },
+  {
+   "id": "wh_p5",
+   "kind": "PHONE",
+   "redact": true
+  },
+  {
+   "id": "wh_pan5",
+   "kind": "PAN",
+   "redact": true
+  },
+  {
+   "id": "wh_post5",
+   "kind": null,
+   "redact": false,
+   "why": "Verhoeff-valid decoy: a post reference, not an Aadhaar"
+  },
+  {
+   "id": "wh_dept5",
+   "kind": null,
+   "redact": false,
+   "why": "an organisation, not a person"
+  }
+ ],
+ "mustFind": [
+  "Submit"
+ ],
+ "mustNotFind": [],
+ "visionQueueMin": 0
+}

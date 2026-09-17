@@ -1,0 +1,43 @@
+{
+ "name": "wild-sebi",
+ "note": "HELD OUT. Real markup from sebi.html; injected block is synthetic. Do not tune against this file.",
+ "elements": [
+  {
+   "id": "wh_n6",
+   "kind": "NAME",
+   "redact": true
+  },
+  {
+   "id": "wh_pan6",
+   "kind": "PAN",
+   "redact": true
+  },
+  {
+   "id": "wh_ifsc6",
+   "kind": "IFSC",
+   "redact": true
+  },
+  {
+   "id": "wh_e6",
+   "kind": "EMAIL",
+   "redact": true
+  },
+  {
+   "id": "wh_circ6",
+   "kind": null,
+   "redact": false,
+   "why": "a circular reference, not an identifier of a person"
+  },
+  {
+   "id": "wh_amt6",
+   "kind": null,
+   "redact": false,
+   "why": "Verhoeff-valid decoy: a rupee claim, not an Aadhaar"
+  }
+ ],
+ "mustFind": [
+  "Submit"
+ ],
+ "mustNotFind": [],
+ "visionQueueMin": 0
+}

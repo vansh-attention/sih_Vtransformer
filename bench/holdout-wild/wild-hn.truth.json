@@ -1,0 +1,32 @@
+{
+ "name": "wild-hn",
+ "note": "HELD OUT. Real markup from hn.html; injected block is synthetic. Do not tune against this file.",
+ "elements": [
+  {
+   "id": "wh_name",
+   "kind": "NAME",
+   "redact": true
+  },
+  {
+   "id": "wh_pan",
+   "kind": "PAN",
+   "redact": true
+  },
+  {
+   "id": "wh_email",
+   "kind": "EMAIL",
+   "redact": true
+  },
+  {
+   "id": "wh_ref",
+   "kind": null,
+   "redact": false,
+   "why": "reference number, not a personal identifier"
+  }
+ ],
+ "mustFind": [
+  "Submit"
+ ],
+ "mustNotFind": [],
+ "visionQueueMin": 0
+}
