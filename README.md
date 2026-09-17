@@ -19,7 +19,7 @@ look like.
 ## Quick start
 
 ```bash
-git clone https://github.com/SIH-vis/sih_Vtransformer.git
+git clone https://github.com/AavaranAI/sih_Vtransformer.git
 cd sih_Vtransformer
 ./setup.sh
 ```

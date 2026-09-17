@@ -1,6 +1,8 @@
 # The repository has moved to the team organisation
 
-**Done on 17 September.** This document used to be a plan. It is now a record of what
+**Done on 17 September.** The organisation was renamed from `SIH-vis` to
+`AavaranAI` part-way through; it is the same organisation and the same repository,
+so nothing had to be moved a second time. This document used to be a plan. It is now a record of what
 happened and a short list of what is still outstanding, which is mostly not code.
 
 ---
@@ -9,8 +11,8 @@ happened and a short list of what is still outstanding, which is mostly not code
 
 | | |
 |---|---|
-| **Organisation** | `github.com/SIH-vis`, display name **Aavran** |
-| **Repository** | `github.com/SIH-vis/sih_Vtransformer` |
+| **Organisation** | `github.com/AavaranAI` |
+| **Repository** | `github.com/AavaranAI/sih_Vtransformer` |
 | **Visibility** | **Private** |
 | **History** | All 70 commits, both tags, root commit intact |
 | **Old address** | `vansh-attention/sih_Vtransformer`, still exists, no longer the one we use |
