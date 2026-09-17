@@ -23,3 +23,10 @@ server/.drill-fault
 # briefing PDF preview renders
 outreach/pg-*.jpg
 outreach/b-*.jpg
+
+# Python bytecode. These were tracked, so every server run showed as a diff.
+__pycache__/
+*.pyc
+
+# Scratch probes used to reproduce a defect. Kept locally, never part of the repo.
+probe*.ts
