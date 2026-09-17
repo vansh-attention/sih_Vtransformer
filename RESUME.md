@@ -33,7 +33,7 @@ stages". The report no longer claims it is public. **Do not flip it without aski
 
 ⛔ **Do not reopen the names.** Team Vagabonds, project Aavaran. Both settled 17 Sep.
 
-**Full narrative of the session:** `~/Documents/_SESSION-2026-09-17.md`, Session 3.
+**Full narrative of the session:** `~/Documents/_SESSION-2026-09-17-sih-aavaran.md`.
 
 ---
 
