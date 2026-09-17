@@ -297,6 +297,27 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
     if (contextLabel) {
       const r = redactLabel(contextLabel, undefined, vault, kept);
       contextLabel = r.text;
+      /**
+       * CONTEXT THAT IS ITSELF REDACTED IS NOT CONTEXT.
+       *
+       * The nearest neighbour of a value is sometimes another value. On the demo page a
+       * PAN sits immediately after the user's name, so the PAN's context label was the
+       * name, and once the name was correctly redacted the PAN arrived at the model
+       * described as "<PII_NAME_1>". That tells it nothing whatsoever, and the scorecard
+       * counted it as surrounding context destroyed, which is exactly what it was.
+       *
+       * Dropping it is strictly better than sending it. The model loses a string it
+       * could not read anyway, and the useful word is usually still present nearby: on
+       * the same page the enclosing sentence, "Logged in as . PAN", survives intact and
+       * carries the meaning.
+       *
+       * This is the companion to the rule that evidence about a value must not come from
+       * the value. Here, evidence about a value must not consist solely of another
+       * value's placeholder.
+       */
+      if (contextLabel && /^\s*(<PII_[A-Z]+_\d+>\s*)+$/.test(contextLabel)) {
+        contextLabel = undefined;
+      }
       allPlaceholders.push(...r.placeholders);
     }
 

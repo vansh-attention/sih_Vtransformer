@@ -177,6 +177,15 @@ const NON_PII_WORDS = [
   'amount', 'total', 'subtotal', 'price', 'balance', 'qty', 'quantity',
   'sku', 'product code', 'item code', 'tracking', 'awb', 'ticket',
   'serial', 'batch', 'reference no', 'ref no',
+  // Indian government document vocabulary. Every one of these labels a number that is
+  // issued BY a department rather than identifying a person, and several of them are
+  // twelve digits, which is exactly the length that passes the Aadhaar checksum by
+  // chance. Found twice: a "Scheme Code" on a citizen services page and an
+  // "Acknowledgement number" on a tax refund form, both redacted as Aadhaar numbers.
+  // Generic, not fixture-specific: these words appear on most government portals.
+  'acknowledgement', 'acknowledgment', 'application no', 'application number',
+  'enrolment', 'enrollment', 'registration no', 'file no', 'challan',
+  'scheme code', 'token no', 'srn', 'diary no',
   // Table column headers on financial pages. Generic commercial vocabulary, not
   // fixture-specific: these label columns of numbers that look exactly like PII.
   'reference', 'cheque', 'check no', 'utr', 'narration', 'particulars',

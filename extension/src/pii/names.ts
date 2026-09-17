@@ -200,7 +200,24 @@ export function detectNames(text: string): NameSpan[] {
       continue;
     }
 
-    if (adjacent && aGiven) {
+    /**
+     * The trailing token must not be an ordinary English word.
+     *
+     * This branch exists to catch an uncommon SURNAME after a known given name, and an
+     * uncommon surname is by definition not in the dictionary. Without the guard, any
+     * given name that is also an ordinary word drags the next capitalised word in with
+     * it, because `bFamily` and `bGiven` are both false and nothing else is checked.
+     *
+     * Measured on the four real websites, which are the only pages here we did not
+     * write: "Master Directions" and "Master Circulars" (RBI document types, "Master"
+     * is a given name and a dictionary word) and "Not Pressed" (a case status, "Not" is
+     * likewise both). Every one is two dictionary words in title case.
+     *
+     * The stronger branch above is untouched, so "Amit Shah" still scores 0.9 through
+     * `bFamily` even though "shah" is also an ordinary word. This only withdraws the
+     * WEAK inference, and only where the trailing token carries no name evidence at all.
+     */
+    if (adjacent && aGiven && !(b && DICTIONARY.has(norm(b.text)))) {
       // Known given name plus an unknown Title-Case token: still very likely a person,
       // and the surname tail is exactly where an uncommon name would sit.
       push({

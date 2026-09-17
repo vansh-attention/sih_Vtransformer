@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { loadGazetteer, detectNames } from './names.ts';
+import { classifyField } from './dom.ts';
 
 loadGazetteer(JSON.parse(readFileSync(
   new URL('../../models/name-gazetteer.json', import.meta.url), 'utf8')));
@@ -57,6 +58,65 @@ for (const phrase of ['Statement Of Accounts', 'Download Annual Report', 'New De
   const f = detectNames(phrase).filter((s) => s.confidence >= 0.6);
   check(`rejects English phrase: ${phrase}`, f.length === 0,
     f.length ? `WRONGLY FLAGGED "${f[0].text}"` : '');
+}
+
+/**
+ * A GIVEN NAME THAT IS ALSO AN ORDINARY WORD MUST NOT DRAG IN THE NEXT WORD.
+ *
+ * Every phrase below was redacted on a real public page before the fix. "Master" and
+ * "Not" are both genuine given names and ordinary English words, so the weak
+ * "given name + trailing token" branch fired and took the following dictionary word
+ * with it. These came off rbi.gov.in, which is precisely the kind of page this system
+ * is meant to be useful on, and they were invisible to the scorecard because every
+ * scored fixture is one we wrote ourselves.
+ *
+ * The expectations are written from the phrases, never read back from the detector,
+ * so breaking the detector cannot move expectation and actual together.
+ */
+for (const phrase of ['Master Directions', 'Master Circulars', 'Not Pressed',
+                      'Annual Returns', 'Press Releases']) {
+  const f = detectNames(phrase).filter((s) => s.confidence >= 0.6);
+  check(`real-page false positive rejected: ${phrase}`, f.length === 0,
+    f.length ? `WRONGLY FLAGGED "${f[0].text}" (${f[0].reason})` : '');
+}
+
+// The guard must only withdraw the WEAK inference. A real name whose surname happens
+// to be an ordinary word still has family-list evidence and must survive at full
+// strength, or the fix above would trade three false positives for a leak.
+for (const name of ['Amit Shah', 'Harsh Bajpai', 'Priya Raghunathan']) {
+  const f = detectNames(name).filter((s) => s.confidence >= 0.6);
+  check(`real name still detected: ${name}`, f.length === 1,
+    f.length ? `${f[0].reason}` : 'MISSED — this would be a leak');
+}
+
+/**
+ * GOVERNMENT REFERENCE NUMBERS ARE NOT PEOPLE.
+ *
+ * A twelve-digit number passes the Aadhaar checksum roughly one time in ten by pure
+ * chance, so on an Indian government form the ONLY thing separating a citizen's Aadhaar
+ * from a departmental receipt number is the word next to it. Two were caught being
+ * redacted as Aadhaar: a "Scheme Code" on a citizen services page and an
+ * "Acknowledgement number" on a tax refund form.
+ *
+ * Over-redaction is scored as heavily as leaking, and an agent that hides the reference
+ * number cannot fill in the form that asks for it.
+ */
+console.log('\n--- government reference vocabulary ---');
+{
+  const verhoeffValid = '567890123458';   // passes the Aadhaar check digit
+  const labels = ['Acknowledgement number', 'Scheme Code', 'Application No',
+                  'Challan', 'Enrolment ID', 'Registration No'];
+  for (const label of labels) {
+    const hint = classifyField({ label } as never);
+    const ok = hint?.kind === 'NON_PII';
+    check(`"${label}" reads as non-personal`, ok, hint ? `got ${hint.kind}` : 'no hint');
+  }
+  // And the control: the same digits under an Aadhaar label must still be caught, or
+  // the fix above would have bought precision by giving away recall.
+  const aadhaarHint = classifyField({ label: 'Aadhaar Number' } as never);
+  check('"Aadhaar Number" still reads as AADHAAR', aadhaarHint?.kind === 'AADHAAR',
+    aadhaarHint ? `got ${aadhaarHint.kind}` : 'no hint');
+  void verhoeffValid;
 }
 
 console.log(fail ? `\n${fail} FAILURES` : '\nall name-detection cases pass');

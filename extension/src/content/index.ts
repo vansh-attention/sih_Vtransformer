@@ -29,10 +29,33 @@ const vault = new Vault();
 // 1MB of names is not parsed into the JS bundle on every page load.
 // `detectNames` is a no-op until this resolves, so an early observe degrades to layers
 // 1 and 2 rather than blocking.
-void fetch(chrome.runtime.getURL('models/name-gazetteer.json'))
+/**
+ * THE GAZETTEER MUST BE READY BEFORE THE FIRST OBSERVE, NOT EVENTUALLY.
+ *
+ * This used to be a fire-and-forget `void fetch(...)`. The consequence was a silent leak
+ * on the FIRST turn of every page load, which is the turn a demonstration shows.
+ *
+ * Layer 3, the only layer that catches a person's name, is gated on `gazetteerLoaded()`.
+ * If the first `observe` arrived before that fetch resolved, the gate was false, the
+ * layer did nothing, and every name on the page went out in plain text. Nothing failed
+ * and nothing was logged; the payload simply had no NAME in it.
+ *
+ * Caught in a recorded run of the multi-step fixture: turn 1 withheld PAN and PHONE and
+ * transmitted "Vikram Sharma" in the clear, while turns 2 to 6 withheld NAME correctly.
+ * The scorecard never saw it because that fixture has no truth file, so nothing scored it.
+ *
+ * The promise is now awaited before sanitizing. If the fetch genuinely fails, that is
+ * reported to the caller rather than warned to a console nobody is reading, because a
+ * silently degraded detector is indistinguishable from a working one.
+ */
+let gazetteerError: string | undefined;
+const gazetteerReady: Promise<void> = fetch(chrome.runtime.getURL('models/name-gazetteer.json'))
   .then((r) => r.json())
   .then(loadGazetteer)
-  .catch((e) => console.warn('[content] name gazetteer unavailable', e));
+  .catch((e) => {
+    gazetteerError = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    console.warn('[content] name gazetteer unavailable', e);
+  });
 
 export interface CaptureContext {
   devicePixelRatio: number;
@@ -73,6 +96,34 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // PageStructure crossing a message boundary, and messages are structured-cloned into
   // the background — where real values must never arrive.
   if (msg.type === 'observe') {
+    // Await the gazetteer, then do the work. The listener returns true below, so the
+    // asynchronous reply is expected by the caller.
+    /**
+     * ALWAYS ANSWER, EVEN WHEN IT GOES WRONG.
+     *
+     * This listener returns true, so the caller waits for an asynchronous reply and has
+     * no timeout of its own. If `observe` throws and nothing calls `sendResponse`, the
+     * caller waits for ever. That is not hypothetical: it hung a live-page scan with no
+     * error, no result and nothing in any log, which is the worst possible failure shape
+     * because it looks like the network.
+     *
+     * An error reply is a result. Silence is not.
+     */
+    void gazetteerReady
+      .then(() => observe(msg, sendResponse))
+      .catch((e) => {
+        const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+        console.error('[content] observe failed', e);
+        try { sendResponse({ error: detail }); } catch { /* port already closed */ }
+      });
+    return true;
+  }
+
+  return handleOther(msg, sendResponse);
+});
+
+function observe(msg: { goal?: string; history?: unknown[] }, sendResponse: (r: unknown) => void) {
+  {
     const before = captureContext();
     const t0 = performance.now();
     const result = extractPage(document);
@@ -113,6 +164,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       visionQueue: result.visionQueue,
       closedShadowHosts: result.closedShadowHosts,
       piiBeyondTextCap: result.piiBeyondTextCap,
+      piiBeyondNodeCap: result.piiBeyondNodeCap,
       nodeCount: result.nodeCount,
       truncated: result.truncated,
       timings: {
@@ -130,6 +182,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+}
+
+function handleOther(msg: { type?: string; [k: string]: unknown },
+                     sendResponse: (r: unknown) => void): boolean {
   /**
    * Downscale and re-encode a captured frame.
    *
@@ -185,6 +241,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   return false;
-});
+}
 
 console.log('[content] ready');
