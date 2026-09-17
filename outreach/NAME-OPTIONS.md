@@ -41,24 +41,54 @@ is worth a lot in a five-minute pitch.
 
 ## Team names
 
-A team name should say something about the six of you, not about the software. It also
-outlives this one project.
+The project name is settled: **Aavaran**. The team name is a separate field on the portal
+and it should not repeat it.
 
-| Name | Meaning | Note |
+### What winning teams are actually called
+
+Names taken from the published SIH results rather than from guesswork. SIH 2025 software
+edition: *Eklavya*, *Gap Bridgers*, *Hack Hounds*, *Team Pioneers*, *Teen Titans*. SIH
+2025 hardware: *Caffeinated Coders*. SIH 2024 at the IIT Gandhinagar centre: *Saarthi*,
+*One Boat Solution*, *Coding Gurus*, *Team Anurved*, *CodeZ*, *AANYA*, *Typewriters II*,
+*INSIGHTS*, *Bhasha Setu*, *Leviosa*. From 2018: *Linguistic Pandas*, *Update 1.0*.
+
+They fall into four groups:
+
+| Register | Examples from the winners | Worth copying? |
 |---|---|---|
-| **Anveshan** | "quest, investigation, research" | Fits a team whose strongest section is the one admitting what it got wrong |
-| **Paridhi** | "boundary, perimeter" | Our whole design is about one boundary and what may cross it |
-| **Kshitij** | "horizon" | Common in Indian student teams, which cuts both ways |
-| **Sankalp** | "resolve, determination" | Warm, slightly generic |
-| **Aarambh** | "beginning" | Good for a first-year team; you are batch 01 of BS-DSBM |
-| **Antardrishti** | as above | Works as both, if you would rather have one name for everything |
+| **A Sanskrit or Hindi word naming a role** | Eklavya, Saarthi, Anurved, Bhasha Setu | **Yes.** Carries meaning, sounds deliberate, and reads well to a government panel |
+| **B Coder humour** | Caffeinated Coders, Hack Hounds, Coding Gurus, Linguistic Pandas | No. Extremely common, says nothing about you |
+| **C The function as a name** | Gap Bridgers, One Boat Solution, INSIGHTS | Only if it describes the team, not the software |
+| **D Pop culture** | Teen Titans, Leviosa | No. Fine for a college fest, thin for ISRO |
 
-**My pick: Anveshan**, if you want team and project to be different. It means enquiry
-rather than achievement, which matches a report whose best section is about mistakes.
+**Be honest about what this proves:** nothing. Winners come from all four groups, so the
+name is not what decides it. What a name can do is cost you nothing and fit, and group A
+is where the cheapest fit is.
 
-**Simplest option: use Antardrishti for all three.** One name for the team, the project
-and the org is easier to explain, easier to remember, and means the deck, the portal and
-the repo all agree. Fewer things to keep in sync under a deadline.
+### Suggestions
+
+Since Aavaran means *veil*, the team name should not be a second word for hiding. The
+better contrast is a name about **evidence**, because the strongest thing in the report is
+that every number can be reproduced and that the weak ones are stated rather than buried.
+
+| Name | Meaning | Why it fits the six of you |
+|---|---|---|
+| **Pramaan** | "proof, valid means of knowledge" (Sanskrit) | In Indian philosophy *pramana* is literally the study of what counts as evidence. A team whose report's best section is *What we have not proved* could not ask for a better word. Reads as **Team Pramaan presents Aavaran** |
+| **Anveshan** | "quest, enquiry, research" | Enquiry rather than achievement. Modest in the right way, and it survives past this hackathon |
+| **Saakshya** | "evidence, testimony" | Same idea as Pramaan, softer sound, slightly less known |
+| **Nirikshak** | "the observer, the one who inspects" | Points at visual perception, which is the half of the problem statement people forget |
+| **Aarambh** | "beginning" | You are the first BS-DSBM batch at IIM Mumbai. True, and nobody else can claim it |
+| **Setu** | "bridge" | In the register of *Bhasha Setu*, a 2024 winner. Short, easy to say, easy to remember |
+
+**Pick: Pramaan.** It is the only one that says something specific and true about how this
+project was built, it is in the register that shows up most among winners, and it does not
+collide with Aavaran. Say it once at the start of the pitch and it frames everything after.
+
+**Runner-up: Anveshan**, if Pramaan sounds like it is claiming too much.
+
+**Avoid:** anything with *code*, *hack*, *byte* or *tech* in it, a pun on your college
+name, and any name that is a second word for privacy. The first is crowded, the second
+travels badly outside Mumbai, and the third wastes the contrast you get for free.
 
 ---
 
@@ -77,19 +107,17 @@ portal and pick something else for the org, or add a suffix like `anveshan-iimm`
 
 ---
 
-## Three ready-made combinations
+## Where each name goes, now that Aavaran is settled
 
-**A. One name for everything**
-Team *Antardrishti*, project *Antardrishti*, org `antardrishti`.
-Simplest. Everything agrees, nothing to keep in sync.
+| Field | Value | Status |
+|---|---|---|
+| **Project name** | Aavaran | Decided. On the report cover, in the extension, the panel and the demo |
+| **GitHub org** | `AavaranAI` | Done |
+| **Repository** | `AavaranAI/Aavaran` | Done |
+| **Team name** | still open | **The one thing left.** SIH portal and deck slide 1 |
 
-**B. Team and project distinct**
-Team *Anveshan*, project *Antardrishti*, org `antardrishti`.
-The team has its own identity that survives past this hackathon.
-
-**C. Plain English throughout**
-Team *One-Way Glass*, project *One-Way Glass*, org `oneway-glass`.
-No translation needed for any audience, at the cost of Indian character.
+The team name has no constraint at all. It does not need to be free on GitHub, it does not
+need to match the project, and it can be a word somebody else has already used.
 
 ---
 
