@@ -293,6 +293,33 @@ form controls first, exits on first hit.
 **Wild recall is 75% (9/12), not 100%** — the 3 misses are all below the node cap. That
 is the honest number and it is in the report. Leaks remain 0 on all three corpora.
 
+## 🏠 THE REPO LIVES IN THE ORG NOW (17 Sep)
+
+**`github.com/AavaranAI/sih_Vtransformer`** — origin points here, HEAD `c685b9a`,
+all 70 commits, both tags, root commit (Vansh's "Initial commit") intact.
+
+- The org was **renamed SIH-vis -> AavaranAI while the move was in progress**. Same org
+  (id `327348464`), same repo. Do not treat them as two places.
+- The org repo already held one placeholder commit by Vansh (19-byte README). It was
+  pushed to a branch **`initial-placeholder`** before main was replaced, so the move
+  destroyed nothing. That branch is disposable.
+- `personal` remote still points at `vansh-attention/sih_Vtransformer` and has been kept
+  in sync. **Ask Vansh to archive it** or the two will diverge.
+- `retarget-repo.sh` now checks reachability with `gh` — the old unauthenticated curl
+  reports 404 for a private repo that exists perfectly well.
+
+⛔ **THE REPO IS PRIVATE AND THE REPORT'S LAST PAGE INVITES HER TO CLONE IT.** She would
+get a 404, which reads as a dead link, not a permission setting. Decide before the email
+goes out; options are in `outreach/ORG-MIGRATION.md`. Recommendation: make it public,
+there is nothing sensitive in it.
+
+⚠ **Project name finalised as Aavaran** (org login `AavaranAI`; it was option 1 in
+`NAME-OPTIONS.md`, Sanskrit for covering/veil). The org's *display name* still reads
+"Aavran", which is a different spelling. **Nothing in the documents carries the name yet**
+— the report, email and deck still have no project name in them.
+
+---
+
 ## 📤 PUSHED — the repo now matches the report (17 Sep)
 
 `origin/main` is at **0a59333** plus the build fix below. Nine themed commits, authored
