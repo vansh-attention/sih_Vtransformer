@@ -897,8 +897,7 @@ def build():
     ap(P("<b>Every number in this report can be reproduced from the repository</b>, and "
          "nothing below needs an API key or a network connection to us. The repository is "
          "private for the moment, while the team is still working in it. We would be glad "
-         "to add you: send us the GitHub account you would like us to use, or ask and we "
-         "will make it public."))
+         "to add you: tell us the GitHub username to add, or ask and we will open it."))
     ap(Spacer(1, 1))
     repo = Table([[Paragraph(
         f"github.com/{REPO_PATH}", S["repo"])]], colWidths=[140 * mm])
