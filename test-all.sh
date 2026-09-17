@@ -63,6 +63,9 @@ run "prompt injection — hostile page defences"   $NODE bench/injection-test.ts
 section "Scorecard"
 run "tuned corpus"    $NODE bench/score.ts
 run "HOLDOUT corpus"  $NODE bench/score.ts --holdout
+# Real captured markup with an exactly-labelled synthetic block injected. The half that
+# breaks things -- thousands of nodes, real class names, real nesting -- is not ours.
+run "WILD corpus — leaks gate, recall only measured" $NODE bench/score.ts --wild
 
 section "User journeys"
 run "odd input, repeat runs, pathological content" $NODE bench/user-journey.ts
@@ -84,6 +87,12 @@ if [ "$FULL" -eq 1 ]; then
 
   if CFT="$(find_chrome)"; then
     run "Spike C+D — capture alignment & face redaction" ./spikes/c-capture/run.sh
+    # The last privacy claim that had no measurement: that the redaction boxes are
+    # actually painted into the image that gets transmitted, not merely computed.
+    run "Spike H — text masking proven on real pixels" ./spikes/h-text-mask/run.sh
+    # Scan an arbitrary page end to end with no model involved. Defaults to a captured
+    # real site so it runs offline; set SIH_LIVE_URL to point it at the open web.
+    run "Spike I — scan any page, no model needed" ./spikes/i-live-site/run.sh
     if curl -s http://127.0.0.1:8975/health >/dev/null 2>&1; then
       run "Spike E — full agent loop in Chrome" ./spikes/e-e2e/run.sh
     else

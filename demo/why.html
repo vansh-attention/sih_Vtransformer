@@ -1,0 +1,174 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SIH26171 — why this exists</title>
+<style>
+  :root{--ink:#15181f;--navy:#1b3357;--grey:#5a6270;--rule:#c6ccd6;--soft:#eef2f9;
+        --red:#a4341f;--redbg:#fdf3f1;--green:#1b5e3a;--greenbg:#f0f7f2}
+  *{box-sizing:border-box}
+  body{margin:0;font:16px/1.55 Cambria,Georgia,serif;color:var(--ink);background:#fff}
+  .wrap{max-width:1060px;margin:0 auto;padding:34px 24px 70px}
+  h1{font-size:28px;margin:0 0 4px}
+  .sub{color:var(--navy);font-style:italic;margin:0 0 24px}
+  h2{font-size:19px;color:var(--navy);margin:34px 0 10px}
+  p{margin:0 0 12px}
+  .step{font:600 12px Calibri,system-ui,sans-serif;letter-spacing:.09em;
+        text-transform:uppercase;color:var(--grey);margin-top:30px}
+  .note{background:var(--soft);border-left:4px solid var(--navy);padding:13px 16px;
+        margin:14px 0;font-size:14.5px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+  .col{border:1px solid var(--rule);border-radius:7px;overflow:hidden}
+  .col.bad{border-color:#e2b6ac}
+  .col.good{border-color:#a9cbb7}
+  .col h3{margin:0;padding:11px 15px;font-size:14.5px}
+  .bad h3{background:var(--redbg);color:var(--red)}
+  .good h3{background:var(--greenbg);color:var(--green)}
+  .col .in{padding:6px 15px 14px}
+  table{width:100%;border-collapse:collapse;font:13px Calibri,system-ui,sans-serif}
+  td{padding:5px 3px;border-bottom:1px solid #eceff4;vertical-align:top}
+  td.k{color:var(--grey);width:44%}
+  .v{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  .leak{color:var(--red);font-weight:700}
+  .tok{color:var(--green)}
+  .stats{display:flex;gap:28px;flex-wrap:wrap;font:14px Calibri,system-ui,sans-serif;
+         color:var(--grey);border-top:1px solid var(--rule);
+         border-bottom:1px solid var(--rule);padding:12px 0;margin:22px 0}
+  .stats b{color:var(--ink);font-size:17px}
+  ol{padding-left:20px} li{margin-bottom:7px}
+  footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--rule);
+         color:var(--grey);font:13.5px Calibri,system-ui,sans-serif}
+</style>
+<div class="wrap">
+  <h1>Why this project exists</h1>
+  <p class="sub">The same screen, sent two ways &middot; problem statement SIH26171</p>
+
+  <div class="note">
+    Both columns below were produced by running the real code over the same page. The
+    left one is the payload with redaction switched off. Nothing is written by hand, so
+    if the redactor ever regresses, this page shows it.
+  </div>
+
+  <div class="step">Step 1 &middot; the situation</div>
+  <h2>A citizen is half-way through a refund request</h2>
+  <p>
+    Their screen holds a name, a PAN, an Aadhaar number, a mobile number, an email, a
+    postal address and a bank account number. Two fields are still empty and Submit is
+    disabled until they are filled. This is precisely the moment somebody would like an
+    assistant to help, and precisely the moment their screen is at its most sensitive.
+  </p>
+  <p>
+    An AI agent cannot help without seeing the screen. That is the whole difficulty: it
+    is not that assistants are careless, it is that seeing is the job.
+  </p>
+
+  <div class="step">Step 2 &middot; what happens today</div>
+  <h2>Every screen-reading assistant sends the lot</h2>
+  <p>
+    Ask any of them for help here and the page goes to a company's server so a model can
+    read it. Below on the left is what that request contains. On the right is the same
+    request from this project.
+  </p>
+
+  <div class="cols">
+    <div class="col bad">
+      <h3>Without this project &middot; 8 personal values transmitted</h3>
+      <div class="in"><table>
+        <tr><td class="k">Name as per PAN</td>
+          <td class="v leak">Ananya Krishnamurthy</td></tr><tr><td class="k">PAN</td>
+          <td class="v leak">ABCPE1234F</td></tr><tr><td class="k">Aadhaar linked</td>
+          <td class="v leak">234567890124</td></tr><tr><td class="k">Registered mobile</td>
+          <td class="v leak">+91 98765 43210</td></tr><tr><td class="k">Email</td>
+          <td class="v leak">a.krishnamurthy@example.in</td></tr><tr><td class="k">Communication address</td>
+          <td class="v leak">12 MG Road, Indore 452001</td></tr><tr><td class="k">Bank IFSC</td>
+          <td class="v leak">HDFC0001234</td></tr><tr><td class="k">Bank account number</td>
+          <td class="v leak">4111 1111 1111 1111</td></tr>
+      </table></div>
+    </div>
+    <div class="col good">
+      <h3>With this project &middot; 0 personal values transmitted</h3>
+      <div class="in"><table>
+        <tr><td class="k">Name as per PAN</td>
+          <td class="v tok">&lt;PII_NAME_1&gt;</td></tr><tr><td class="k">PAN</td>
+          <td class="v tok">&lt;PII_PAN_1&gt;</td></tr><tr><td class="k">Aadhaar linked</td>
+          <td class="v tok">&lt;PII_AADHAAR_1&gt;</td></tr><tr><td class="k">Registered mobile</td>
+          <td class="v tok">&lt;PII_PHONE_1&gt;</td></tr><tr><td class="k">Email</td>
+          <td class="v tok">&lt;PII_EMAIL_1&gt;</td></tr><tr><td class="k">Communication address</td>
+          <td class="v tok">&lt;PII_ADDRESS_1&gt;</td></tr><tr><td class="k">Bank IFSC</td>
+          <td class="v tok">&lt;PII_IFSC_1&gt;</td></tr><tr><td class="k">Bank account number</td>
+          <td class="v tok">&lt;PII_CARD_1&gt;</td></tr>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div><b>8</b> values withheld</div>
+    <div><b>4</b> harmless values kept</div>
+    <div><b>5710</b> bytes before</div>
+    <div><b>6731</b> bytes after</div>
+  </div>
+
+  <div class="step">Step 3 &middot; the part that is easy to miss</div>
+  <h2>The agent can still do the job</h2>
+  <p>
+    Blanking the screen would be easy and useless. The tag is what keeps the page
+    workable: <span class="v tok">&lt;PII_PAN_1&gt;</span> tells the model that the PAN
+    field is filled and well formed, which is the only fact it needs in order to decide
+    what to click next. It never needs the digits.
+  </p>
+  <p>
+    Everything that is not personal is sent untouched, so the model can still read the
+    page. These survived unchanged, and getting this half right is worth as many marks as
+    the redaction itself:
+  </p>
+  <div class="col"><div class="in"><table>
+    <tr><td class="k">Government of India · Ministry of Finance</td>
+      <td class="v">Logged in · Last login 17 Sep 2026, 10:42</td></tr><tr><td class="k">Income Tax e-Filing</td>
+      <td class="v">Services › Refund Re-issue Request</td></tr><tr><td class="k">Acknowledgement number</td>
+      <td class="v">567890123458</td></tr><tr><td class="k">Submit request</td>
+      <td class="v">Select a reason and add remarks to enable Submit.</td></tr>
+  </table></div></div>
+  <p style="margin-top:12px">
+    Two of those deserve a second look. The acknowledgement number is twelve digits and
+    passes the Aadhaar checksum by coincidence, and the assessment year looks like a
+    date range. Both are correctly left alone. Hiding them would blind the agent for no
+    gain, and over-redaction costs exactly as much as leaking.
+  </p>
+
+  <div class="step">Step 4 &middot; the proposed use</div>
+  <h2>What actually happens when the citizen asks for help</h2>
+  <ol>
+    <li>They type what they want: <i>complete the refund re-issue request</i>.</li>
+    <li>The extension reads the page inside the browser. Nothing has left yet.</li>
+    <li>Every personal value is replaced by a tag. The real ones stay in a vault in the
+        page, which the part of the extension that talks to the network cannot reach.</li>
+    <li>The tagged page goes to the model, which replies with a single action, such as
+        <span class="v">select the reason "Cheque expired"</span>.</li>
+    <li>The extension checks that action is safe, performs it, and looks again.</li>
+    <li>It repeats until Submit is no longer disabled, then presses it.</li>
+  </ol>
+  <p>
+    The citizen gets the form finished. The model never saw a single digit of their
+    Aadhaar. Neither did the company running it, and neither did anyone watching the
+    network.
+  </p>
+
+  <div class="step">Step 5 &middot; why it is a guarantee and not a promise</div>
+  <h2>The part that talks to the internet has never held the data</h2>
+  <p>
+    Most privacy claims are assurances about care: we are careful, we delete things, we
+    have a policy. You have to trust the company, and one programmer's mistake undoes it.
+  </p>
+  <p>
+    This one is a claim about where the data physically is. The component allowed to open
+    a network connection has never held a real value at any point in its execution, so a
+    bug in it cannot leak a PAN, in the same way you cannot spend money you never had.
+    That is why the left column above can be reproduced by anyone from the repository:
+    the difference between the columns is not our diligence, it is the architecture.
+  </p>
+
+  <footer>
+    Generated by <span class="v">node demo/build-story.mjs</span> from
+    <span class="v">demo/scenario.html</span>. Every value on that page is invented; the
+    PAN, Aadhaar and account numbers are checksum-valid so the detector is genuinely
+    exercised, and none of them belongs to a real person.
+  </footer>
+</div>

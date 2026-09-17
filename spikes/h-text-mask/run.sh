@@ -1,22 +1,23 @@
 #!/bin/bash
-# Spike C: prove the DOM coordinate space maps correctly onto the captured screenshot,
-# by sampling actual pixels. Headed Chrome required - captureVisibleTab needs a real
-# window with a compositor; headless returns a blank or fails.
+# Spike H: prove the redaction boxes are actually PAINTED into the transmitted image,
+# by sampling real pixels. Headed Chrome required - captureVisibleTab needs a real window
+# with a compositor, and jsdom has no canvas at all, which is why this claim went
+# unmeasured while everything around it was tested.
 set -u
 
 # Locate browsers portably; hardcoded paths broke this for everyone but
 # one machine.
 . "$(cd "$(dirname "$0")" && pwd)/../../scripts/find-browser.sh"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$ROOT"
-PORT=8976
+PORT=8978
 CHROME="$(find_chrome)" || { echo "no Chrome found — run scripts/get-chrome-for-testing.sh"; exit 1; }
-OUT="$ROOT/spikes/e-e2e/result.json"
+OUT="$ROOT/spikes/h-text-mask/result.json"
 rm -f "$OUT"
-pkill -f "spikec_serve" 2>/dev/null; pkill -f spikeC-profile 2>/dev/null; sleep 1
+pkill -f "spikec_serve" 2>/dev/null; pkill -f spikeH-profile 2>/dev/null; sleep 1
 # Fresh profile every run. Chrome caches the extension's service worker in the profile,
 # so a reused one silently runs YESTERDAY'S code against today's build - which cost a
 # confusing round of "the fix did not work" when the fix was never loaded.
-rm -rf /tmp/spikeE-profile
+rm -rf /tmp/spikeH-profile
 
 python3 - "$PORT" "$OUT" "$ROOT/bench" <<'PY' & SRV=$!
 # spikec_serve
@@ -42,36 +43,26 @@ PY
 sleep 1
 
 "$CHROME" --no-sandbox --enable-unsafe-webgpu --use-angle=metal \
-  --user-data-dir=/tmp/spikeE-profile \
+  --user-data-dir=/tmp/spikeH-profile \
   --load-extension="$ROOT/extension" \
   --window-size=1200,800 --window-position=0,0 \
   --no-first-run --no-default-browser-check \
-  "about:blank" >/tmp/chrome-e.log 2>&1 & CHR=$!
+  "about:blank" >/tmp/chrome-h.log 2>&1 & CHR=$!
 
-for i in $(seq 1 240); do [ -f "$OUT" ] && break; sleep 1; done
+for i in $(seq 1 60); do [ -f "$OUT" ] && break; sleep 1; done
 kill $CHR 2>/dev/null; kill $SRV 2>/dev/null; wait 2>/dev/null
+if [ ! -f "$OUT" ]; then echo "FAILED: no result after 60s"; exit 1; fi
 
-# ASSERT THE TASK GOT DONE, not that a file appeared.
-#
-# This script used to exit 0 the moment result.json existed, so the suite reported
-# "Spike E - full agent loop in Chrome" as passing through every run in which the agent
-# filled two fields of three and gave up. The loop had run; the task had failed; the
-# check could not tell the difference. `outcome.verified` is computed by reading the
-# PAGE after the run -- all fields populated and the success banner actually visible --
-# so it cannot be satisfied by the loop's own opinion of itself.
-if [ ! -f "$OUT" ]; then echo "FAILED: no result after 240s"; exit 1; fi
-
+# Assert the PIXELS, not the file's existence. Spike E taught this the hard way.
 python3 - "$OUT" <<'EOF'
 import json, sys
-d = json.load(open(sys.argv[1]))
-e = d.get("spikeE", d)
-o = e.get("outcome", {})
-r = e.get("resources", {})
-if not o.get("verified"):
-    print("FAILED: the task did not complete")
-    print("  fields:", [(f["id"], f["value"]) for f in o.get("fields", [])])
-    print("  stopReason:", e.get("stopReason"), "|", e.get("detail"))
+h = json.load(open(sys.argv[1])).get("spikeH", {})
+if not h.get("verified"):
+    print("FAILED: text masking not verified on pixels")
+    for k in ("expectedRedactions","boxesRequested","boxesApplied","regionsWithDetail",
+              "allFlattened","outsideUntouched","coverageComplete","reason","error"):
+        if k in h: print(f"  {k}: {h[k]}")
     sys.exit(1)
-print(f"OK: task verified on the page in {r.get('taskMs')}ms "
-      f"over {r.get('turns')} turns, browser heap +{r.get('heapDeltaMb')}MB")
+print(f"OK: {h['regionsWithDetail']} text regions flattened to solid fill, "
+      f"{h['boxesApplied']}/{h['expectedRedactions']} boxes applied, controls untouched")
 EOF

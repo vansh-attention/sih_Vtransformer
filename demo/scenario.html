@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<!--
+  THE SCENARIO, as close to the real thing as we can make it without using anybody's
+  actual data.
+
+  A citizen is part-way through a tax refund re-issue request. The page is what such a
+  page really looks like: identity already filled from the logged-in profile, bank
+  details entered, a couple of fields still empty, and a Submit that stays disabled
+  until they are done. This is the moment somebody would ask an assistant for help, and
+  it is exactly the moment their screen is at its most sensitive.
+
+  Every value is invented. The PAN, Aadhaar and account numbers are checksum-valid so
+  the detector is genuinely exercised, and none of them belongs to a real person.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Refund Re-issue Request — Income Tax e-Filing</title>
+<style>
+  :root{--gov:#0b3d66;--line:#d6dce5;--ink:#1a1f28;--muted:#5d6572;--bg:#f4f6f9}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+       color:var(--ink);background:var(--bg)}
+  .topbar{background:var(--gov);color:#fff;padding:9px 22px;font-size:13px;
+          display:flex;justify-content:space-between;align-items:center}
+  .mast{background:#fff;border-bottom:3px solid var(--gov);padding:14px 22px;
+        display:flex;align-items:center;gap:13px}
+  .emblem{width:34px;height:34px;border-radius:50%;background:var(--gov);color:#fff;
+          display:grid;place-items:center;font-weight:700;font-size:13px}
+  .mast h1{font-size:17px;margin:0}
+  .mast .s{font-size:12px;color:var(--muted)}
+  .wrap{max-width:880px;margin:20px auto;padding:0 18px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:6px;margin-bottom:16px}
+  .card h2{font-size:14px;margin:0;padding:11px 16px;border-bottom:1px solid var(--line);
+           background:#fafbfd;color:var(--gov);text-transform:uppercase;letter-spacing:.04em}
+  .body{padding:16px}
+  .row{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:13px}
+  .f{flex:1;min-width:230px}
+  label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+  input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;
+               font:inherit;background:#fff}
+  input[readonly]{background:#f7f8fa;color:#333}
+  .note{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .bar{display:flex;gap:10px;align-items:center;padding:14px 16px;border-top:1px solid var(--line)}
+  button{padding:9px 18px;border:0;border-radius:4px;font:inherit;font-weight:600;
+         background:var(--gov);color:#fff;cursor:pointer}
+  button[disabled]{background:#9aa6b4;cursor:not-allowed}
+  .hint{font-size:12.5px;color:var(--muted)}
+  #done{display:none;margin:0 16px 16px;padding:11px 14px;background:#e7f5ec;
+        border:1px solid #b6dcc4;border-radius:4px;color:#17663a;font-weight:600}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <span>Government of India &middot; Ministry of Finance</span>
+    <span>Logged in &middot; Last login 17 Sep 2026, 10:42</span>
+  </div>
+  <div class="mast">
+    <div class="emblem">IT</div>
+    <div>
+      <h1>Income Tax e-Filing</h1>
+      <div class="s">Services &rsaquo; Refund Re-issue Request</div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <h2>Taxpayer details</h2>
+      <div class="body">
+        <div class="row">
+          <div class="f">
+            <label for="name">Name as per PAN</label>
+            <input id="name" value="Ananya Krishnamurthy" readonly>
+          </div>
+          <div class="f">
+            <label for="pan">PAN</label>
+            <input id="pan" value="ABCPE1234F" readonly>
+          </div>
+        </div>
+        <div class="row">
+          <div class="f">
+            <label for="aadhaar">Aadhaar linked</label>
+            <input id="aadhaar" value="234567890124" readonly>
+          </div>
+          <div class="f">
+            <label for="mobile">Registered mobile</label>
+            <input id="mobile" value="+91 98765 43210">
+          </div>
+        </div>
+        <div class="row">
+          <div class="f">
+            <label for="email">Email</label>
+            <input id="email" value="a.krishnamurthy@example.in">
+          </div>
+          <div class="f">
+            <label for="addr">Communication address</label>
+            <input id="addr" value="12 MG Road, Indore 452001">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Refund details</h2>
+      <div class="body">
+        <div class="row">
+          <div class="f">
+            <label for="ay">Assessment year</label>
+            <input id="ay" value="2026-27" readonly>
+            <div class="note">Not personal: a tax year.</div>
+          </div>
+          <div class="f">
+            <label for="ack">Acknowledgement number</label>
+            <input id="ack" value="567890123458" readonly>
+            <div class="note">Not personal: looks like an Aadhaar, is a receipt number.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="f">
+            <label for="ifsc">Bank IFSC</label>
+            <input id="ifsc" value="HDFC0001234">
+          </div>
+          <div class="f">
+            <label for="acct">Bank account number</label>
+            <input id="acct" value="4111 1111 1111 1111">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Request</h2>
+      <div class="body">
+        <div class="row">
+          <div class="f">
+            <label for="reason">Reason for re-issue</label>
+            <select id="reason">
+              <option value="">Select a reason</option>
+              <option value="expired">Cheque expired</option>
+              <option value="account">Account closed</option>
+              <option value="address">Address changed</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="remarks">Remarks</label>
+            <input id="remarks" placeholder="Briefly describe the issue">
+          </div>
+        </div>
+      </div>
+      <div class="bar">
+        <button id="submit" disabled>Submit request</button>
+        <span class="hint" id="hint">Select a reason and add remarks to enable Submit.</span>
+      </div>
+      <div id="done">Request submitted. Reference RR-2026-884120.</div>
+    </div>
+  </div>
+
+<script>
+  // Submit unlocks only when both remaining fields are filled, so the task genuinely
+  // takes more than one action.
+  var need = ['reason', 'remarks'];
+  var btn = document.getElementById('submit');
+  var hint = document.getElementById('hint');
+  function refresh() {
+    var ok = need.every(function (id) { return document.getElementById(id).value.trim(); });
+    btn.disabled = !ok;
+    hint.textContent = ok ? 'Ready to submit.' : 'Select a reason and add remarks to enable Submit.';
+  }
+  need.forEach(function (id) {
+    var el = document.getElementById(id);
+    el.addEventListener('input', refresh);
+    el.addEventListener('change', refresh);
+  });
+  btn.addEventListener('click', function () {
+    if (btn.disabled) return;
+    document.getElementById('done').style.display = 'block';
+    btn.disabled = true;
+    btn.textContent = 'Submitted';
+    hint.textContent = '';
+  });
+  refresh();
+</script>
+</body>
+</html>
