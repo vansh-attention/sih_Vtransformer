@@ -1,11 +1,28 @@
 #!/usr/bin/env python3
 """Briefing PDF for IIM Mumbai faculty / Programme Office — SIH 2026.
 
-Every factual claim here was verified on 11 Sep 2026 against sih.gov.in itself
-(the public SPOC registry and the official College-SPOC guidelines PDF), not
-against blogs. Where the official sources contradict each other, the PDF says so
-rather than picking the convenient reading — this document goes in front of
-faculty, and one invented detail would discredit the rest.
+Every factual claim here was verified against sih.gov.in itself (the public SPOC
+registry and the official College-SPOC guidelines PDF), not against blogs. Where
+the official sources contradict each other, the PDF says so rather than picking
+the convenient reading — this document goes in front of faculty, and one invented
+detail would discredit the rest.
+
+REWRITTEN 17 Sep 2026, and the rewrite reverses the document's premise. The
+11 Sep version was built on two claims that were true when written and are now
+false:
+
+  * "IIM Mumbai has no SPOC registered, and no IIM in India is registered."
+    It is registered — row 89 of sih.gov.in/know-your-spoc, AISHE U-1283, SPOC
+    Dr. Puja Sarkar. The row did not exist on 11 Sep, so somebody at the
+    Institute acted in between.
+  * "The safe assumption is 15 September, and I have written to AICTE to
+    confirm." The portal settles it at 30 September on every problem-statement
+    page; the 15th-Sept guidelines PDF is superseded. And no mail was ever sent
+    to AICTE, so that sentence had to go regardless of the date.
+
+The ask is therefore no longer "please register" but "please nominate us", and
+the questions, the odds section and the sources all follow from that. Do not
+restore the old framing from git history without re-checking the registry.
 
     python3 outreach/build-briefing-pdf.py
 """
@@ -112,8 +129,8 @@ def footer(canvas, doc):
     canvas.setFont("Calibri", 7.5)
     canvas.setFillColor(GREY)
     canvas.drawString(19 * mm, 11 * mm,
-                      "Harsh Bajpai · SIH 2026 briefing · prepared 11 September 2026 "
-                      "· all facts verified against sih.gov.in")
+                      "Harsh Bajpai · Aavaran, Team Vagabonds · SIH 2026 briefing "
+                      "· 17 September 2026 · all facts verified against sih.gov.in")
     canvas.drawRightString(191 * mm, 11 * mm, f"Page {canvas.getPageNumber()}")
     canvas.setStrokeColor(RULE)
     canvas.setLineWidth(0.5)
@@ -131,66 +148,71 @@ def main():
     doc.addPageTemplates([PageTemplate(id="main", frames=[frame], onPage=footer)])
 
     f = []
-    f.append(P("Smart India Hackathon 2026 — a decision the Institute needs to take", "title"))
+    f.append(P("Smart India Hackathon 2026 — the Institute is registered, and one team is ready",
+               "title"))
     f.append(P("Briefing for faculty / the Programme Office &nbsp;·&nbsp; prepared by Harsh Bajpai "
-               "&nbsp;·&nbsp; 11 September 2026<br/>"
-               "Every fact below was checked directly on <b>sih.gov.in</b> on 11 September 2026 "
-               "— the public SPOC registry and the official College-SPOC guidelines PDF.", "sub"))
+               "&nbsp;·&nbsp; 17 September 2026<br/>"
+               "Every fact below was checked directly on <b>sih.gov.in</b> on 17 September 2026 "
+               "— the public SPOC registry, the live problem-statement pages and the official "
+               "College-SPOC guidelines PDF.", "sub"))
 
     # ---------------- the ask ----------------
     f.append(box([
         P("THE ASK, IN ONE LINE", "boxh"),
-        P("IIM Mumbai has <b>no SPOC registered</b> for SIH 2026. A SPOC must be a "
-          "<b>faculty member</b> — a student cannot register. I am asking the Institute either "
-          "to appoint and register one, or to tell me it is not feasible, so that I can pursue my "
-          "other enrolment instead. <b>Either answer is useful. Silence is the only bad outcome.</b>"),
+        P("IIM Mumbai <b>is registered</b> for SIH 2026, with a faculty SPOC in place. What stands "
+          "between our team and a submission is a <b>nomination</b> — which requires an internal "
+          "selection round and a signed letter on Institute letterhead, both before "
+          "<b>30 September</b>. I am asking for those two things, and offering to do every part of "
+          "the preparation that a student is allowed to do. <b>A clear no is still useful. Silence "
+          "is the only bad outcome.</b>"),
     ]))
     f.append(Spacer(1, 7))
 
     # ---------------- deadline ----------------
     f.append(box([
-        P("TIME IS THE BINDING CONSTRAINT — POSSIBLY 4 DAYS", "warnh"),
-        P("The official guidelines PDF states, word for word: "
-          "<i>“The last date for team nomination and idea submission by College SPOC and Team "
-          "leader on SIH portal is till <b>15th Sept 2026</b> only. No request will be entertained "
-          "after the deadline.”</i>"),
-        P("The <b>same document</b> says 30th Aug on an earlier page, and press coverage says "
-          "30 September. The sources genuinely contradict each other, so I am not presenting one as "
-          "settled. <b>The safe assumption is 15 September.</b> I have written to AICTE to confirm "
-          "which applies.", "body"),
+        P("TIME IS THE BINDING CONSTRAINT — UNDER TWO WEEKS", "warnh"),
+        P("The portal closes for team nomination and idea submission on "
+          "<b>30 September 2026</b>. That date is on <b>every problem-statement page on "
+          "sih.gov.in</b>, and submissions are demonstrably open today."),
+        P("One earlier guidelines PDF says 15th September. <b>It is superseded</b> — the current "
+          "guidelines letter says 30th September twice, and the live portal agrees. I raise it "
+          "only because the older file is still findable and would cause a needless panic.",
+          "body"),
     ], bg=WARNBG, edge=colors.HexColor("#E0B9A6")))
     f.append(Spacer(1, 7))
 
     # ---------------- verified facts ----------------
     f.append(P("What I verified (so nobody has to take my word for it)", "h"))
-    f.append(B("<b>IIM Mumbai is not registered.</b> The public registry at "
-               "<font name='Calibri-Bold'>sih.gov.in/know-your-spoc</font> lists <b>3,000 institutes</b>. "
-               "I searched the full list."))
-    f.append(B("<b>No IIM in India is registered</b> — not one. I also checked <b>NITIE</b>, this "
-               "Institute’s name until the 2023 rename, in case of a legacy entry. Absent too."))
-    f.append(B("<b>Management institutes are clearly eligible.</b> Welingkar (PGDM), Narsee Monjee and "
-               "dozens of other management schools are registered. This is not a category exclusion — "
-               "it appears simply never to have been done."))
-    f.append(B("<b>Registration has not been taken offline.</b> "
-               "<font name='Calibri-Bold'>sih.gov.in/collegeRegistration</font> still returns a working "
-               "new-user form with OTP verification and shows no closed notice. The announced last date "
-               "(31 July, extended to 14 August) has passed, so <b>a live form is not the same as "
-               "permission</b> — only AICTE can confirm."))
-    f.append(B("<b>Every IIT is registered</b>, including IIT Madras. That matters because I am "
-               "concurrently enrolled in the IIT Madras BS programme, which is my fallback route."))
+    f.append(B("<b>IIM Mumbai is registered.</b> The public registry at "
+               "<font name='Calibri-Bold'>sih.gov.in/know-your-spoc</font> lists <b>3,002 "
+               "institutes</b>, and the Institute is <b>row 89</b> — AISHE code <b>U-1283</b>, "
+               "classified an Institute of National Importance, with <b>Dr. Puja Sarkar</b> as "
+               "Single Point of Contact. I read it in the page source, not in a summary."))
+    f.append(B("<b>This registration is recent</b> — the row was absent when I checked on "
+               "11 September. So this briefing may be reaching someone who already knows all of it."))
+    f.append(B("<b>Our problem statement is open.</b> <b>SIH26171</b>, set by ISRO / Department of "
+               "Space, stands at roughly <b>20 of the 500</b> submissions at which a statement "
+               "freezes nationally — so room is not the risk, but the last day is not the day to "
+               "submit either."))
+    f.append(B("<b>Management institutes are clearly eligible.</b> Welingkar (PGDM), Narsee Monjee "
+               "and dozens of other management schools are registered, as is every IIT. There is no "
+               "category question to resolve."))
     f.append(Spacer(1, 3))
 
     # ---------------- what it takes ----------------
-    f.append(P("What participation actually requires of the Institute", "h"))
-    f.append(B("<b>A faculty SPOC</b>, registered on the portal. The Institute’s AISHE code is "
-               "<b>U-1283</b> — already to hand, so registration needs only a faculty name, "
-               "official email and phone number."))
-    f.append(B("<b>An internal hackathon is mandatory.</b> Only teams selected in it may be nominated."))
+    f.append(P("What remains, now that the Institute is registered", "h"))
+    f.append(B("<b>A faculty SPOC</b> — <b>already in place.</b> This step is done, and it was the "
+               "one a student cannot perform."))
+    f.append(B("<b>An internal hackathon is mandatory.</b> Only teams selected in it may be "
+               "nominated. My understanding is that no round is currently planned, and that very "
+               "few teams are likely to apply — so a panel of two or three faculty and an hour "
+               "would satisfy it."))
     f.append(B("<b>The SPOC must upload an internal-hackathon report</b> of up to 15 pages: event "
                "overview, participating team and student counts, event photographs, jury panel and "
                "judges’ details, judging process, news coverage, social-media promotion, and the "
-               "nominated teams. <b>This is the heaviest item on the list and the main reason a "
-               "compressed timeline is hard.</b>"))
+               "nominated teams. <b>This is the heaviest item on the list.</b> I am offering to "
+               "draft it in full, so that it reaches the SPOC as something to check and sign "
+               "rather than something to write."))
     f.append(B("<b>A nomination letter per team on Institute letterhead</b>, naming the team and all 6 "
                "members plus up to 2 mentors, signed by the Director/Dean and bearing the Institute seal."))
     f.append(B("Caps: 50 teams per college, <b>100 per university</b>. <b>U-1283 is a university-level "
@@ -198,12 +220,13 @@ def main():
     f.append(Spacer(1, 3))
 
     # ---------------- team rules ----------------
-    f.append(P("Team rules that decide which institute I can even apply through", "h"))
-    f.append(B("<b>Exactly 6 student members</b>, including the team leader."))
-    f.append(B("<b>At least one female team member is mandatory.</b>"))
-    f.append(B("<b>All members must be from the same college. Inter-college teams are not allowed.</b> "
-               "This is the rule that forces a single choice between IIM Mumbai and IIT Madras — "
-               "I cannot combine them."))
+    f.append(P("The team rules, and how our team meets them", "h"))
+    f.append(B("<b>Exactly 6 student members.</b> We are six: Harsh Bajpai, Jinshri Jain, Vansh "
+               "Khosla, Aarna Chauhan, Manas Bharadia and Siddhartha Chaudhary."))
+    f.append(B("<b>At least one female team member is mandatory.</b> We have two."))
+    f.append(B("<b>All members must be from the same college. Inter-college teams are not "
+               "allowed.</b> All six of us are students of this Institute, so the team is "
+               "nominable here and nowhere else."))
     f.append(B("Up to 2 mentors (faculty or industry) are optional, and expected to have roughly 5 years’ "
                "relevant experience."))
     f.append(B("One team may submit against a maximum of 2 problem statements. Each problem statement "
@@ -213,23 +236,25 @@ def main():
 
     # ---------------- questions ----------------
     f.append(P("Questions I need answered", "h"))
-    f.append(P("Ordered so that a “no” to Q2 ends the matter quickly and costs the Institute nothing "
+    f.append(P("Ordered so that a “no” to Q1 ends the matter quickly and costs the Institute nothing "
                "further.", "small"))
     f.append(qtable([
-        ("1.", "Is the Institute willing to <b>appoint a faculty member as SPOC</b> and register on "
-                "sih.gov.in? If yes, who, and can it be initiated this week? AISHE code <b>U-1283</b> "
-                "is ready."),
-        ("2.", "If not — is that a <b>final no for SIH 2026</b>? I will then stop pursuing this route "
-                "through IIM Mumbai and go via IIT Madras. I need the answer, not a favourable one."),
-        ("3.", "Who would <b>sign and seal the nomination letter</b> — the Director, or a Dean?"),
-        ("4.", "Is the Institute willing to run a <b>minimal internal hackathon</b> and produce the "
-                "required report? Given the timeline this may be the deciding constraint, and I would "
-                "rather hear that plainly than have it stall later."),
-        ("5.", "Has the Institute been approached about SIH in previous years and declined? If there is "
-                "an existing policy position, knowing it saves everyone time."),
-        ("6.", "If SIH 2026 is not possible, would the Institute consider <b>registering a SPOC now for "
-                "SIH 2027</b>? Registration opens around July each year, and the absence of any IIM from "
-                "the national list looks like an opportunity rather than a deliberate choice."),
+        ("1.", "Is the Institute willing to <b>nominate one team</b> for SIH 2026 before "
+                "30 September? A no is a complete answer and I will stop here."),
+        ("2.", "Is an <b>internal selection round</b> being planned? If not, would a minimal one "
+                "serve — two or three faculty on a panel, an hour, our demonstration and any other "
+                "team that wishes to present? Only teams selected in such a round may be nominated."),
+        ("3.", "May I <b>draft the internal-hackathon report</b> for the SPOC’s review and "
+                "signature? It is the longest document in the process, and it is work a student can "
+                "do."),
+        ("4.", "Who would <b>sign and seal the nomination letter</b> on letterhead — the Director, "
+                "or a Dean? It names all six members and carries the Institute seal."),
+        ("5.", "Who should complete the two official forms — the <b>College Consent Letter</b> and "
+                "the <b>College Authorization Letter</b>? I hold both blank templates and have not "
+                "altered them, because the template states that a changed format is grounds for "
+                "disqualification."),
+        ("6.", "Is there an <b>internal cut-off earlier than 30 September</b> that I should be "
+                "working to instead of the national one?"),
     ]))
     f.append(Spacer(1, 3))
 
@@ -237,15 +262,18 @@ def main():
     f.append(KeepTogether([
         P("What I am bringing — this is not a proposal, it is a working system", "h"),
         B("<b>Problem Statement SIH26171</b>, set by <b>ISRO / Department of Space</b> — "
-          "“On-device Visual Perception for Light-weight Browser Agents” (Software, Smart Automation)."),
+          "“On-device Visual Perception for Light-weight Browser Agents” (Software, Smart "
+          "Automation). Our entry is called <b>Aavaran</b>; the team is <b>Vagabonds</b>."),
         B("A browser extension plus a local server: an AI assistant that reads the screen and acts on it "
           "while <b>every PAN, Aadhaar number, card, password and face is removed on the user’s own "
           "machine before anything is transmitted</b>."),
         B("<b>It is built and running today</b>, in Chrome and Firefox, on two tagged releases, with "
           "automated tests passing on Linux, macOS and Windows."),
-        B("Measured on test pages never used during development: <b>100% detection accuracy, "
-          "100% precision, zero data leaks</b>; about 4.7 seconds per step on a deliberately slowed "
-          "laptop. Every figure is reproducible with one command — none is an estimate."),
+        B("Measured on test pages never used during development, and separately on <b>ten real "
+          "pages captured from the live web</b> — the income-tax portal, RBI, SEBI, UIDAI, MyGov: "
+          "<b>100% detection accuracy, 100% precision, zero data leaks</b> on both; about 4.7 "
+          "seconds per step on a deliberately slowed laptop. Every figure is reproducible with one "
+          "command — none is an estimate."),
         B("Field labels are handled in <b>eleven Indian languages</b>, not only English."),
         B("For an internal selection round, this is a finished demonstrable product rather than a slide "
           "deck of intentions."),
@@ -256,22 +284,29 @@ def main():
     f.append(KeepTogether([
         P("My honest assessment of the odds", "h"),
         P("I would rather set expectations correctly than oversell this.", "small"),
-        B("Registering a SPOC, running an internal hackathon, producing the report and nominating a team "
-          "<b>within four days is a great deal to ask</b>, and it may simply not be practical. I recognise that."),
-        B("The realistic outcomes are: (a) AICTE confirms a later deadline and this becomes feasible; "
-          "(b) I proceed through IIT Madras; or (c) IIM Mumbai registers now and is positioned for "
-          "SIH 2027 with a year of preparation."),
-        B("<b>Outcome (c) has standing value to the Institute regardless of what happens to my team</b> — "
-          "SIH participation is an MoE/AICTE initiative, and no IIM currently appears on the national list."),
+        B("<b>Thirteen days is short</b> for a selection round, a report and a signed nomination, "
+          "and the Institute may reasonably decide it is too short. I recognise that, and the "
+          "heaviest item — the report — is the one I am offering to write."),
+        B("The realistic outcomes are: (a) the Institute nominates one team and we submit before "
+          "30 September; (b) it decides the process cannot be compressed this year, and the same "
+          "groundwork stands for SIH 2027 with twelve months of notice instead of thirteen days; "
+          "or (c) no answer arrives, which is the only outcome that wastes everybody’s time."),
+        B("<b>The Institute’s registration already has standing value</b> regardless of what happens "
+          "to my team: SIH is an MoE/AICTE initiative, IIM Mumbai is now on the national list, and "
+          "the nomination ceiling of 100 teams will still be there next year."),
     ]))
     f.append(Spacer(1, 4))
 
     # ---------------- references ----------------
     f.append(box([
         P("SOURCES AND CONTACTS — all checkable independently", "boxh"),
-        P("<b>SPOC registry</b> (confirms the absence): sih.gov.in/know-your-spoc<br/>"
-          "<b>Registration form</b> (still live): sih.gov.in/collegeRegistration<br/>"
-          "<b>Official guidelines</b>: sih.gov.in/letters/2026/SIH2026-Guidelines-College-SPOC-updated.pdf<br/>"
+        P("<b>SPOC registry</b> (IIM Mumbai is row 89): sih.gov.in/know-your-spoc<br/>"
+          "<b>Problem statements</b> (each page carries the 30 September date): "
+          "sih.gov.in/sih2026PS<br/>"
+          "<b>Official guidelines</b>: sih.gov.in/letters/2026/ — use the current "
+          "<i>SIH 2026 Guidelines</i> letter; the file named "
+          "<i>SIH2026-Guidelines-College-SPOC-updated.pdf</i> is the superseded one that says "
+          "15th September<br/>"
           "<b>AICTE / MIC</b>: sih@aicte-india.org &nbsp;·&nbsp; hackathon@aicte-india.org<br/>"
           "<b>Problem statement</b>: SIH26171 — ISRO / Department of Space", "small"),
     ]))

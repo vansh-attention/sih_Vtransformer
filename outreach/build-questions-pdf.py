@@ -6,6 +6,14 @@ written in Harsh's own voice — first person, the things he is asking, not my a
 the situation. The only context kept is the three lines without which the questions
 cannot be answered or forwarded.
 
+REWRITTEN 17 Sep 2026. The 11 Sep version asked the Institute to appoint and register a
+SPOC, and stated that no IIM in India was registered. Both are now wrong: IIM Mumbai IS
+registered — row 89 of sih.gov.in/know-your-spoc, AISHE U-1283, SPOC Dr. Puja Sarkar —
+and the deadline the old sheet flagged as "possibly 15 September" is confirmed on the
+portal as 30 September. That version also said he had written to AICTE, which he had
+not. Everything downstream of those premises has been replaced; what is left is the
+nomination, the internal hackathon and the letterhead, which are the parts still open.
+
 AISHE code U-1283 supplied by Harsh 11 Sep 2026. The `U-` prefix is a university-level
 registration, which is why the nomination cap quoted here is 100 rather than 50.
 
@@ -58,27 +66,30 @@ S = {
 }
 
 QUESTIONS = [
-    "Can the Institute <b>appoint a faculty member as SPOC</b> and register on sih.gov.in? "
-    "I have the details ready — our AISHE code is <b>U-1283</b>, and the form needs only a "
-    "faculty name, official email and phone number.",
+    "Our team of six is ready and our idea is built. <b>What does the Institute need from us to "
+    "nominate it</b> before the portal closes on 30 September? If there is an internal cut-off "
+    "earlier than that date, I would like to work to it rather than to the national one.",
 
-    "If the answer is no, <b>is that final for SIH 2026?</b> I am also enrolled at IIT Madras, "
-    "which is already registered, and I would go through them instead. I am not asking anyone "
-    "to say yes — I just need to know which door to use.",
+    "The guidelines make an <b>internal hackathon mandatory</b> — only teams selected in one may "
+    "be nominated. Is the Institute running one? If not, would a <b>minimal round</b> serve: a "
+    "panel of two or three faculty, an hour, our demonstration and any other team that wants to "
+    "present. I understand very few teams are likely to apply this year.",
+
+    "That round has to be <b>written up by the SPOC</b> — up to fifteen pages with photographs, "
+    "the jury panel and the judging process. <b>I am offering to prepare that document</b> so it "
+    "costs the SPOC an approval rather than an evening. Is that acceptable?",
 
     "Who would <b>sign and seal the nomination letter</b> on Institute letterhead — the Director, "
     "or a Dean? It has to name all six team members and carry the Institute seal.",
 
-    "Can the Institute run a <b>short internal hackathon</b>? Only teams selected in one may be "
-    "nominated, and the SPOC has to upload a report with photographs and jury details. If this is "
-    "the part that makes it impractical, I would rather be told now than have it stall later.",
+    "There are two official forms — a <b>College Consent Letter</b> and a <b>College "
+    "Authorization Letter</b>. I have both blank templates. Who should fill them, and to whom do "
+    "I return them? <b>They must not be reformatted</b> — the template says a changed format is "
+    "grounds for disqualification, so I have not touched them.",
 
-    "Has the Institute <b>looked at SIH before and decided against it?</b> If there is already a "
-    "position on this, I will stop asking.",
-
-    "If this year is not possible, would the Institute <b>register a SPOC for SIH 2027?</b> "
-    "Registration opens around July. No IIM in India is currently on the national list, and "
-    "that seems worth changing regardless of what happens to my team.",
+    "Is there <b>anything the Institute needs from us in writing</b> — the team list, roll "
+    "numbers, the problem statement, a one-page summary of the project? I can have any of it "
+    "the same day.",
 
     "Is there <b>anyone else I should be speaking to</b> about this instead of you?",
 ]
@@ -89,7 +100,8 @@ def footer(canvas, doc):
     canvas.setFont("Calibri", 7.5)
     canvas.setFillColor(GREY)
     canvas.drawString(20 * mm, 11 * mm,
-                      "Harsh Bajpai · Smart India Hackathon 2026 · 11 September 2026")
+                      "Harsh Bajpai · Smart India Hackathon 2026 · Aavaran, "
+                      "Team Vagabonds · 17 September 2026")
     canvas.setStrokeColor(RULE)
     canvas.setLineWidth(0.5)
     canvas.line(20 * mm, 14.5 * mm, 190 * mm, 14.5 * mm)
@@ -109,19 +121,22 @@ def main():
     f = [
         Paragraph("Smart India Hackathon 2026 — what I need to ask", S["title"]),
         Paragraph("Harsh Bajpai &nbsp;·&nbsp; for faculty / the Programme Office "
-                  "&nbsp;·&nbsp; 11 September 2026", S["sub"]),
+                  "&nbsp;·&nbsp; 17 September 2026", S["sub"]),
     ]
 
     # The minimum context without which the questions cannot be answered.
     ctx = Table([[[
-        Paragraph("<b>IIM Mumbai has no SPOC registered for SIH 2026.</b> I checked the official "
-                  "list on sih.gov.in — no IIM in India is registered. A SPOC has to be a faculty "
-                  "member; a student cannot register.", S["ctx"]),
-        Paragraph("<b><font color='#A3241C'>The deadline may be 15 September.</font></b> The official "
-                  "guidelines say 15th Sept; the same document says 30th Aug elsewhere and the press "
-                  "says 30 September. I have written to AICTE to confirm.", S["ctx"]),
-        Paragraph("Our <b>AISHE code is U-1283</b>. As a university-level code we could nominate up "
-                  "to <b>100 teams</b>; I am asking about one.", S["ctx"]),
+        Paragraph("<b>IIM Mumbai is registered for SIH 2026.</b> The Institute appears at row 89 of "
+                  "the official list on sih.gov.in/know-your-spoc, AISHE code <b>U-1283</b>, with "
+                  "<b>Dr. Puja Sarkar</b> as Single Point of Contact. I have written to her "
+                  "separately. So the route exists — my questions are about what comes next.",
+                  S["ctx"]),
+        Paragraph("<b><font color='#A3241C'>The portal closes on 30 September 2026.</font></b> That "
+                  "is confirmed on sih.gov.in itself, on every problem-statement page. An earlier "
+                  "guidelines PDF saying 15th September has been superseded.", S["ctx"]),
+        Paragraph("As a university-level AISHE code the Institute may nominate up to <b>100 "
+                  "teams</b>; I am asking about one, of six students, with a built and tested "
+                  "entry for ISRO’s problem statement <b>SIH26171</b>.", S["ctx"]),
     ]]], colWidths=[170 * mm])
     ctx.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), BOXBG),
@@ -148,9 +163,10 @@ def main():
 
     f.append(Spacer(1, 6))
     f.append(Paragraph(
-        "The project is ready — a working browser extension built for ISRO’s problem statement "
-        "SIH26171, running on Chrome and Firefox with tested, reproducible results. I am not asking "
-        "the Institute to build anything, only to open the door.", S["ctx"]))
+        "The project is ready — <b>Aavaran</b>, a working browser extension built for ISRO’s problem "
+        "statement SIH26171, running on Chrome and Firefox with tested, reproducible results, and "
+        "installable on a laptop in about a minute if anyone would like to see it. I am not asking "
+        "the Institute to build anything, only to nominate us.", S["ctx"]))
 
     doc.build(f)
     print(f"wrote {OUT}")

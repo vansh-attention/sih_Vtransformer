@@ -7,13 +7,15 @@ jargon — an IIM Director is unimpressed by buzzwords and very much impressed b
 a held-out test set. So the document leads with plain English, and the technical
 detail sits at the back for the record.
 
-Attribution: git shortlog on 11 Sep 2026 shows 57 of 58 commits authored by
-Harsh Bajpai, so first-person authorship is supported by the record. The
-repository is hosted under a teammate's account for a team entry, and the brief
-says so rather than letting the reader assume otherwise.
+Attribution: git shortlog on 17 Sep 2026 shows 79 of 80 commits on main authored
+by Harsh Bajpai, so first-person authorship is supported by the record. The
+repository now lives in the team organisation AavaranAI/Aavaran and is private;
+it is NOT under a teammate's personal account any more, and the brief says where
+it actually is rather than letting the reader assume otherwise.
 
 Every number here was produced by `bench/score.ts` and `./test-all.sh` on
-11 Sep 2026, not estimated.
+17 Sep 2026, not estimated. The third results column is the wild corpus — real
+captured pages whose markup we did not write.
 
     python3 outreach/build-project-brief-pdf.py
 """
@@ -102,7 +104,7 @@ def footer(canvas, doc):
     canvas.setFont("Calibri", 7.5)
     canvas.setFillColor(GREY)
     canvas.drawString(19 * mm, 11 * mm,
-                      "Harsh Bajpai · Project brief · 11 September 2026 · "
+                      "Harsh Bajpai · Aavaran · Project brief · 17 September 2026 · "
                       "all figures reproducible from the repository")
     canvas.drawRightString(191 * mm, 11 * mm, f"Page {canvas.getPageNumber()}")
     canvas.setStrokeColor(RULE)
@@ -123,7 +125,8 @@ def main():
 
     f.append(P("A browser assistant that can see your screen — "
                "without your personal data leaving your machine", "title"))
-    f.append(P("Project brief · Harsh Bajpai · 11 September 2026", "tag"))
+    f.append(P("<b>Aavaran</b>, by Team Vagabonds · Project brief · Harsh Bajpai "
+               "· 17 September 2026", "tag"))
     f.append(P("Built for <b>Problem Statement SIH26171</b>, set by <b>ISRO / Department of Space</b> "
                "for Smart India Hackathon 2026 — “On-device Visual Perception for Light-weight "
                "Browser Agents” (Software · Smart Automation).", "sub"))
@@ -173,18 +176,20 @@ def main():
     hdrc = ParagraphStyle("hc", parent=S["cellb"], alignment=TA_CENTER)
     hdr = [Paragraph("Measure", S["cellb"]),
            Paragraph("Development set", hdrc),
-           Paragraph("Unseen set (held out)", hdrc)]
+           Paragraph("Unseen set (held out)", hdrc),
+           Paragraph("Real websites", hdrc)]
     rows = [
-        ["Ability to read the page correctly", "100%", "100%"],
-        ["Sensitive-data detection — recall", "100%", "100%"],
-        ["Sensitive-data detection — precision", "100%", "100%"],
-        ["Context preserved (not over-redacted)", "100%", "100%"],
-        ["Personal values leaked", "0", "0"],
+        ["Ability to read the page correctly", "100%", "100%", "100%"],
+        ["Sensitive-data detection — recall", "100%", "100%", "100%"],
+        ["Sensitive-data detection — precision", "100%", "100%", "100%"],
+        ["Context preserved (not over-redacted)", "98%", "100%", "100%"],
+        ["Personal values leaked", "0", "0", "0"],
     ]
     data = [hdr] + [[Paragraph(r[0], S["cell"]),
                      Paragraph(f"<b>{r[1]}</b>", S["cellc"]),
-                     Paragraph(f"<b>{r[2]}</b>", S["cellc"])] for r in rows]
-    t = Table(data, colWidths=[88 * mm, 40 * mm, 44 * mm])
+                     Paragraph(f"<b>{r[2]}</b>", S["cellc"]),
+                     Paragraph(f"<b>{r[3]}</b>", S["cellc"])] for r in rows]
+    t = Table(data, colWidths=[76 * mm, 32 * mm, 34 * mm, 30 * mm])
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), HEADBG),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -197,9 +202,13 @@ def main():
     ]))
     f.append(t)
     f.append(Spacer(1, 5))
-    f.append(P("<b>Speed.</b> About <b>4.7 seconds</b> per step on a deliberately slowed low-end laptop "
-               "(measured under six-times processor throttling, not estimated); roughly 3.7 seconds on a "
-               "current machine. Around 47 KB is transmitted per step."))
+    f.append(P("<b>Speed and cost on the machine.</b> About <b>4.7 seconds</b> per step on a deliberately "
+               "slowed low-end laptop (measured under six-times processor throttling, not estimated); "
+               "roughly 3.7 seconds on a current machine. Around 47 KB is transmitted per step. A "
+               "complete task — read the form, fill it, submit it — runs <b>34.5 seconds over six "
+               "steps in a real browser</b>, for <b>50 MB</b> of browser memory. Those last two are "
+               "measured inside the browser itself rather than inferred from the server process, "
+               "because they are 35% of the competition's marking scheme."))
     f.append(P("<b>Coverage.</b> Field labels are recognised in <b>eleven Indian languages</b>, not only "
                "English — including Hindi, Marathi, Tamil, Telugu, Bengali, Gujarati, Kannada, Malayalam, "
                "Punjabi and Odia."))
@@ -207,19 +216,25 @@ def main():
     # ---------------- methodology ----------------
     f.append(KeepTogether([
         P("How I know the numbers are honest", "h"),
-        P("The column that matters is the second one. A set of test pages was written "
+        P("The columns that matter are the second and third. A set of test pages was written "
           "<b>before any tuning began</b> and has never been optimised against — the discipline a "
           "researcher would call a held-out set. It exists because the competition’s final evaluation "
           "uses websites revealed on the day, so performance on pages I have already seen predicts "
           "very little."),
-        B("The two sets are scored separately and reported separately. I quote the unseen figure."),
+        P("The third column answers the harder objection, that I wrote my own examination paper. It "
+          "scores <b>ten real pages captured from the live web</b> — the income-tax portal, RBI, SEBI, "
+          "UIDAI, MyGov and others. The sensitive values in them are planted and therefore known, but "
+          "the surrounding markup is not mine: it is the several-thousand-element mess a real site "
+          "actually serves.", "body"),
+        B("The three sets are scored separately and reported separately. I quote the unseen figure."),
         B("The system ships its own <b>counterfactual</b>: switching off one detection layer drops "
           "unseen-set recall to 91.7%. A perfect score is only meaningful if you can show what makes "
           "it move."),
         B("<b>Every safety test is verified to be capable of failing.</b> I deliberately break the "
           "protection and confirm the test turns red before trusting it green — a test that cannot "
           "fail is worse than no test, and this project has caught one such test in its own suite."),
-        B("Automated tests run on <b>Linux, macOS and Windows</b> on every change. Sixteen checks, "
+        B("Automated tests run on <b>Linux, macOS and Windows</b> on every change. <b>Seventeen "
+          "checks</b> without a browser, twenty-four with real browsers and the live model, "
           "currently all passing."),
     ]))
 
@@ -247,8 +262,9 @@ def main():
     f.append(P("Status and authorship", "h"))
     f.append(B("<b>Working today</b> in both Chrome and Firefox: the complete loop, on-device face "
                "blurring, the Privacy Ledger, adversarial-page defences and graceful failure handling."))
-    f.append(B("Developed as the entry for a Smart India Hackathon team. The repository is hosted under "
-               "a teammate’s account; the version history records <b>57 of 58 commits</b> as mine, and "
+    f.append(B("Developed as <b>Aavaran</b>, the Smart India Hackathon 2026 entry of <b>Team "
+               "Vagabonds</b> — six students of IIM Mumbai. The repository is held in the team’s own "
+               "GitHub organisation; the version history records <b>79 of 80 commits</b> as mine, and "
                "the design decisions, measurements and test methodology described here are my own work."))
     f.append(B("Documented throughout — the architectural decisions are recorded with the measurements "
                "that produced them, so the reasoning is auditable and not only the result."))
