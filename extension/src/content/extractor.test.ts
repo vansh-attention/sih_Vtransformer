@@ -78,4 +78,61 @@ const want: Array<[string, boolean]> = [
 ];
 for (const [label, expect] of want) check(`verdict: ${label}`, verdicts.get(label), expect);
 
+/**
+ * TABLE CONTEXT MUST NOT CARRY ANOTHER ROW'S DATA.
+ *
+ * `querySelector('tr')` returns the first row whether or not it is a header row. In a
+ * header-LESS table that first row is DATA, so every later row was labelled with row
+ * one's values: the order total's context came through as "123456789012 Order Total".
+ *
+ * That breaks the project's own rule — evidence about a value must not come from the
+ * value — and it is not cosmetic. The bank-statement finding was a checksum-valid
+ * total mis-redacted as an Aadhaar number precisely because foreign digits had leaked
+ * into the context string.
+ *
+ * The whole 16-check suite passed both before and after the fix, so nothing covered
+ * this. Both directions are asserted here: header-less falls back to the row label,
+ * and a real <th> row still wins (the `tamil-opaque.html` finding must not regress).
+ *
+ * Rule 4: the expectations below are written out from the markup by hand. They are
+ * never read back from the extractor, so breaking the extractor cannot quietly move
+ * expectation and actual together.
+ */
+console.log('\n--- table context isolation ---');
+{
+  const mk = (markup: string) => {
+    const d = new JSDOM(`<body>${markup}</body>`, { url: 'https://table.test/' });
+    const w = d.window;
+    let n = 0;
+    (w as any).Element.prototype.getBoundingClientRect = function () {
+      n += 20;
+      return { x: 0, y: n, width: 120, height: 18, top: n, left: 0, right: 120, bottom: n + 18, toJSON(){} } as DOMRect;
+    };
+    globalThis.Node = w.Node; globalThis.CSS = w.CSS;
+    globalThis.getComputedStyle = (el: Element) => w.getComputedStyle(el);
+    extractPage(w.document, { maxNodes: 500 });
+    return (id: string) => signalsFor(w.document.getElementById(id) as Element)?.contextLabel;
+  };
+
+  // No <th> anywhere: row 1 is data and must never be read as headers.
+  const headerless = mk(`<table>
+    <tr><td>Order Number</td><td id="h1">123456789012</td></tr>
+    <tr><td>Order Total</td><td id="h2">999999999999</td></tr>
+    <tr><td>Tracking (AWB)</td><td id="h3">4539578763621486</td></tr></table>`);
+  check('header-less row 1 takes its row label', headerless('h1'), 'Order Number');
+  check('header-less row 2 takes its row label', headerless('h2'), 'Order Total');
+  check('header-less row 3 takes its row label', headerless('h3'), 'Tracking (AWB)');
+  for (const [id, foreign] of [['h2', '123456789012'], ['h3', '123456789012']] as const) {
+    check(`${id} context free of row 1's data`, (headerless(id) ?? '').includes(foreign), false);
+  }
+
+  // A real <th> row still supplies the column header, alongside the row label.
+  const headed = mk(`<table>
+    <tr><th>Description</th><th>Number</th></tr>
+    <tr><td>Order Total</td><td id="t1">999999999999</td></tr></table>`);
+  const t1 = headed('t1') ?? '';
+  check('<th> column header is used',  t1.includes('Number'),      true);
+  check('row label kept alongside it', t1.includes('Order Total'), true);
+}
+
 console.log(fail ? `\n${fail} FAILURES` : '\nall extractor cases pass');

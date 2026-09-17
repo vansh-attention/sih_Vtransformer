@@ -342,7 +342,23 @@ function contextLabelFor(el: Element): string | undefined {
 
     let columnHeader = '';
     const headerRow = row.closest('table')?.querySelector('tr');
-    if (headerRow && headerRow !== row) {
+    /**
+     * The first <tr> is only a HEADER row if it actually contains <th> cells.
+     *
+     * Without this check a header-LESS table has its first data row read as headers, so
+     * every later row is labelled with row 1's VALUES: in `checkout.html` the order
+     * total came through as "123456789012 Order Total" — the order number, which is
+     * another cell's data, pasted into this cell's evidence.
+     *
+     * That is rule "evidence about a value must not come from the value", broken by the
+     * change that was written to enforce it. It is not cosmetic: the bank-statement
+     * finding was a checksum-valid total mis-redacted as an Aadhaar number precisely
+     * because the context string carried foreign digits.
+     *
+     * Header-less tables must fall back to the row label alone, which is what the
+     * corpus did by accident before `tamil-opaque.html` introduced a real <th> row.
+     */
+    if (headerRow && headerRow !== row && headerRow.querySelector('th')) {
       let i = 0;
       for (let h = headerRow.firstElementChild; h; h = h.nextElementSibling, i++) {
         if (i === index) {
@@ -464,6 +480,8 @@ export interface ExtractResult {
    * the payload for us to redact — so the screenshot must be withheld.
    */
   piiBeyondTextCap: boolean;
+  /** PII-shaped content sits below the node budget, so it was never extracted. */
+  piiBeyondNodeCap: boolean;
   /**
    * Visible regions whose CONTENT we never read: frames.
    *
@@ -502,6 +520,10 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
 
   let count = 0;
   let truncated = false;
+  // Set only during the form-control rescue below, so `walk` will describe an element
+  // the budget has already refused. Safe because a form control has no tree beneath it:
+  // an <input> has no children and a <select>'s <option>s are skipped by SKIP_TAGS.
+  let rescuing = false;
   const visionQueue: ElementId[] = [];
   // Custom elements whose contents we could not read. Reported, never ignored: their
   // values may be on screen and therefore in the screenshot.
@@ -510,7 +532,7 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
   const unreadableRegions: Array<{ x: number; y: number; w: number; h: number }> = [];
 
   function walk(el: Element): ElementNode | null {
-    if (count >= maxNodes) { truncated = true; return null; }
+    if (!rescuing && count >= maxNodes) { truncated = true; return null; }
     if (SKIP_TAGS.has(el.tagName.toLowerCase())) return null;
 
     // Genuinely hidden subtrees are skipped wholesale: a closed menu holds hundreds of
@@ -593,7 +615,7 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
     // Over budget AND carrying nothing: drop it. A node that is holding kept children
     // must survive, or the whole tree collapses to nothing the moment the budget is
     // reached — which is exactly what happened when this check was unconditional.
-    if (count >= maxNodes && children.length === 0) { truncated = true; return null; }
+    if (!rescuing && count >= maxNodes && children.length === 0) { truncated = true; return null; }
     count++;
     const id = idFor(el);
     if (needsVision(el)) visionQueue.push(id);
@@ -670,6 +692,55 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
     visible: true, enabled: true,
   };
 
+  /**
+   * RESCUE THE FORM CONTROLS THE BUDGET THREW AWAY.
+   *
+   * The node budget exists to stop an unbounded tree on a heavy page wrecking the
+   * resource score. It does that by walking in document order and stopping at the cap,
+   * which spends the whole allowance on whatever happens to come first. On a real page
+   * that is layout: the MyGov capture has 2,638 elements, of which 1,009 are divs, 541
+   * spans and 379 links, and exactly FIFTEEN are form controls.
+   *
+   * So the budget was being consumed by scaffolding while the fields that actually hold
+   * a PAN or an Aadhaar fell off the end. Measured on the ten-page wild corpus, every
+   * one of the seven missed values sat on one of the two pages that exceeded the cap.
+   *
+   * Form controls and buttons are rescued unconditionally. There are never many of
+   * them, they are the entire point, and a dropped Submit is worse than a dropped
+   * field: the agent can read a page it cannot act on, which scores zero on the task
+   * whatever else it gets right. Fifteen extra nodes on a 2,638-element page is a rounding
+   * error against the resource score; seven missed personal values is not.
+   *
+   * They are appended at the root rather than in place. Their true position in the tree
+   * is gone with the budget, and inventing one would be worse than admitting the node is
+   * flat: `contextLabel` still carries the field's own label, which is what the
+   * classifier reads.
+   */
+  const rescued: ElementNode[] = [];
+  const emitted = new Set<ElementId>();
+  (function collect(n: ElementNode) {
+    emitted.add(n.id);
+    n.children?.forEach(collect);
+  })(root);
+
+  if (truncated) {
+    for (const el of Array.from(doc.querySelectorAll('input, select, textarea, button, [role="button"]'))) {
+      if (rescued.length >= 120) break;      // still bounded, just generously
+      const existing = idByElement.get(el);
+      if (existing && emitted.has(existing)) continue;
+      if (isHidden(el)) continue;
+      rescuing = true;
+      const node = walk(el);
+      rescuing = false;
+      if (node) rescued.push(node);
+      else if (process?.env?.SIH_DEBUG) console.error('rescue: walk returned null for', el.id);
+    }
+    if (rescued.length) {
+      // No manual increment: walk() already counted each of these as it built them.
+      root.children = [...(root.children ?? []), ...rescued];
+    }
+  }
+
   return {
     structure: {
       url: doc.location.href,
@@ -686,5 +757,70 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
     // Check the DISCARDED tails only. Cheap, because truncation is rare, and it turns a
     // silent leak into a visible decision.
     piiBeyondTextCap: truncatedText.some((t) => scanText(t.slice(2000)).some((d) => d.verified)),
+    /**
+     * THE SAME QUESTION FOR THE NODE BUDGET.
+     *
+     * `piiBeyondTextCap` covers text cut short inside a node we kept. It says nothing
+     * about the nodes we never reached: when a page exceeds `maxNodes` the walk simply
+     * stops, and everything below the cap is invisible to the redactor while remaining
+     * perfectly visible on screen -- and in the screenshot, which was transmitted
+     * regardless, because the withholding rules upstream never looked at `truncated`.
+     *
+     * That is the fifth-leak shape for the sixth time: content on screen but not in the
+     * payload, with the image carrying it anyway. It was found by the wild corpus on its
+     * first run. The Wikipedia capture is 5,993 nodes against a 1,500 budget, so an
+     * injected block of a GSTIN, a name and an email sat below the cap, went unextracted,
+     * and would have been photographed and sent.
+     *
+     * Withholding on `truncated` alone would be far too blunt, since almost every large
+     * real page truncates and the screenshot is 25% of the grade. So ask the narrower
+     * question the text cap already asks: is there anything PII-SHAPED in the part we
+     * did not reach? Only then is the image unsafe.
+     *
+     * Deliberately a cheap text scan of the discarded remainder, not a second walk: this
+     * runs on every turn, and `Array.from(el.children)` per node cost 8,644ms against
+     * 4ms for the sibling iteration this avoids repeating.
+     */
+    piiBeyondNodeCap: truncated && (() => {
+      try {
+        const seen = new Set<string>();
+        (function collect(n: ElementNode) {
+          seen.add(n.id);
+          n.children?.forEach(collect);
+        })(root);
+        /**
+         * Scan as we go, and look at FORM CONTROLS FIRST.
+         *
+         * The first version collected candidate text into an array and scanned it
+         * afterwards, bounded at 400 entries. On the Wikipedia capture that bound was
+         * exhausted by ordinary prose thousands of nodes before reaching the block that
+         * actually held a GSTIN, so the check reported clean on the exact page that
+         * motivated it. A guard that runs out of budget before reaching the danger is
+         * worse than no guard, because it also reports success.
+         *
+         * Values live in inputs, so inputs are swept first and prose second, and the
+         * whole thing exits on the first verified hit rather than building a corpus.
+         */
+        const unseen = (el: Element) => {
+          const id = idByElement.get(el);
+          return !(id && seen.has(id));
+        };
+        let budget = 4000;
+        for (const sel of ['input, textarea, select', 'td, dd, span, p, li']) {
+          for (const el of Array.from(doc.querySelectorAll(sel))) {
+            if (budget-- <= 0) return true;    // fail closed when we run out of room
+            if (!unseen(el)) continue;
+            const v = (el as HTMLInputElement).value ?? '';
+            if (v && scanText(v).some((d) => d.verified)) return true;
+            const t = directText(el);
+            if (t && scanText(t).some((d) => d.verified)) return true;
+          }
+        }
+        return false;
+      } catch {
+        // Fail closed: if we cannot tell what was missed, assume the worst.
+        return true;
+      }
+    })(),
   };
 }
