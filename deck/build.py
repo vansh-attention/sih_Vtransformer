@@ -38,12 +38,20 @@ GREEN = RGBColor(0x1B, 0x7A, 0x3D)
 GREY = RGBColor(0x53, 0x5C, 0x6B)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 
-# Fields only the SIH portal can supply. Rendered in amber with guillemets so they are
-# impossible to miss on a final read-through.
+# Rendered in amber with guillemets so anything still missing is impossible to miss on a
+# final read-through. Only ONE field is genuinely unknowable before registration.
 PLACEHOLDER = "«{}»"
-TEAM_NAME = "Vagabonds"   # settled 17 Sep. Team ID and Theme still come from the portal.
-TEAM_ID = PLACEHOLDER.format("Team ID")
-THEME = PLACEHOLDER.format("Theme from portal")
+TEAM_NAME = "Vagabonds"          # settled 17 Sep
+PROJECT = "Aavaran"              # the project is presented under this name (his call, 18 Sep)
+# Slide 2's heading in the template reads "IDEA TITLE" — a fill-in, like slide 1's
+# "TITLE PAGE". Slides 3-6 carry real section headings and are left alone.
+# ⚠ HARSH: this line is mine, not yours. Change the string if you want different words.
+IDEA_TITLE = "REDACT BEFORE YOU SEND"
+THEME = "Smart Automation"       # a property of the PROBLEM STATEMENT, not of the team.
+# It is printed on SIH26171's own page on sih.gov.in and was captured 11 Sep; see
+# outreach/WHO-OWNS-WHAT.md, which called it "confirmed". It was wrongly left as a
+# placeholder here until 18 Sep because it had been lumped in with Team ID.
+TEAM_ID = PLACEHOLDER.format("Team ID")   # the ONLY one. Issued when the team registers.
 
 
 def clear_body(slide, keep_titles=True):
@@ -139,6 +147,14 @@ def main():
     # ---------------- slide 1: title ----------------
     s = prs.slides[0]
     for shape in list(s.shapes):
+        # The template's own title placeholder reads "TITLE PAGE" — that is what it is
+        # for. Replace the RUN's text, not the frame's, so Times New Roman and the
+        # template's sizing survive; setting text_frame.text would drop both.
+        if shape.has_text_frame and shape.text_frame.text.strip() == "TITLE PAGE":
+            for para in shape.text_frame.paragraphs:
+                for r in para.runs:
+                    r.text = PROJECT.upper()
+            continue
         if shape.has_text_frame and "Problem Statement ID" in shape.text_frame.text:
             tf = shape.text_frame
             tf.clear()
@@ -150,6 +166,7 @@ def main():
                 ("PS Category – ", "Software"),
                 ("Team ID – ", TEAM_ID),
                 ("Team Name – ", TEAM_NAME),
+                ("Solution – ", PROJECT),
             ]
             for i, (label, value) in enumerate(rows):
                 p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
@@ -162,9 +179,19 @@ def main():
 
     # ---------------- slide 2: idea ----------------
     s = prs.slides[1]
+    for shape in list(s.shapes):
+        if shape.has_text_frame and shape.text_frame.text.strip() == "IDEA TITLE":
+            # This placeholder has TWO runs — a vertical-tab line break, then the words.
+            # Replace only the run holding the words: setting both doubles the string
+            # past clear_body's 40-char title test, and clear_body then DELETES the
+            # heading instead of keeping it. That failed silently once.
+            for para in shape.text_frame.paragraphs:
+                for r in para.runs:
+                    if "IDEA TITLE" in r.text:
+                        r.text = r.text.replace("IDEA TITLE", IDEA_TITLE)
     clear_body(s)
     textbox(s, 0.55, 1.30, 6.05, 5.4, [
-        ("An AI agent that reads your screen — without your personal "
+        (f"{PROJECT} — an AI agent that reads your screen, without your personal "
          "data ever leaving the machine.", 17, True, INDIGO, 10),
         ("An agent is only useful if it can see the screen. Your screen holds your "
          "PAN, Aadhaar, card and an open password field. Today you accept an "
