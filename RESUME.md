@@ -316,9 +316,10 @@ is public and no longer sends her to a 404: it now says it is private while the 
 working in it and offers to add her or make it public on request. **Do not flip it to
 public without asking.**
 
-✅ **PROJECT NAME: Aavaran.** His decision, 17 Sep. **Project name only** — he did NOT
-say Aavaran is the team name, so the SIH portal Team Name field is still open and is his
-to fill. Applied to: report cover (`AAVARAN` above the title) and abstract, the email
+✅ **NAMES ARE ALL SETTLED (17 Sep). Team = Vagabonds. Project = Aavaran.**
+Org `AavaranAI`, repo `AavaranAI/Aavaran`. Do not reopen any of these.
+`TEAM` and `PROJECT` in `build-project-report.py` and `TEAM_NAME` in `deck/build.py` are
+the single sources. **Team ID and Theme are still portal placeholders in the deck.** Applied to: report cover (`AAVARAN` above the title) and abstract, the email
 subject and body, both browser manifests, the panel heading, the zip readme, `why.html`
 and the team documents. `PROJECT` in `build-project-report.py` is the single source.
 

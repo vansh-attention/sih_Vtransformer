@@ -254,6 +254,7 @@ def table(rows, widths, align_from=1, header=True):
 # veil, and idiomatically a screen, which is close enough to what the system does to be
 # worth the double meaning.
 PROJECT = "Aavaran"
+TEAM = "Vagabonds"   # settled 17 Sep; the portal field and slide 1 use this too
 TITLE = f"{PROJECT}: On-Device Visual Perception for Light-Weight Browser Agents"
 
 
@@ -261,7 +262,7 @@ def later_pages(canvas, doc):
     canvas.saveState()
     canvas.setFont("Cal", 7.6)
     canvas.setFillColor(LGREY)
-    canvas.drawString(20 * mm, 12 * mm, "SIH26171  ·  IIM Mumbai")
+    canvas.drawString(20 * mm, 12 * mm, f"SIH26171  ·  Team {TEAM}  ·  IIM Mumbai")
     canvas.drawRightString(A4[0] - 20 * mm, 12 * mm, f"{canvas.getPageNumber()}")
     canvas.setStrokeColor(RULE)
     canvas.setLineWidth(0.4)
@@ -279,7 +280,7 @@ def first_page(canvas, doc):
 
 def build():
     doc = BaseDocTemplate(OUT, pagesize=A4, title=TITLE,
-                          author="Team submission, IIM Mumbai",
+                          author=f"Team {TEAM}, IIM Mumbai",
                           subject="Smart India Hackathon 2026 — SIH26171",
                           leftMargin=20 * mm, rightMargin=20 * mm,
                           topMargin=20 * mm, bottomMargin=20 * mm)
@@ -308,8 +309,8 @@ def build():
         "Department of Space (ISRO) &nbsp;·&nbsp; Software &nbsp;·&nbsp; Smart Automation<br/>"
         "Smart India Hackathon 2026", S["tm"]))
     a(Spacer(1, 12 * mm))
-    a(Paragraph("Submitted for team nomination<br/><b>Indian Institute of Management Mumbai</b>",
-                S["tm"]))
+    a(Paragraph(f"Submitted for team nomination by <b>Team {TEAM}</b><br/>"
+                "<b>Indian Institute of Management Mumbai</b>", S["tm"]))
     a(Spacer(1, 12 * mm))
 
     # Interleaved deliberately rather than grouped by the kind of work. Listing the

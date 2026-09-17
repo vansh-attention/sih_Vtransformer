@@ -1,5 +1,7 @@
 # Please break Aavaran
 
+*Team Vagabonds · problem statement SIH26171*
+
 Five of you, five different laptops, five sets of websites we have never seen. That is
 worth more to this project than anything we can do on one machine, and it is the only
 way to find out what Ma'am will hit before she hits it.
@@ -128,7 +130,6 @@ finding too, because the same sentence will lose somebody on a jury.
 | **Everyone** | Your yes on the email draft | It goes to Ma'am with all six names on it |
 | **Vansh, Manas** | `./test-all.sh` output from your machine | Proves it is not just working on one laptop |
 | **Vansh** | The repository moved to a team organisation | Only the owner can do it, and it is currently under a personal account |
-| **Everyone** | Team name and project name | The portal needs both and nothing else is blocked on us |
 
 The portal closes **30 September**. Everything above is small; it is the waiting that is
 expensive.

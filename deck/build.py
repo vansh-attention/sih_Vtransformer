@@ -41,7 +41,7 @@ WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 # Fields only the SIH portal can supply. Rendered in amber with guillemets so they are
 # impossible to miss on a final read-through.
 PLACEHOLDER = "«{}»"
-TEAM_NAME = PLACEHOLDER.format("Team Name")
+TEAM_NAME = "Vagabonds"   # settled 17 Sep. Team ID and Theme still come from the portal.
 TEAM_ID = PLACEHOLDER.format("Team ID")
 THEME = PLACEHOLDER.format("Theme from portal")
 

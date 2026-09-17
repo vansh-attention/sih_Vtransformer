@@ -1,5 +1,7 @@
 # What each of us owns, and the first thing to do
 
+*Team Vagabonds · Aavaran · problem statement SIH26171*
+
 This explains every person's part of the project, written so it makes sense with no
 technical background at all. For each person: what the thing actually is, what you own,
 the first concrete task, and what you can say when somebody asks.

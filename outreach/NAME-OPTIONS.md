@@ -1,4 +1,15 @@
-# Names to discuss
+# Names: all three are settled
+
+| Field | Value |
+|---|---|
+| **Team name** | **Vagabonds** |
+| **Project name** | **Aavaran** |
+| **GitHub org** | `AavaranAI` |
+| **Repository** | `AavaranAI/Aavaran` |
+
+Everything below is the reasoning that led there, kept so nobody has to reopen it.
+
+## The original discussion
 
 Three separate things need names, and they do not have to match.
 
@@ -80,7 +91,10 @@ that every number can be reproduced and that the weak ones are stated rather tha
 | **Aarambh** | "beginning" | You are the first BS-DSBM batch at IIM Mumbai. True, and nobody else can claim it |
 | **Setu** | "bridge" | In the register of *Bhasha Setu*, a 2024 winner. Short, easy to say, easy to remember |
 
-**Pick: Pramaan.** It is the only one that says something specific and true about how this
+**What was picked: Vagabonds.** The reasoning below is left as written rather than
+rewritten after the fact.
+
+**Pick at the time: Pramaan.** It is the only one that says something specific and true about how this
 project was built, it is in the register that shows up most among winners, and it does not
 collide with Aavaran. Say it once at the start of the pitch and it frames everything after.
 
@@ -114,7 +128,7 @@ portal and pick something else for the org, or add a suffix like `anveshan-iimm`
 | **Project name** | Aavaran | Decided. On the report cover, in the extension, the panel and the demo |
 | **GitHub org** | `AavaranAI` | Done |
 | **Repository** | `AavaranAI/Aavaran` | Done |
-| **Team name** | still open | **The one thing left.** SIH portal and deck slide 1 |
+| **Team name** | Vagabonds | Decided. On the report cover and footer, the email, and deck slide 1 |
 
 The team name has no constraint at all. It does not need to be free on GitHub, it does not
 need to match the project, and it can be a word somebody else has already used.

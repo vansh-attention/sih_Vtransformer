@@ -268,7 +268,7 @@ def build(src):
         canvas.saveState()
         canvas.setFont("Cal", 7.6)
         canvas.setFillColor(LGREY)
-        canvas.drawString(20 * mm, 12 * mm, "SIH26171  ·  for the team")
+        canvas.drawString(20 * mm, 12 * mm, "SIH26171  ·  Team Vagabonds")
         canvas.drawRightString(A4[0] - 20 * mm, 12 * mm, str(canvas.getPageNumber()))
         canvas.setStrokeColor(RULE)
         canvas.setLineWidth(0.4)

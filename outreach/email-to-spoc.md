@@ -22,9 +22,9 @@ that one address will bounce and the rest will go through.
 
 Respected Ma'am,
 
-I am Harsh Bajpai, BS-DSBM 2026-30, roll number 260125. I am writing on behalf of six
-students of the institute who have built a working entry for Smart India Hackathon 2026,
-and who would like to be nominated for it.
+I am Harsh Bajpai, BS-DSBM 2026-30, roll number 260125. I am writing on behalf of Team
+Vagabonds, six students of the institute who have built a working entry for Smart India
+Hackathon 2026 and who would like to be nominated for it.
 
 **The problem.** ISRO's problem statement SIH26171 asks for a browser agent that can read
 a user's screen and act on it without that screen being sent to a server. The obstacle is
