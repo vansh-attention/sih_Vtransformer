@@ -33,3 +33,6 @@ probe*.ts
 
 # Office lock files - appear whenever the deck is opened in PowerPoint
 ~$*
+
+# The unpacked build Chrome loads via "Load unpacked" - a build output, never delete it
+demo/privacy-agent-extension/
