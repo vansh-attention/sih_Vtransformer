@@ -55,7 +55,7 @@ Three quick things so we can send this to Ma'am:
    are on it, so I am not sending it until everyone has read it
 2. *A team name and a project name.* Options are in NAME-OPTIONS.pdf. Pick a favourite
    each and we will take the most-voted
-3. The repo is now at github.com/AavaranAI/sih_Vtransformer with the full history. Send me
+3. The repo is now at github.com/AavaranAI/Aavaran with the full history. Send me
    your GitHub usernames and I will add you. *Vansh*, could you archive the old one at
    vansh-attention so we do not end up with two versions of the project
 

@@ -8,7 +8,7 @@ happened during development.
 ## T-30 minutes
 
 ```bash
-cd sih_Vtransformer
+cd Aavaran
 git pull && node build.mjs          # never demo a stale build
 ./test-all.sh                       # 16/16 expected; do not demo on red
 ```

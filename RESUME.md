@@ -5,7 +5,8 @@
 ISRO / Department of Space · Software · Smart Automation
 **Idea submission closes 30 Sept 2026** (portal-confirmed, see below) · Grand finale Dec 2026
 Official title: *On-device Visual Perception for Light-weight Browser Agents*
-Repo: `AavaranAI/sih_Vtransformer` — the team org (display name **Aavran**), Harsh is an OWNER.
+Repo: **`AavaranAI/Aavaran`** — the team org, Harsh is an OWNER. Renamed from
+`sih_Vtransformer` on 17 Sep; GitHub redirects the old path but nothing should use it.
 `personal` remote still points at the old `vansh-attention/sih_Vtransformer`.
 Local: `~/sih-browser-agent` · released **v0.1.0**, **v0.1.1**
 
@@ -295,7 +296,8 @@ is the honest number and it is in the report. Leaks remain 0 on all three corpor
 
 ## 🏠 THE REPO LIVES IN THE ORG NOW (17 Sep)
 
-**`github.com/AavaranAI/sih_Vtransformer`** — origin points here, HEAD `c685b9a`,
+**`github.com/AavaranAI/Aavaran`** — origin points here (renamed from
+`sih_Vtransformer` on 17 Sep),
 all 70 commits, both tags, root commit (Vansh's "Initial commit") intact.
 
 - The org was **renamed SIH-vis -> AavaranAI while the move was in progress**. Same org

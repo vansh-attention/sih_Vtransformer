@@ -31,7 +31,17 @@ fi
 
 NEW_PATH="$ORG/$NEW_NAME"
 NEW_URL="https://github.com/$NEW_PATH"
+
+# Where we are coming FROM, read off the remote before it is changed. Every retarget has
+# left the same trail to clean by hand: the clone URL and the "cd <repo>" line under it in
+# README, ONBOARDING, RUNBOOK and the team documents. Three of these in one afternoon is
+# enough to stop doing it by hand.
+OLD_URL="$(git remote get-url origin 2>/dev/null || echo "")"
+OLD_PATH="$(printf '%s' "$OLD_URL" | sed -E 's#^.*github\.com[:/]##; s#\.git$##')"
+OLD_NAME="${OLD_PATH##*/}"
+
 echo "retargeting everything to $NEW_PATH"
+[ -n "$OLD_PATH" ] && echo "  (from $OLD_PATH)"
 echo
 
 # 1. The repository must actually exist before anything advertises it. Checking first
@@ -92,6 +102,17 @@ if "vansh-attention" in text:
     print("  FAIL the old path is still printed somewhere"); sys.exit(1)
 print(f"  ok   report prints {want} and nothing stale")
 PY
+
+# 5. The prose. Leaving this by hand is how a stale clone URL survives a rename: the
+#    report is regenerated and looks right, while README and the team documents still
+#    send a reader to the old address.
+if [ -n "$OLD_PATH" ] && [ "$OLD_PATH" != "$NEW_PATH" ]; then
+  python3 scripts/_sweep-paths.py "$OLD_PATH" "$NEW_PATH" "$OLD_NAME" "$NEW_NAME"
+  for md in outreach/*.md; do
+    [ -f "$md" ] && python3 outreach/build-doc-pdf.py "$md" >/dev/null
+  done
+  echo "  ok   team PDFs rebuilt"
+fi
 
 echo
 echo "done. Remaining by hand:"

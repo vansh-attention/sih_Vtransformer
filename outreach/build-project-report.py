@@ -44,7 +44,7 @@ from reportlab.platypus import (BaseDocTemplate, CondPageBreak, Frame, Image,
 # shared keeps working. When the org exists, change these two lines and rebuild:
 # nothing else in this file refers to the repository.
 REPO_ORG = "AavaranAI"
-REPO_NAME = "sih_Vtransformer"
+REPO_NAME = "Aavaran"
 REPO_PATH = f"{REPO_ORG}/{REPO_NAME}"
 REPO_URL = f"https://github.com/{REPO_PATH}"
 

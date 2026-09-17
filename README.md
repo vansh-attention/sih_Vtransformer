@@ -19,8 +19,8 @@ look like.
 ## Quick start
 
 ```bash
-git clone https://github.com/AavaranAI/sih_Vtransformer.git
-cd sih_Vtransformer
+git clone https://github.com/AavaranAI/Aavaran.git
+cd Aavaran
 ./setup.sh
 ```
 

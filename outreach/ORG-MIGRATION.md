@@ -12,7 +12,7 @@ happened and a short list of what is still outstanding, which is mostly not code
 | | |
 |---|---|
 | **Organisation** | `github.com/AavaranAI` |
-| **Repository** | `github.com/AavaranAI/sih_Vtransformer` |
+| **Repository** | `github.com/AavaranAI/Aavaran` |
 | **Visibility** | **Private** |
 | **History** | All 70 commits, both tags, root commit intact |
 | **Old address** | `vansh-attention/sih_Vtransformer`, still exists, no longer the one we use |

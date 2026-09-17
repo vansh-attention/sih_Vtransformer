@@ -33,8 +33,8 @@ uvicorn is spawned but never binds), so they skip with a message. Everything els
 ## Get it running
 
 ```bash
-git clone https://github.com/AavaranAI/sih_Vtransformer.git
-cd sih_Vtransformer
+git clone https://github.com/AavaranAI/Aavaran.git
+cd Aavaran
 ./setup.sh
 ```
 
