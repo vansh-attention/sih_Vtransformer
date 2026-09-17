@@ -8,7 +8,8 @@ Slack and WhatsApp both render *single asterisks* as bold. Do not use double.
 1. THE ASK  (Slack #general or the WhatsApp group)
 --------------------------------------------------------------------------
 
-Hi all, the SIH build is ready to be tested and I need ten minutes from each of you.
+Hi all, the name is settled: the project is *Aavaran*. The build is ready to be tested
+and I need ten minutes from each of you.
 
 *Please try to break it.* That is not a figure of speech. Five of us on five laptops
 testing five websites we have never seen is worth more than anything I can do on mine,

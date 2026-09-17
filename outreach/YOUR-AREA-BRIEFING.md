@@ -131,7 +131,7 @@ it runs on machines that are not ours.
 
 **Numbers to know cold**
 
-- **23 checks** total, **17 need no browser** and run in about a minute
+- **24 checks** total, **17 need no browser** and run in about a minute
 - **3 operating systems**, **2 tagged releases**, setup is **one command**
 
 **Q and A**

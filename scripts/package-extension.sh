@@ -61,7 +61,7 @@ node demo/build-story.mjs >/dev/null
 cp demo/why.html "$STAGE/why.html"
 
 cat > "$STAGE/READ-ME-FIRST.txt" <<'TXT'
-Privacy Agent - SIH26171
+Aavaran - SIH26171
 On-Device Visual Perception for Light-Weight Browser Agents
 
 

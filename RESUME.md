@@ -22,7 +22,7 @@ Local: `~/sih-browser-agent` · released **v0.1.0**, **v0.1.1**
 ```bash
 ./setup.sh             # clone -> working, one command
 ./test-all.sh          # 17 checks, no browser needed
-./test-all.sh --full   # 23 checks: + real browsers + live model
+./test-all.sh --full   # 24 checks: + real browsers + live model
 ```
 
 **17 Sep: `--full` ran 23/23, 0 skipped**, live model and
@@ -308,15 +308,20 @@ all 70 commits, both tags, root commit (Vansh's "Initial commit") intact.
 - `retarget-repo.sh` now checks reachability with `gh` — the old unauthenticated curl
   reports 404 for a private repo that exists perfectly well.
 
-⛔ **THE REPO IS PRIVATE AND THE REPORT'S LAST PAGE INVITES HER TO CLONE IT.** She would
-get a 404, which reads as a dead link, not a permission setting. Decide before the email
-goes out; options are in `outreach/ORG-MIGRATION.md`. Recommendation: make it public,
-there is nothing sensitive in it.
+✅ **STAYS PRIVATE — his decision, 17 Sep.** Team members only for now; an invite to
+Dr. Sarkar comes "at later stages". The report's appendix no longer claims the repository
+is public and no longer sends her to a 404: it now says it is private while the team is
+working in it and offers to add her or make it public on request. **Do not flip it to
+public without asking.**
 
-⚠ **Project name finalised as Aavaran** (org login `AavaranAI`; it was option 1 in
-`NAME-OPTIONS.md`, Sanskrit for covering/veil). The org's *display name* still reads
-"Aavran", which is a different spelling. **Nothing in the documents carries the name yet**
-— the report, email and deck still have no project name in them.
+✅ **PROJECT NAME: Aavaran.** His decision, 17 Sep. **Project name only** — he did NOT
+say Aavaran is the team name, so the SIH portal Team Name field is still open and is his
+to fill. Applied to: report cover (`AAVARAN` above the title) and abstract, the email
+subject and body, both browser manifests, the panel heading, the zip readme, `why.html`
+and the team documents. `PROJECT` in `build-project-report.py` is the single source.
+
+⚠ The org's GitHub **display name still reads "Aavran"**, a different spelling from the
+login `AavaranAI`. Worth him fixing in org settings.
 
 ---
 

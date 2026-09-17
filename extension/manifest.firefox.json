@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Privacy-Preserving Browser Agent (SIH26171)",
+  "name": "Aavaran: Privacy-Preserving Browser Agent",
   "version": "0.1.0",
   "description": "On-device visual perception with client-side PII redaction before any network request.",
   "permissions": [

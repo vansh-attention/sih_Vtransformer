@@ -18,7 +18,7 @@ that one address will bounce and the rest will go through.
 
 ---
 
-**Subject:** SIH 2026 nomination: privacy-preserving browser agent for ISRO (PS SIH26171)
+**Subject:** SIH 2026 nomination: Aavaran, a privacy-preserving browser agent for ISRO (PS SIH26171)
 
 Respected Ma'am,
 
@@ -32,7 +32,7 @@ that an agent which cannot see a field cannot act on it either, so blurring the 
 disables the agent, and redacting at the server concedes the point, because the data has
 already crossed the network by then.
 
-**What we built.** A Chrome and Firefox extension in which a small model runs inside the
+**What we built.** Aavaran, a Chrome and Firefox extension in which a small model runs inside the
 browser, reads the page, and replaces every PAN, Aadhaar number, card number, password
 and face with a typed tag before any network request is made. An open-weight
 vision-language model then reasons over the censored page and returns one action, which
@@ -44,9 +44,9 @@ rather than from trusting whoever runs the server.
 **Where it stands.** It runs today on Chrome and Firefox across Windows, macOS and Linux.
 Against a held-out set of pages it was never tuned on, it redacts every personal value
 with no false positives and leaks nothing. It completes a real multi-step task, filling
-and submitting a three-field government-style form, in about half a minute end to end. Twenty-one
-checks run on every push across three operating systems, and every number in the attached
-report can be reproduced from the repository with one command.
+and submitting a three-field government-style form, in about half a minute end to end. Seventeen
+checks run on every push across Windows, macOS and Linux, and every number in the
+attached report can be reproduced from the repository with one command.
 
 The report sets out the architecture, the results against ISRO's own published marking
 scheme, and, just as importantly, the defects we found in our own work and the claims we

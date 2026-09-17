@@ -123,6 +123,8 @@ S = {
                            leading=13, textColor=NAVY),
     "mono": ParagraphStyle("m", fontName="Courier", fontSize=8.2, leading=11.2,
                            textColor=INK),
+    "tn": ParagraphStyle("tn", fontName="Cal-B", fontSize=13, leading=17,
+                         textColor=NAVY, alignment=TA_CENTER),
     "tt": ParagraphStyle("tt", fontName="Cam-B", fontSize=20, leading=25,
                          textColor=INK, alignment=TA_CENTER),
     "ts": ParagraphStyle("ts", fontName="Cam-I", fontSize=12, leading=16,
@@ -248,7 +250,11 @@ def table(rows, widths, align_from=1, header=True):
 
 # ---------------------------------------------------------------- page furniture
 
-TITLE = "On-Device Visual Perception for Light-Weight Browser Agents"
+# The project name, settled by the team on 17 Sep. Aavaran is Sanskrit for a covering or
+# veil, and idiomatically a screen, which is close enough to what the system does to be
+# worth the double meaning.
+PROJECT = "Aavaran"
+TITLE = f"{PROJECT}: On-Device Visual Perception for Light-Weight Browser Agents"
 
 
 def later_pages(canvas, doc):
@@ -286,7 +292,12 @@ def build():
     a = story.append
 
     # ------------------------------------------------------------- title page
-    a(Spacer(1, 26 * mm))
+    a(Spacer(1, 24 * mm))
+    # The name sits above the title rather than inside it. A reader skims a cover in
+    # about a second, and one word they can hold on to does more work there than a
+    # thirteen-word title with a colon in the middle of it.
+    a(Paragraph(PROJECT.upper(), S["tn"]))
+    a(Spacer(1, 3))
     a(Paragraph("On-Device Visual Perception<br/>for Light-Weight Browser Agents", S["tt"]))
     a(Spacer(1, 7))
     a(Paragraph("An agent that reads the screen without the screen leaving the machine",
@@ -351,7 +362,7 @@ def build():
         "an Aadhaar number, a card number, a billing address and an open password field, "
         "and every assistant of this kind in wide use today answers the problem by "
         "uploading a screenshot and asking to be trusted."))
-    a(P("So we built one that does not have to be trusted. A small model runs inside the "
+    a(P("So we built one that does not have to be trusted. <b>Aavaran</b> runs a small model inside the "
         "browser, reads the page, and replaces every personal value with a typed tag such as "
         "<font name='Courier' size='9'>&lt;PII_PAN_1&gt;</font> before any network request is "
         "made. A larger open-weight vision-language model then reasons over the censored page "
@@ -883,9 +894,11 @@ def build():
     appendix = []
     ap = appendix.append
     ap(head("Appendix:\u2002 Getting it and checking it"))
-    ap(P("<b>The repository is public, and every number in this report can be reproduced "
-         "from it.</b> Nothing below needs an account, an API key or a network connection "
-         "to us."))
+    ap(P("<b>Every number in this report can be reproduced from the repository</b>, and "
+         "nothing below needs an API key or a network connection to us. The repository is "
+         "private for the moment, while the team is still working in it. We would be glad "
+         "to add you: send us the GitHub account you would like us to use, or ask and we "
+         "will make it public."))
     ap(Spacer(1, 1))
     repo = Table([[Paragraph(
         f"github.com/{REPO_PATH}", S["repo"])]], colWidths=[140 * mm])
@@ -912,7 +925,7 @@ def build():
         "./test-all.sh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
         "<font color='#5A6270'># 17 checks, about a minute, no browser needed</font><br/>"
         "./test-all.sh --full&nbsp;"
-        "<font color='#5A6270'># 23 checks: real browsers and the live model</font>",
+        "<font color='#5A6270'># 24 checks: real browsers and the live model</font>",
         S["mono"])]], colWidths=[140 * mm])
     code.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), SOFT),

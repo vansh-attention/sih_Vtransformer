@@ -1,4 +1,4 @@
-# What we built, explained simply
+# Aavaran: what we built, explained simply
 
 For everyone on the team. No technical background needed. Nothing here assumes you
 have seen the code, and every technical word is explained the first time it appears.

@@ -1,4 +1,4 @@
-# Setup and demonstration
+# Aavaran: setup and demonstration
 
 Two audiences in one document. Part 1 is how to show this to somebody in ten minutes.
 Part 2 is how the team installs and tests it properly.
