@@ -1,6 +1,41 @@
-# SIH 2026 — SIH26171 — On-device Visual Perception for Light-weight Browser Agents
+# SIH 2026 — SIH26171 — Aavaran, by Team Vagabonds
 
 **READ THIS FIRST.**
+
+## ⭐ PICK UP HERE — state at the close of 17 Sep 2026
+
+Everything is committed, pushed and verified. **Nothing is half-finished.** Every open
+item below is waiting on another person, not on the next session.
+
+| | |
+|---|---|
+| **Team** | **Vagabonds** |
+| **Project** | **Aavaran** |
+| **Repo** | `AavaranAI/Aavaran` — **PRIVATE**, HEAD `1d1100e`, tree clean |
+| **Remotes** | `origin` (the org) and `personal` (the old Vansh repo) both in sync |
+| **Suite** | 17 passed, 0 skipped · 24 with `--full` |
+| **Deliverables** | 9 PDFs in `outreach/`, all rebuilt and current |
+| **Zip** | `demo/privacy-agent-extension.zip`, **1.4 MB**, scan-only, emailable |
+| **Deadline** | portal closes **30 Sept 2026** |
+
+**Waiting on people, in priority order:**
+
+1. **Send the test kit** to the team: the zip, `outreach/TEST-THIS.pdf`, and the message
+   in `outreach/message-to-team.txt`
+2. **Everyone's yes on the email draft**, then send `outreach/email-to-spoc.md` to
+   `pujasarkar@iimmumbai.ac.in` with `SIH26171-Project-Report.pdf` attached
+3. **Vansh archives** `vansh-attention/sih_Vtransformer`, or the two copies diverge
+4. **Portal Team ID and Theme** — the last two placeholders, on deck slide 1
+5. Optional: the org's About still reads "vision transfer problem statement of the SIH"
+
+⛔ **The repo stays PRIVATE.** His decision: team members only, invite Dr. Sarkar "at later
+stages". The report no longer claims it is public. **Do not flip it without asking.**
+
+⛔ **Do not reopen the names.** Team Vagabonds, project Aavaran. Both settled 17 Sep.
+
+**Full narrative of the session:** `~/Documents/_SESSION-2026-09-17.md`, Session 3.
+
+---
 
 ISRO / Department of Space · Software · Smart Automation
 **Idea submission closes 30 Sept 2026** (portal-confirmed, see below) · Grand finale Dec 2026
@@ -26,8 +61,8 @@ Local: `~/sih-browser-agent` · released **v0.1.0**, **v0.1.1**
 ./test-all.sh --full   # 24 checks: + real browsers + live model
 ```
 
-**17 Sep: `--full` ran 23/23, 0 skipped**, live model and
-both real browsers included. To reproduce it on this Mac, all three are needed:
+**17 Sep: `--full` ran 23/23, 0 skipped** at the time, live model and both real browsers
+included. The full suite is **24** now; Spikes H and I were added after that run. To reproduce it on this Mac, all three are needed:
 
 ```bash
 ollama serve &                                     # qwen2.5vl:7b, confirmed present
