@@ -5,7 +5,8 @@
 ISRO / Department of Space · Software · Smart Automation
 **Idea submission closes 30 Sept 2026** (portal-confirmed, see below) · Grand finale Dec 2026
 Official title: *On-device Visual Perception for Light-weight Browser Agents*
-Repo: `vansh-attention/sih_Vtransformer` — Vansh's repo, Harsh has WRITE
+Repo: `SIH-vis/sih_Vtransformer` — the team org (display name **Aavran**), Harsh is an OWNER.
+`personal` remote still points at the old `vansh-attention/sih_Vtransformer`.
 Local: `~/sih-browser-agent` · released **v0.1.0**, **v0.1.1**
 
 | file | what it is |

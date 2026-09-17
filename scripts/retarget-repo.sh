@@ -36,13 +36,27 @@ echo
 
 # 1. The repository must actually exist before anything advertises it. Checking first
 #    turns "the report prints a dead link" into a message on this terminal instead.
-code=$(curl -s -o /dev/null -w "%{http_code}" "$NEW_URL")
-if [ "$code" != "200" ]; then
-  echo "  STOP: $NEW_URL is not reachable (HTTP $code)."
-  echo "        Create the org and transfer the repo first; see outreach/ORG-MIGRATION.md."
-  exit 1
+#    An unauthenticated curl was the original check, and it reports 404 for a PRIVATE
+#    repository that exists perfectly well. The org repo is private, so ask GitHub as
+#    ourselves and fall back to curl only when gh is not installed.
+if command -v gh >/dev/null 2>&1; then
+  vis=$(gh api "repos/$NEW_PATH" --jq '.private' 2>/dev/null || echo "missing")
+  case "$vis" in
+    true)  echo "  ok   $NEW_URL exists (PRIVATE — a clone by anyone outside the org will fail)" ;;
+    false) echo "  ok   $NEW_URL exists and is public" ;;
+    *)     echo "  STOP: $NEW_PATH is not reachable as $(gh api user --jq .login 2>/dev/null)."
+           echo "        Create the org and the repo first; see outreach/ORG-MIGRATION.md."
+           exit 1 ;;
+  esac
+else
+  code=$(curl -s -o /dev/null -w "%{http_code}" "$NEW_URL")
+  if [ "$code" != "200" ]; then
+    echo "  STOP: $NEW_URL is not reachable (HTTP $code)."
+    echo "        Install gh if the repository is private; see outreach/ORG-MIGRATION.md."
+    exit 1
+  fi
+  echo "  ok   $NEW_URL is live"
 fi
-echo "  ok   $NEW_URL is live"
 
 # 2. The git remote. A transfer leaves a redirect, so pushes keep working either way,
 #    but an explicit remote stops the old name reappearing in everyone's output.

@@ -43,7 +43,7 @@ from reportlab.platypus import (BaseDocTemplate, CondPageBreak, Frame, Image,
 # tags and the CI history, and leaves a redirect behind, so anything already
 # shared keeps working. When the org exists, change these two lines and rebuild:
 # nothing else in this file refers to the repository.
-REPO_ORG = "vansh-attention"
+REPO_ORG = "SIH-vis"
 REPO_NAME = "sih_Vtransformer"
 REPO_PATH = f"{REPO_ORG}/{REPO_NAME}"
 REPO_URL = f"https://github.com/{REPO_PATH}"

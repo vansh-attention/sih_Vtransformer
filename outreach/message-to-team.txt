@@ -54,8 +54,9 @@ Three quick things so we can send this to Ma'am:
    are on it, so I am not sending it until everyone has read it
 2. *A team name and a project name.* Options are in NAME-OPTIONS.pdf. Pick a favourite
    each and we will take the most-voted
-3. *Vansh:* the repo needs to move from your personal account to a team organisation.
-   Only you can do it and it takes about five minutes. Steps are in ORG-MIGRATION.pdf
+3. The repo is now at github.com/SIH-vis/sih_Vtransformer with the full history. Send me
+   your GitHub usernames and I will add you. *Vansh*, could you archive the old one at
+   vansh-attention so we do not end up with two versions of the project
 
 The portal closes *30 September*. None of this is big; it is the waiting that costs us.
 

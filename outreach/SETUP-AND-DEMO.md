@@ -127,7 +127,7 @@ obscurely.
 ### First run
 
 ```
-git clone https://github.com/vansh-attention/sih_Vtransformer.git
+git clone https://github.com/SIH-vis/sih_Vtransformer.git
 cd sih_Vtransformer
 ./setup.sh
 ./test-all.sh
