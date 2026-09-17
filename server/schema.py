@@ -8,34 +8,78 @@ model is structurally incapable of returning anything else. That matters more th
 sounds: an agent whose output is free-form text needs a parser, and a parser needs
 error handling, and error handling on a 7B model's prose is where agent projects go to
 die. Constrained decoding removes the failure mode instead of handling it.
+
+WHY THE KINDS ARE SPLIT INTO A oneOf
+A `type` action without a value is not an action. The client refuses it, correctly, but
+the refusal costs a whole turn and ended the task outright.
+
+Measured on the multi-step grievance fixture: turn 1 typed the reference number, turn 2
+returned {"kind":"type","target":"el_7"} with no value, the validator refused it, and
+the run stopped two fields short of submitting. A single flat `required` list cannot
+express "value is mandatory, but only for one of the seven kinds", so the schema
+permitted it and constrained decoding faithfully permitted it too.
+
+The first attempt at a fix used JSON Schema `if`/`then`. Ollama ACCEPTED it and
+IGNORED it: the model returned an action carrying `value` but missing `target`, which
+the `then` clause required. llama.cpp's schema-to-grammar conversion silently drops the
+conditional keywords, so the constraint looked stricter without being stricter — the
+same shape as a green test that cannot fail. `oneOf` is converted into a real grammar
+alternation and was verified to hold for both branches before being adopted here.
 """
 
 ACTION_KINDS = ["click", "type", "scroll", "select", "wait", "ask_user", "done"]
+
+# An element id the CLIENT minted this turn ("el_42"). The client rejects anything
+# else, so a hallucinated id fails closed rather than clicking something arbitrary.
+_TARGET = {"type": "string"}
+# Surfaced in the Privacy Ledger so the user can see WHY the agent did something.
+_REASONING = {"type": "string"}
+
+# Kinds that put text somewhere. Both the destination and the text are mandatory.
+# `value` may be a literal, or a "<PII_*>" token the client resolves locally at
+# execution time — which is how the model says "put the PAN here" without ever
+# having seen a PAN.
+_TEXT_ACTION = {
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string", "enum": ["type", "select"]},
+        "target": _TARGET,
+        "value": {"type": "string"},
+        "reasoning": _REASONING,
+    },
+    "required": ["kind", "target", "value", "reasoning"],
+}
+
+# Kinds that act on an element but carry no text.
+_TARGET_ACTION = {
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string", "enum": ["click"]},
+        "target": _TARGET,
+        "reasoning": _REASONING,
+    },
+    "required": ["kind", "target", "reasoning"],
+}
+
+# Kinds that need neither a target nor a value.
+_BARE_ACTION = {
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string", "enum": ["scroll", "wait", "ask_user", "done"]},
+        "target": _TARGET,
+        "value": {"type": "string"},
+        "scrollDelta": {"type": "integer"},
+        "reasoning": _REASONING,
+    },
+    "required": ["kind", "reasoning"],
+}
 
 AGENT_RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
         "actions": {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "kind": {"type": "string", "enum": ACTION_KINDS},
-                    # An element id the CLIENT minted this turn ("el_42"). The client
-                    # rejects anything else, so a hallucinated id fails closed rather
-                    # than clicking something arbitrary.
-                    "target": {"type": "string"},
-                    # Literal text, or a "<PII_*>" token the client resolves locally at
-                    # execution time. This is how the model can say "put the PAN here"
-                    # while never having seen a PAN.
-                    "value": {"type": "string"},
-                    "scrollDelta": {"type": "integer"},
-                    # Surfaced in the Privacy Ledger so the user can see WHY the agent
-                    # did something, not just that it did.
-                    "reasoning": {"type": "string"},
-                },
-                "required": ["kind", "reasoning"],
-            },
+            "items": {"oneOf": [_TEXT_ACTION, _TARGET_ACTION, _BARE_ACTION]},
         },
         "needsMoreContext": {"type": "boolean"},
     },

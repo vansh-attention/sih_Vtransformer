@@ -335,6 +335,14 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
   const progress = opts.onProgress ?? (() => {});
   const history: AgentAction[] = [];
   const records: TurnRecord[] = [];
+  // Consecutive turns in which every proposed action was refused.
+  let refusedTurns = 0;
+  // Elements we have already acted on successfully. Used to tell "the model is
+  // confused" apart from "the work is done and the button has gone dead".
+  const actedOn = new Set<string>();
+  // Every action that actually ran. Lets the validator refuse an exact repeat, which is
+  // what the model proposes once the task is finished.
+  const executed: AgentAction[] = [];
 
   const stopped = () => opts.shouldStop?.() === true;
 
@@ -382,19 +390,25 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
      */
     const unreadable: string[] = obs.closedShadowHosts ?? [];
     const piiOffPayload: boolean = obs.piiBeyondTextCap === true;
+    // Same question for the node budget: content below the cap was never extracted,
+    // so it is on screen, absent from the payload, and would be photographed anyway.
+    const piiOffNodeCap: boolean = obs.piiBeyondNodeCap === true;
 
     let vision: Awaited<ReturnType<typeof captureAndRedact>>;
     if (unreadable.length > 0) {
       vision = { faces: 0, visionMs: 0,
         error: `screenshot withheld: ${unreadable.join(', ')} could not be read, `
              + 'so its on-screen contents cannot be redacted' };
-    } else if (piiOffPayload) {
+    } else if (piiOffPayload || piiOffNodeCap) {
       // Text was cut short and the discarded part held something PII-shaped. It is on
       // screen, so a screenshot would carry it, and it is not in the payload for us to
       // redact. Withhold the image.
       vision = { faces: 0, visionMs: 0,
-        error: 'screenshot withheld: PII-shaped content sits beyond the text cap, '
-             + 'so it is visible on screen but not present in the payload to redact' };
+        error: piiOffNodeCap
+          ? 'screenshot withheld: the page exceeded the node budget and PII-shaped '
+            + 'content sits below the cap, visible on screen but never extracted'
+          : 'screenshot withheld: PII-shaped content sits beyond the text cap, '
+            + 'so it is visible on screen but not present in the payload to redact' };
     } else if ((obs.visionQueue?.length ?? 0) === 0) {
       /**
        * NO SCREENSHOT WHEN THE DOM ALREADY SAYS EVERYTHING.
@@ -444,7 +458,7 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
     const actions: AgentAction[] = (reply.actions as AgentAction[]) ?? [];
 
     progress({ turn, phase: 'validating' });
-    const report = validateActions(actions, payload);
+    const report = validateActions(actions, payload, executed);
 
     if (stopped()) return { records, stopReason: 'stopped-by-user' };
 
@@ -501,6 +515,25 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
 
     history.push(...report.allowed);
 
+    /**
+     * REFUSALS MUST REACH THE MODEL.
+     *
+     * Only allowed actions used to enter the history, so a refused action was invisible
+     * to the next turn: the model proposed it, never learned it had been rejected, and
+     * proposed it again. The old comment below justified stopping on the grounds that
+     * "another identical turn would produce the same refusals" — which was true, but
+     * only because the refusal was being withheld from the one participant who could
+     * act on it. The assumption made itself true.
+     *
+     * Measured on the multi-step grievance fixture: the model kept trying to set a
+     * dropdown by clicking or typing, was refused each time, and the run ended having
+     * filled two fields of three. The refusal text already explains exactly what to do
+     * instead, including the permitted values.
+     */
+    for (const d of report.denied) {
+      history.push({ ...d.action, reasoning: `REFUSED (${d.reason}) — do not repeat this` });
+    }
+
     if (report.allowed.some((a) => a.kind === 'done')) {
       progress({ turn, phase: 'done' });
       return { records, stopReason: 'goal-complete' };
@@ -510,16 +543,46 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
       progress({ turn, phase: 'acting', detail: 'page navigated' });
       await new Promise((r) => setTimeout(r, 1200));
     }
-    // Nothing survived validation — another identical turn would produce the same
-    // refusals, so stop rather than spin.
+    /**
+     * A turn where nothing survived validation is a setback, not the end of the task.
+     * Now that the refusal is in the history the next turn is genuinely different, so
+     * the loop is allowed to re-plan. Two consecutive empty turns still stops it: at
+     * that point the model has seen the reason twice and is spinning.
+     */
     if (report.allowed.length === 0) {
+      /**
+       * THE LOOP CANNOT KNOW THE TASK IS DONE, AND MUST NOT GUESS.
+       *
+       * This block previously inferred completion: if every refusal named a control we
+       * had already used, it returned 'goal-complete'. It was measurably wrong. Across
+       * five runs it reported goal-complete twice while the harness, reading the page
+       * afterwards, found the form NOT submitted. An early stop that also claims success
+       * is worse than no optimisation, and it is the same fault as the check in Section
+       * 5.4 that could not tell a finished task from an abandoned one.
+       *
+       * A repeated or dead-on-arrival action means the model is spinning, not that the
+       * work is finished. So the loop stops, saving the wasted turns, and reports
+       * honestly that nothing was executable. Whether the task actually completed is a
+       * question only something looking at the page can answer.
+       */
+      refusedTurns += 1;
       progress({ turn, phase: 'error', detail: report.denied });
-      return {
-        records, stopReason: 'nothing-executable',
-        detail: report.denied.length
-          ? `every proposed action was refused: ${report.denied.map((d) => d.reason).join('; ')}`
-          : 'the model proposed no actions',
-      };
+      if (refusedTurns >= 2 || turn === maxTurns) {
+        return {
+          records, stopReason: 'nothing-executable',
+          detail: report.denied.length
+            ? `every proposed action was refused ${refusedTurns}x: `
+              + report.denied.map((d) => d.reason).join('; ')
+            : 'the model proposed no actions',
+        };
+      }
+      await new Promise((r) => setTimeout(r, 400));
+      continue;
+    }
+    refusedTurns = 0;
+    for (const a of report.allowed) {
+      if (a.target) actedOn.add(a.target);
+      executed.push(a);
     }
 
     await new Promise((r) => setTimeout(r, 600));   // let the page settle

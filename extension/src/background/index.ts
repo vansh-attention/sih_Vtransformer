@@ -376,6 +376,308 @@ async function runSpikeD(imageUrl: string): Promise<Record<string, unknown>> {
   return result;
 }
 
+/**
+ * Spike H — is the text ACTUALLY painted out of the transmitted image?
+ *
+ * This is the last claim in the project that had no measurement behind it. The boxes
+ * are computed, the CSS-px to image-px mapping is asserted at 1x/2x/0.5x, the logic is
+ * unit tested, and `bench/screenshot-leak-test.ts` proves a box is REQUESTED for every
+ * redacted value. None of that proves a box is PAINTED. jsdom has no canvas and no
+ * compositor, so the final leg -- fill, encode, transmit -- only exists in a browser.
+ *
+ * Spike D did this for faces and measured variance falling to about a tenth. Text is a
+ * stronger test, because the repair is a SOLID FILL rather than a blur: inside a mask
+ * the variance should collapse to essentially zero and every sampled pixel should be
+ * the same colour. A blur that leaves text legible would still show structure here.
+ *
+ * Rule 4 governs the coverage check. The number of regions expected is read from
+ * `checkout.truth.json`, which is hand-written ground truth, never from the sanitizer's
+ * own output -- otherwise breaking the sanitizer would drive expectation and actual to
+ * zero together and this spike would pass while masking nothing.
+ */
+async function runSpikeH(pageUrl: string, truthUrl: string): Promise<Record<string, unknown>> {
+  const result: Record<string, unknown> = {};
+
+  // Ground truth first, from a source the implementation cannot move.
+  const truth = await (await fetch(truthUrl)).json();
+  const expectedRedactions = (truth.elements as Array<{ redact?: boolean }>)
+    .filter((e) => e.redact === true).length;
+  result.expectedRedactions = expectedRedactions;
+
+  const tab = await chrome.tabs.create({ url: pageUrl, active: true });
+  const tabId = tab.id!;
+  await new Promise<void>((resolve) => {
+    const l = (id: number, info: chrome.tabs.TabChangeInfo) => {
+      if (id === tabId && info.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(l); resolve();
+      }
+    };
+    chrome.tabs.onUpdated.addListener(l);
+  });
+  await new Promise((r) => setTimeout(r, 500));
+  await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/content.js'] });
+
+  // The production observe path, so this exercises what ships.
+  const obs = await chrome.tabs.sendMessage(tabId, {
+    target: 'content', type: 'observe', goal: 'spike H text masking', history: [],
+  });
+  const boxes = (obs.piiBoxes ?? []) as Array<{ x: number; y: number; w: number; h: number }>;
+  result.boxesRequested = boxes.length;
+
+  const raw = await chrome.tabs.captureVisibleTab(tab.windowId!, { format: 'png' });
+  await ensureOffscreen();
+  const det = await chrome.runtime.sendMessage({
+    target: 'offscreen', type: 'detect-faces', dataUrl: raw, threshold: 0.7, blur: true,
+    maskRegions: boxes, maskViewport: { innerWidth: obs.context.innerWidth,
+                                        innerHeight: obs.context.innerHeight },
+    wantFullFrame: true,
+  });
+  if (det?.error) { result.error = det.error; return result; }
+
+  const masked = det.redactedDataUrl as string | undefined;
+  const applied = (det.maskedBoxes ?? []) as Array<{ x: number; y: number; w: number; h: number }>;
+  result.boxesApplied = applied.length;
+  result.image = { width: det.width, height: det.height };
+  if (!masked || applied.length === 0) {
+    result.verified = false;
+    result.reason = 'no masked frame produced';
+    return result;
+  }
+
+  // Inside every applied region: variance before and after. A solid fill leaves none.
+  const regions: Array<Record<string, unknown>> = [];
+  for (const b of applied) {
+    if (b.w < 4 || b.h < 4) continue;
+    const before = await chrome.runtime.sendMessage({
+      target: 'offscreen', type: 'region-stats', dataUrl: raw, region: b });
+    const after = await chrome.runtime.sendMessage({
+      target: 'offscreen', type: 'region-stats', dataUrl: masked, region: b });
+    regions.push({
+      box: b,
+      varianceBefore: Math.round(before.variance * 10) / 10,
+      varianceAfter: Math.round(after.variance * 10) / 10,
+      // Text on a plain background is high-variance; a solid fill is flat. Anything
+      // still carrying structure has not been covered.
+      flat: after.variance < 1.0,
+      hadDetail: before.variance > 5.0,
+    });
+  }
+  result.regions = regions;
+
+  const checked = regions.filter((r) => r.hadDetail === true);
+  result.regionsWithDetail = checked.length;
+  result.allFlattened = checked.length > 0 && checked.every((r) => r.flat === true);
+
+  // Control points far from every mask must be byte-identical, or the "mask" is just a
+  // global filter that happens to cover the text.
+  const farFrom = (x: number, y: number) => applied.every(
+    (b) => x < b.x - 12 || x > b.x + b.w + 12 || y < b.y - 12 || y > b.y + b.h + 12);
+  const candidates = [
+    ['top-left', 6, 6], ['top-right', det.width - 6, 6],
+    ['bottom-left', 6, det.height - 6], ['bottom-right', det.width - 6, det.height - 6],
+  ] as const;
+  const outside = candidates.filter(([, x, y]) => farFrom(x, y))
+    .map(([name, x, y]) => ({ name, x, y }));
+  const b4 = await chrome.runtime.sendMessage({
+    target: 'offscreen', type: 'sample-pixels', dataUrl: raw, points: outside });
+  const af = await chrome.runtime.sendMessage({
+    target: 'offscreen', type: 'sample-pixels', dataUrl: masked, points: outside });
+  const untouched = outside.map((p, i) => ({
+    name: p.name, before: b4.samples[i].hex, after: af.samples[i].hex,
+    same: b4.samples[i].hex === af.samples[i].hex,
+  }));
+  result.controlPoints = untouched;
+  result.outsideUntouched = untouched.length >= 2 && untouched.every((u) => u.same);
+
+  // COVERAGE, against the hand-written truth file.
+  result.coverageComplete = applied.length >= expectedRedactions;
+  result.verified =
+    result.allFlattened === true &&
+    result.outsideUntouched === true &&
+    result.coverageComplete === true &&
+    checked.length >= 3;
+
+  try { await chrome.tabs.remove(tabId); } catch { /* tab already gone */ }
+  return result;
+}
+
+/**
+ * Spike I - does the scan work on a LIVE website nobody chose in advance?
+ *
+ * Every other measurement in this project runs against a page we captured or wrote.
+ * That is the right way to score, because it needs ground truth, but it cannot answer
+ * the question a sceptic actually asks: does this work on a real site, right now, on
+ * the open internet?
+ *
+ * So this navigates to a page, types realistic values into whatever inputs it happens to
+ * have, and runs the production scan path. The values are ours, because a page has none
+ * of the user's data on it until somebody types some; the markup, the layout, the
+ * frameworks and the sheer noise are entirely the site's.
+ *
+ * It defaults to the Government of India Income Tax e-filing login, because that is the
+ * actual use case: a citizen typing a PAN into a real government portal. The field is
+ * literally named `panAdhaarUserId`. Set SIH_LIVE_URL to point it at the open web instead:
+ * the code path is byte for byte the same, only the address changes. That is the form to
+ * use in front of someone, because the convincing part is that the site was not chosen
+ * by us.
+ */
+async function runSpikeI(liveUrl: string): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = { url: liveUrl };
+  const tab = await chrome.tabs.create({ url: liveUrl, active: true });
+  const tabId = tab.id!;
+
+  /**
+   * WAITING FOR A LIVE PAGE IS NOT THE SAME AS WAITING FOR A LOCAL ONE.
+   *
+   * Two faults showed up the moment this pointed at the open web rather than a file on
+   * disk, and neither can happen locally.
+   *
+   * First, a race. The listener was attached AFTER `tabs.create`, so a page that
+   * finished loading in between was never observed to complete and the spike waited for
+   * an event that had already happened. The current status is therefore checked before
+   * trusting the event.
+   *
+   * Second, no timeout at all. A site that is slow, blocked, or simply never fires
+   * `complete` because something is still streaming would hang until the harness gave
+   * up, and a harness that gives up produces no result and no explanation. It now
+   * proceeds after a bounded wait and records that it did, which is worth far more than
+   * silence: a scan of a partly-loaded page is still a real measurement, and the report
+   * says the page was not fully settled.
+   */
+  const loadedCleanly = await new Promise<boolean>((resolve) => {
+    let settled = false;
+    const finish = (clean: boolean) => {
+      if (settled) return;
+      settled = true;
+      chrome.tabs.onUpdated.removeListener(l);
+      resolve(clean);
+    };
+    const l = (id: number, info: chrome.tabs.TabChangeInfo) => {
+      if (id === tabId && info.status === 'complete') finish(true);
+    };
+    chrome.tabs.onUpdated.addListener(l);
+    // The event may already have fired before this listener existed.
+    void chrome.tabs.get(tabId).then((t) => { if (t.status === 'complete') finish(true); });
+    setTimeout(() => finish(false), 45000);
+  });
+  out.loadedCleanly = loadedCleanly;
+  await new Promise((r) => setTimeout(r, 2500));   // let the site settle
+
+  // Type into whatever the site offers. A PAN is used because it has a fixed shape and
+  // a checksum, so a detection is unambiguous rather than a guess.
+  const typed = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      const vals = ['Vikram Sharma', 'ABCPE1234F', '9845012345'];
+      const boxes = Array.from(document.querySelectorAll('input'))
+        .filter((i) => {
+          const t = (i as HTMLInputElement).type;
+          return !['hidden', 'submit', 'button', 'checkbox', 'radio', 'file'].includes(t);
+        }).slice(0, 3) as HTMLInputElement[];
+      // Record WHAT was typed into, so "not extracted" can be told apart from
+      // "correctly pruned because the box is invisible".
+      const detail = boxes.map((b, i) => {
+        b.value = vals[i % vals.length];
+        b.dispatchEvent(new Event('input', { bubbles: true }));
+        const r = b.getBoundingClientRect();
+        const cs = getComputedStyle(b);
+        return {
+          value: vals[i % vals.length],
+          type: b.type, name: b.name || b.id || '(unnamed)',
+          w: Math.round(r.width), h: Math.round(r.height),
+          visible: r.width > 1 && r.height > 1 && cs.visibility !== 'hidden'
+                   && cs.display !== 'none' && Number(cs.opacity) > 0.05,
+        };
+      });
+      return { filled: boxes.length, totalInputs: document.querySelectorAll('input').length, detail };
+    },
+  });
+  out.typed = typed[0]?.result;
+
+  await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/content.js'] });
+  const obs = await chrome.tabs.sendMessage(tabId, {
+    target: 'content', type: 'observe', goal: 'spike I live scan', history: [],
+  });
+  const prev = await chrome.tabs.sendMessage(tabId, {
+    target: 'content', type: 'ledger-previews' }).catch(() => ({ previews: [] }));
+
+  const body = JSON.stringify(obs.payload ?? {});
+  out.nodeCount = obs.nodeCount;
+  out.truncated = obs.truncated;
+  out.withheld = obs.withheld ?? [];
+  out.previews = prev?.previews ?? [];
+  out.bytes = body.length;
+
+  /**
+   * ACCOUNT FOR EVERY PLANTED VALUE, RATHER THAN COUNTING SILENCE AS SUCCESS.
+   *
+   * The first version asserted only that nothing planted appeared in the payload, and
+   * passed on a run where three values were typed and one was redacted. The other two
+   * were absent because their INPUTS were never extracted, not because they had been
+   * protected. Absence and protection look identical in the bytes, and treating them
+   * alike is how a check comes to certify nothing at all.
+   *
+   * So each value now lands in exactly one of three buckets, and the run only passes if
+   * the third is empty. "Not extracted" is reported rather than rewarded: it is not a
+   * leak, but it is not a success either, and it is worth seeing.
+   */
+  /**
+   * Only judge values that were actually typed. A page with two inputs receives two
+   * values, and marking the third "not extracted" blamed the system for a field that
+   * never existed. The real Income Tax login page has exactly two boxes, and it was
+   * being failed for the phone number it was never given.
+   */
+  const ALL = ['Vikram Sharma', 'ABCPE1234F', '9845012345'];
+  const planted = ALL.slice(0, (out.typed as { filled?: number } | undefined)?.filled ?? 0);
+  const tokens = (prev?.previews ?? []) as Array<{ token: string; masked: string }>;
+  const detail = ((out.typed as { detail?: Array<{ value: string; visible: boolean }> })
+    ?.detail) ?? [];
+  const status = planted.map((v) => {
+    if (body.includes(v)) return { value: v, outcome: 'LEAKED' };
+    // A redacted value leaves a masked shadow whose first two characters match it.
+    const held = tokens.some((t) => v.startsWith(t.masked.slice(0, 2)));
+    if (held) return { value: v, outcome: 'redacted' };
+    /**
+     * An invisible box is SUPPOSED to be dropped. Real sites are full of them: the
+     * Income Tax login page carries a 0x0 `type=image` input beside its real PAN field.
+     * Pruning that is correct behaviour, and counting it as a miss failed a run in which
+     * the one visible field on a government portal was redacted exactly as intended.
+     *
+     * A value that vanished from a VISIBLE box is a different matter entirely, and still
+     * fails the run.
+     */
+    const box = detail.find((d) => d.value === v);
+    if (box && box.visible === false) return { value: v, outcome: 'pruned (hidden)' };
+    return { value: v, outcome: 'not extracted' };
+  });
+  out.perValue = status;
+  out.leaked = status.filter((x) => x.outcome === 'LEAKED').map((x) => x.value);
+  out.redactedCount = status.filter((x) => x.outcome === 'redacted').length;
+  out.notExtractedCount = status.filter((x) => x.outcome === 'not extracted').length;
+  out.prunedCount = status.filter((x) => x.outcome === 'pruned (hidden)').length;
+  /**
+   * A page with no inputs is not a pass and not a failure: there was nothing to test.
+   * Saying so beats both a false green and a confusing red, and it is the honest answer
+   * when someone points this at a page that happens to be all prose.
+   */
+  const filled = (out.typed as { filled?: number } | undefined)?.filled ?? 0;
+  /**
+   * Nothing to test covers two cases, not one. A page with no inputs at all, and a page
+   * whose only inputs are invisible: india.gov.in carries three 0x0 mobile search bars
+   * and nothing else, so every planted value was correctly pruned and none of them could
+   * demonstrate anything. Reporting that as a failure blames the system for the page.
+   */
+  out.nothingToTest = filled === 0
+    || ((out.redactedCount as number) === 0
+        && (out.prunedCount as number) === planted.length);
+  out.verified = (out.leaked as string[]).length === 0
+    && (out.redactedCount as number) > 0
+    && (out.notExtractedCount as number) === 0;
+
+  try { await chrome.tabs.remove(tabId); } catch { /* already gone */ }
+  return out;
+}
+
 async function runAll(): Promise<void> {
   const out: Record<string, unknown> = { at: new Date().toISOString() };
   try {
@@ -405,6 +707,55 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     stopRequested = true;
     stopController.abort();
     sendResponse({ ok: true });
+    return true;
+  }
+
+  /**
+   * SCAN ONLY: prove the privacy claim on ANY site, with no model at all.
+   *
+   * Running the agent needs Ollama and a 6 GB download, which is a fair ask of a
+   * teammate and an unreasonable one of someone deciding whether to nominate us. But
+   * the privacy half does not need a model. Extraction and redaction happen entirely in
+   * the content script, and what would be transmitted is fully determined before any
+   * request is made.
+   *
+   * So this observes the current page, redacts it, and returns exactly what WOULD have
+   * been sent, without sending it. Load the extension, open any website in the world,
+   * press one button, and read the ledger for that page. That is the whole claim,
+   * demonstrable on a site nobody chose in advance.
+   */
+  if (msg.type === 'scan-page') {
+    (async () => {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.id) return { error: 'no active tab' };
+      if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')
+          || tab.url?.startsWith('about:')) {
+        return { error: 'browser-internal pages cannot be read by any extension; open a normal site' };
+      }
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['dist/content.js'] });
+      const obs = await chrome.tabs.sendMessage(tab.id, {
+        target: 'content', type: 'observe', goal: msg.goal ?? 'scan only', history: [],
+      });
+      const previews = await chrome.tabs.sendMessage(tab.id, {
+        target: 'content', type: 'ledger-previews',
+      }).catch(() => ({ previews: [] }));
+      return {
+        url: tab.url,
+        title: tab.title,
+        nodeCount: obs.nodeCount,
+        truncated: obs.truncated,
+        withheld: obs.withheld ?? [],
+        previews: previews?.previews ?? [],
+        payload: obs.payload,
+        bytes: JSON.stringify(obs.payload ?? {}).length,
+        timings: obs.timings,
+        // Surfaced, never swallowed: a page we could not fully read is a page whose
+        // screenshot we would refuse to send, and the user should see why.
+        unreadable: obs.closedShadowHosts ?? [],
+        piiBeyondTextCap: obs.piiBeyondTextCap === true,
+        piiBeyondNodeCap: obs.piiBeyondNodeCap === true,
+      };
+    })().then(sendResponse).catch((e) => sendResponse({ error: String(e) }));
     return true;
   }
 
@@ -475,6 +826,36 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
   });
   await new Promise((r) => setTimeout(r, 500));
 
+  /**
+   * RESOURCE AND TASK LATENCY — the two rubric items worth 35% between them.
+   *
+   * Both were previously reported as proxies measured in Node: a heap delta from the
+   * scoring process, and extract+sanitize time excluding vision and the model. Neither
+   * is the number ISRO asks for. The rubric says "client side resource utilization"
+   * and "overall end-to-end latency of the provided task", and the only place either
+   * exists is here, in a real browser driving a real multi-step task.
+   *
+   * `performance.memory` is read inside the page rather than in the worker, because the
+   * worker's heap says nothing about what the extension costs the tab the user is
+   * looking at. It is Chrome-only and coarse, and it is still a real browser number
+   * where the old one was a different runtime entirely.
+   */
+  const readHeap = async (): Promise<number | null> => {
+    try {
+      const [p] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          const m = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+          return m ? m.usedJSHeapSize : null;
+        },
+      });
+      return (p.result as number | null) ?? null;
+    } catch { return null; }
+  };
+
+  const heapBefore = await readHeap();
+  const taskT0 = Date.now();
+
   const phases: string[] = [];
   const result = await runAgentLoop({
     tabId,
@@ -486,6 +867,20 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
     onProgress: (e) => phases.push(`${e.turn}:${e.phase}`),
   });
   const records = result.records;
+
+  const taskMs = Date.now() - taskT0;
+  const heapAfter = await readHeap();
+  const turns = records.length;
+  const resources = {
+    taskMs,
+    turns,
+    msPerTurn: turns ? Math.round(taskMs / turns) : null,
+    heapBeforeMb: heapBefore === null ? null : +(heapBefore / 1048576).toFixed(1),
+    heapAfterMb: heapAfter === null ? null : +(heapAfter / 1048576).toFixed(1),
+    heapDeltaMb: heapBefore === null || heapAfter === null
+      ? null : +((heapAfter - heapBefore) / 1048576).toFixed(1),
+    measuredIn: 'page context, real browser',
+  };
 
   // VERIFY THE OUTCOME ON THE PAGE, not from the loop's own opinion of itself.
   //
@@ -520,7 +915,7 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
   // Previews come from the turn records, captured at observe time. Asking the page now
   // would fail: the agent may well have navigated it.
   return { records, phases, previews: records[0]?.previews ?? [],
-           stopReason: result.stopReason, detail: result.detail, outcome };
+           stopReason: result.stopReason, detail: result.detail, outcome, resources };
 }
 
 /**
@@ -614,6 +1009,33 @@ chrome.runtime.onInstalled.addListener(() => {
         out.error = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e);
       }
       await reportTo('http://127.0.0.1:8974/result', out);
+      return;
+    }
+
+    if (await collectorUp(8979)) {
+      try {
+        // A LIVE page by default, because the whole point of this check is that the
+        // site is not one we prepared. SIH_LIVE_URL overrides it; the local capture is
+        // only a fallback for a machine with no network.
+        const target = await fetch('http://127.0.0.1:8979/target')
+          .then((r) => r.text()).catch(() => '');
+        out.spikeI = await runSpikeI(target.trim()
+          || 'https://eportal.incometax.gov.in/iec/foservices/#/login');
+      } catch (e) {
+        out.error = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      }
+      await reportTo('http://127.0.0.1:8979/result', out);
+      return;
+    }
+
+    if (await collectorUp(8978)) {
+      try {
+        out.spikeH = await runSpikeH('http://127.0.0.1:8978/pages/checkout.html',
+                                     'http://127.0.0.1:8978/pages/checkout.truth.json');
+      } catch (e) {
+        out.error = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e);
+      }
+      await reportTo('http://127.0.0.1:8978/result', out);
       return;
     }
 

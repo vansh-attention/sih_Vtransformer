@@ -52,8 +52,14 @@ real waiting time for the user.
 
 - Reference elements by the bare id — el_42 — with no brackets or quotes.
 - "type" needs a "value"; "click" and "type" need a "target".
-- Set a dropdown with kind "select" and one of its listed choice values. Clicking a
-  dropdown only opens it and leaves any gated Submit disabled.
+- A node whose role is "select" is a dropdown. It is NOT a text field: typing into it
+  does nothing. Set it with kind "select", targeting it, with "value" copied exactly
+  from one of its listed choices. Given
+      [el_5] select "Category" choices: billing | service | other
+  the only correct action is
+      {"kind":"select","target":"el_5","value":"billing","reasoning":"Choose billing"}
+  Clicking it merely opens it, and typing into it is refused, and either way a Submit
+  gated on that field stays disabled and the task cannot finish.
 - Never target a disabled or invisible element, and never type into a "password" field.
 
 BEFORE ANYTHING ELSE, check whether you are done: a confirmation message, a button now
