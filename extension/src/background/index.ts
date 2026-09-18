@@ -788,10 +788,19 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       // Masks were captured at observe time inside the content script - the only place
       // real values ever exist. Reading them from the turn record also survives the
       // agent navigating the page, which asking the tab afterwards does not.
+      /**
+       * The answer is passed through STILL TOKENISED.
+       *
+       * This is the background service worker — the only part of the extension that
+       * touches the network, and the part that has never held a real value. Resolving
+       * the tokens here would break that property for a piece of display text. The
+       * panel asks the content script to rehydrate it instead.
+       */
       return {
         records: result.records,
         stopReason: result.stopReason,
         detail: result.detail,
+        answer: result.answer,
         previews: result.records[0]?.previews ?? [],
       };
     })()

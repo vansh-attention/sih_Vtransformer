@@ -199,7 +199,21 @@ export interface SanitizedPayload {
 // ---------------------------------------------------------------------------
 
 export type ActionKind =
-  | 'click' | 'type' | 'scroll' | 'select' | 'wait' | 'ask_user' | 'done';
+  | 'click' | 'type' | 'scroll' | 'select' | 'wait' | 'ask_user' | 'done'
+  /**
+   * Answer a question instead of acting on the page.
+   *
+   * The panel has always offered "What do I need to complete here?" and "Find the
+   * contact details on this page" as suggestions, and until now the agent had no way
+   * to reply to either — it could only act, or stop. Both were promises the product
+   * could not keep.
+   *
+   * ⭐ The answer is written in TOKENS and rehydrated on the client. The model can say
+   * "the mobile field holds <PII_PHONE_1>" without ever having seen the number; the
+   * panel resolves that against the vault so the USER reads the real value. The token
+   * scheme is a round trip, not a one-way delete, and this is where that shows.
+   */
+  | 'answer';
 
 export interface AgentAction {
   kind: ActionKind;
@@ -211,6 +225,8 @@ export interface AgentAction {
    */
   value?: string;
   scrollDelta?: number;
+  /** For 'answer'. Prose, which may contain tokens the client resolves for display. */
+  text?: string;
   /** Shown in the ledger so the user can see why the agent did what it did. */
   reasoning: string;
 }

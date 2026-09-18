@@ -651,6 +651,7 @@ $('run').addEventListener('click', async () => {
       const GOOD = new Set(['goal-complete']);
       const label: Record<string, string> = {
         'goal-complete': 'goal complete',
+        answered: 'answered',
         'max-turns': 'stopped at the turn limit',
         'nothing-executable': 'stopped — every proposed action was refused',
         'server-unreachable': 'the reasoning server is not running',
@@ -686,7 +687,35 @@ $('run').addEventListener('click', async () => {
         `<div${hero ? ' class="hero"' : ''}><div class="n" data-sfx="${sfx}">0${sfx}</div>`
         + `<div class="lbl">${lbl}</div></div>`).join('')}</div>`;
 
-      $('ledger').innerHTML = totals
+      /**
+       * THE ANSWER, REHYDRATED.
+       *
+       * It arrives carrying tokens because the model wrote it without ever seeing a
+       * real value. The content script — which owns the vault — swaps them back, so the
+       * user reads "9926749541" while the model only ever knew "<PII_PHONE_1>". That
+       * round trip is the clearest demonstration in the product that tokenising is not
+       * the same as deleting.
+       */
+      let answerHtml = '';
+      if (res.answer) {
+        let shown: string = res.answer;
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tab?.id) {
+            const r2 = await chrome.tabs.sendMessage(tab.id,
+              { target: 'content', type: 'resolve-text', text: res.answer });
+            if (r2?.text) shown = r2.text;
+          }
+        } catch {
+          // The tab may have navigated. Showing the tokenised answer is still an answer.
+        }
+        answerHtml = `<div class="answer"><h2>Answer</h2><p>${esc(shown)}</p>`
+          + `<div class="t">Composed by the model from the redacted page. Any personal `
+          + `value above was filled in here, on your machine — the model wrote a tag.</div>`
+          + `</div>`;
+      }
+
+      $('ledger').innerHTML = answerHtml + totals
         + res.records.map((r: any) => renderTurn(r, previews)).join('');
 
       const nums = Array.from($('ledger').querySelectorAll('.totals .n'));

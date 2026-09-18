@@ -61,6 +61,22 @@ _TARGET_ACTION = {
     "required": ["kind", "target", "reasoning"],
 }
 
+# Answering a question rather than acting on the page.
+#
+# Its own branch because `text` is mandatory here and meaningless everywhere else —
+# the same reason `type` and `click` are separate branches. ⚠ `oneOf` is what ollama
+# actually converts into a grammar; an `if`/`then` is accepted and SILENTLY IGNORED,
+# which this project has already been bitten by once.
+_ANSWER_ACTION = {
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string", "enum": ["answer"]},
+        "text": {"type": "string", "minLength": 1},
+        "reasoning": _REASONING,
+    },
+    "required": ["kind", "text", "reasoning"],
+}
+
 # Kinds that need neither a target nor a value.
 _BARE_ACTION = {
     "type": "object",
@@ -79,7 +95,7 @@ AGENT_RESPONSE_SCHEMA = {
     "properties": {
         "actions": {
             "type": "array",
-            "items": {"oneOf": [_TEXT_ACTION, _TARGET_ACTION, _BARE_ACTION]},
+            "items": {"oneOf": [_TEXT_ACTION, _TARGET_ACTION, _BARE_ACTION, _ANSWER_ACTION]},
         },
         "needsMoreContext": {"type": "boolean"},
     },

@@ -270,6 +270,26 @@ function handleOther(msg: { type?: string; [k: string]: unknown },
 
   // Masked previews for the ledger. Kept in the content script so the masking function
   // is applied on the same side of the boundary as the values themselves.
+  /**
+   * Rehydrate an answer for the USER'S EYES ONLY.
+   *
+   * The model writes "the mobile field holds <PII_PHONE_1>" because it has never seen
+   * the number. This swaps the token back for the real value so the person reading the
+   * panel gets a real answer — the round trip that makes the token scheme more than a
+   * delete.
+   *
+   * ⛔ It resolves ONLY in this direction: content script → panel, both inside the
+   * extension, neither of which talks to the network. The background service worker
+   * still never holds a real value, which is the property the whole design rests on.
+   */
+  if (msg.type === 'resolve-text') {
+    const text = typeof msg.text === 'string' ? msg.text : '';
+    sendResponse({
+      text: text.replace(/<PII_[A-Z_]+_\d+>/g, (t) => vault.resolve(t) ?? t),
+    });
+    return true;
+  }
+
   if (msg.type === 'ledger-previews') {
     sendResponse({ previews: maskedPreviews() });
     return true;

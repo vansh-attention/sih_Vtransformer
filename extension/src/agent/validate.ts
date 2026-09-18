@@ -27,7 +27,7 @@ export interface ValidationResult {
 
 /** Actions the client knows how to execute. Anything else is refused. */
 const KNOWN_KINDS = new Set([
-  'click', 'type', 'scroll', 'select', 'wait', 'ask_user', 'done',
+  'click', 'type', 'scroll', 'select', 'wait', 'ask_user', 'done', 'answer',
 ]);
 
 /** Roles the agent may never type into, whatever the model says. */
@@ -101,6 +101,19 @@ export function validateAction(
 
   // Actions that need no target.
   if (action.kind === 'wait' || action.kind === 'done' || action.kind === 'ask_user') {
+    return { action, allowed: true };
+  }
+
+  /**
+   * `answer` acts on nothing, so it belongs with the target-less kinds and must be
+   * checked BEFORE the target requirement below — placed after it, the rule was dead
+   * code that refused every answer for having no target.
+   *
+   * Still validated: an empty answer is worse than none, because the panel would render
+   * a blank card and the user could not tell whether the agent failed or said nothing.
+   */
+  if (action.kind === 'answer') {
+    if (!(action.text ?? '').trim()) return deny('answer action carried no text');
     return { action, allowed: true };
   }
 

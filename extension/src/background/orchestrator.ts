@@ -38,7 +38,7 @@ export interface LoopOptions {
 
 /** Why the loop stopped. Always reported — a run that ends silently is a bug report. */
 export type StopReason =
-  | 'goal-complete' | 'max-turns' | 'nothing-executable' | 'stopped-by-user'
+  | 'goal-complete' | 'answered' | 'max-turns' | 'nothing-executable' | 'stopped-by-user'
   | 'server-unreachable' | 'server-error' | 'server-timeout'
   | 'page-unavailable' | 'unstable-viewport';
 
@@ -47,6 +47,15 @@ export interface LoopResult {
   stopReason: StopReason;
   /** Human-readable, shown to the user. Never a raw stack trace. */
   detail?: string;
+  /**
+   * Present when stopReason is 'answered'.
+   *
+   * MAY CONTAIN TOKENS, deliberately. The model writes "<PII_PHONE_1>" because it has
+   * never seen the number; the panel resolves it against the vault so the user reads
+   * the real value. The token never passes through the network layer in either
+   * direction — it arrives as a token and is rehydrated on the client.
+   */
+  answer?: string;
 }
 
 export interface ProgressEvent {
@@ -532,6 +541,17 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
      */
     for (const d of report.denied) {
       history.push({ ...d.action, reasoning: `REFUSED (${d.reason}) — do not repeat this` });
+    }
+
+    /**
+     * An answer ENDS the run. The goal was a question, the question has been answered,
+     * and there is nothing on the page left to do — continuing would only give the model
+     * turns in which to start clicking things it was never asked to touch.
+     */
+    const answer = report.allowed.find((a) => a.kind === 'answer');
+    if (answer) {
+      progress({ turn, phase: 'done' });
+      return { records, stopReason: 'answered', answer: answer.text };
     }
 
     if (report.allowed.some((a) => a.kind === 'done')) {
