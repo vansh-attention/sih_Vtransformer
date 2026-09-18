@@ -298,11 +298,19 @@ async function checkServer(url: string): Promise<boolean> {
     // problem, different command, and it must be copyable for the same reason.
     if (r.model) {
       const box = $('serveradvice');
+      // A BUTTON, NOT A COMMAND. The 6 GB download is the step most likely to kill a
+      // demo, and `ollama pull` in a terminal the reader has never opened is the worst
+      // possible place to put it. The server proxies the pull because ollama answers a
+      // chrome-extension:// origin with 403 and a localhost one with 200.
       box.innerHTML = `<b>The server is running, but the model is not installed.</b> `
-        + `Pull it once — it is about 6&nbsp;GB:`
-        + cmdBlock([{ cmd: `ollama pull ${r.model}` }])
-        + `<div class="advice-note">Scan this page needs none of this.</div>`;
+        + `It is about 6&nbsp;GB and only downloads once.`
+        + `<button type="button" id="pullmodel" class="pullbtn">`
+        + `Install ${esc(r.model)}</button>`
+        + `<div class="bar" id="pullbar" hidden><i></i></div>`
+        + `<div class="t" id="pulltext"></div>`
+        + `<div class="advice-note"><b>Scan this page</b> needs none of this.</div>`;
       box.hidden = false;
+      $('pullmodel').addEventListener('click', () => void pullModel(url));
     }
   } else {
     el.innerHTML = '<span class="deny">unreachable</span>';
@@ -310,6 +318,112 @@ async function checkServer(url: string): Promise<boolean> {
     showStartAdvice();
   }
   return r.ok;
+}
+
+/**
+ * Download the model from the panel, with real progress.
+ *
+ * ollama reports progress PER LAYER, so a naive reading shows the bar jumping back to
+ * zero every time a new blob starts. Totals are accumulated per digest and summed, which
+ * is the only number that means anything to a person watching a 6 GB download.
+ *
+ * ⚠ It must be able to FAIL VISIBLY. A stalled pull that sits at 40% forever is worse
+ * than an error, so this watches for bytes not moving and says so rather than relying on
+ * a timeout, which would kill a healthy slow connection at a venue.
+ */
+async function pullModel(serverUrl: string): Promise<void> {
+  const btn = $('pullmodel') as HTMLButtonElement;
+  const bar = $('pullbar');
+  const fill = bar.querySelector('i') as HTMLElement;
+  const text = $('pulltext');
+  btn.disabled = true;
+  btn.textContent = 'Downloading…';
+  bar.hidden = false;
+
+  const layers = new Map<string, { total: number; completed: number }>();
+  let lastBytes = -1;
+  let lastMoved = Date.now();
+  const stallCheck = setInterval(() => {
+    if (Date.now() - lastMoved > 45_000) {
+      text.innerHTML = '<span class="deny">No progress for 45 seconds.</span> The '
+        + 'connection may have stalled — it is safe to press Install again, ollama '
+        + 'resumes where it stopped.';
+    }
+  }, 5_000);
+
+  try {
+    const res = await fetch(`${serverUrl}/pull`, { method: 'POST' });
+    if (!res.ok || !res.body) throw new Error(`server returned ${res.status}`);
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      // NDJSON: split on newlines and keep the trailing partial line for next time.
+      const lines = buf.split('\n');
+      buf = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let msg: { status?: string; digest?: string; total?: number; completed?: number; error?: string };
+        try { msg = JSON.parse(line); } catch { continue; }
+        if (msg.error) throw new Error(msg.error);
+
+        if (msg.digest && typeof msg.total === 'number') {
+          layers.set(msg.digest, { total: msg.total, completed: msg.completed ?? 0 });
+        }
+        let total = 0; let done2 = 0;
+        for (const l of layers.values()) { total += l.total; done2 += l.completed; }
+        if (done2 !== lastBytes) { lastBytes = done2; lastMoved = Date.now(); }
+
+        if (total > 0) {
+          const pctNum = Math.min(100, Math.round((done2 / total) * 100));
+          fill.style.width = `${pctNum}%`;
+          text.textContent = `${pctNum}% · ${(done2 / 1e9).toFixed(2)} of `
+            + `${(total / 1e9).toFixed(2)} GB`;
+        } else {
+          text.textContent = msg.status ?? 'starting…';
+        }
+      }
+    }
+
+    fill.style.width = '100%';
+    text.innerHTML = '<span class="allow">Download finished.</span> Verifying…';
+    btn.textContent = 'Installed';
+
+    /**
+     * VERIFY, THEN DECIDE. Do not just re-render.
+     *
+     * The first version called checkServer() here, which rebuilt this whole box. If the
+     * server still could not see the model the user got a fresh "Install" button with no
+     * explanation — the screen simply reset, which reads as the click having done
+     * nothing. That is a real state: a pull can report success while the server is
+     * configured for a different model name.
+     */
+    const after = await probe(serverUrl, 8000);
+    if (after.ok) {
+      setLamp('ok', 'ready');
+      $('serveradvice').hidden = true;
+      $('serverstatus').innerHTML =
+        `<span class="allow">ready</span> · ${esc(after.model ?? '')}`;
+      $('run').classList.remove('demoted');
+      $('scan').classList.remove('promoted');
+    } else {
+      text.innerHTML = '<span class="deny">The download finished, but the server still '
+        + 'does not see the model.</span> That usually means it is looking for a '
+        + 'different name — check <b>Settings</b>, or restart the server.';
+      btn.disabled = false;
+      btn.textContent = 'Try again';
+    }
+  } catch (e) {
+    text.innerHTML = `<span class="deny">Download failed.</span> ${esc(String(e))}`;
+    btn.disabled = false;
+    btn.textContent = 'Try again';
+  } finally {
+    clearInterval(stallCheck);
+  }
 }
 
 /**

@@ -151,6 +151,22 @@ one.
 
 ---
 
+## Installing the model
+
+The 6 GB model download is **a button in the panel**, not a terminal command. If the
+server is running and the model is missing, the panel offers **Install qwen2.5vl:7b** with
+a real progress bar, then verifies the server can actually see it before returning to the
+working state.
+
+It has to go through the server rather than the extension: ollama answers a `localhost`
+origin with 200 and a `chrome-extension://` origin with **403** — measured, not assumed —
+so the panel cannot drive the download directly without the user setting `OLLAMA_ORIGINS`,
+which is exactly the terminal step this removes.
+
+**What cannot be automated:** installing ollama itself. A browser extension cannot install
+a native daemon, and should not be able to. `setup.sh` checks for it and links the
+installer; everything after that — including the 6 GB pull — the panel can do.
+
 ## What this does NOT protect against
 
 **Read this before the feature list.** Aavaran narrows one specific channel: the data

@@ -32,7 +32,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 import httpx
 
@@ -246,6 +246,56 @@ async def health() -> dict[str, Any]:
             "fault": current_fault() or None,
             "keepAlive": os.environ.get("AGENT_KEEP_ALIVE", "30m"),
         }
+
+
+@app.post("/pull")
+async def pull() -> Any:
+    """
+    Install the model, from the panel, with progress.
+
+    WHY THIS LIVES HERE AND NOT IN THE EXTENSION.
+
+    ollama answers a `localhost` origin with 200 and a `chrome-extension://` origin with
+    403 — measured, not assumed. So the panel cannot drive the download itself without
+    the user setting OLLAMA_ORIGINS, which is exactly the terminal step this removes.
+    This server sends no Origin header, so it can.
+
+    The point is the 6 GB. On venue wifi that download is the thing that kills a demo,
+    and asking someone to run `ollama pull` in a terminal they have never opened is how
+    a working project fails in front of a judge.
+
+    Streams NDJSON straight through: ollama emits {"status", "total", "completed"} lines
+    and the panel renders them as a bar. `stream=True` all the way down — buffering a
+    6 GB pull to report it at the end would defeat the entire purpose.
+    """
+    async def relay() -> Any:
+        # No global timeout: this is a 6 GB download, not a request. A stall is caught
+        # by the panel, which watches for progress stopping rather than for a deadline
+        # that would kill a healthy slow connection.
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(None, connect=10.0)) as c:
+                async with c.stream(
+                    "POST", f"{OLLAMA_URL}/api/pull",
+                    json={"model": MODEL, "stream": True},
+                ) as r:
+                    if r.status_code != 200:
+                        body = (await r.aread()).decode(errors="replace")[:300]
+                        yield json.dumps({"error": f"ollama returned {r.status_code}: {body}"}) + "\n"
+                        return
+                    async for line in r.aiter_lines():
+                        if line.strip():
+                            yield line + "\n"
+        except httpx.ConnectError:
+            # The commonest case by far: ollama is not installed, or not running. An
+            # extension cannot install it, so say so plainly instead of stalling.
+            yield json.dumps({
+                "error": "cannot reach ollama at " + OLLAMA_URL
+                         + " — install it from https://ollama.com/download, then try again",
+            }) + "\n"
+        except Exception as e:  # noqa: BLE001 - surfaced to the user, never swallowed
+            yield json.dumps({"error": f"{type(e).__name__}: {e}"}) + "\n"
+
+    return StreamingResponse(relay(), media_type="application/x-ndjson")
 
 
 @app.post("/act")

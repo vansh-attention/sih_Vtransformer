@@ -238,6 +238,11 @@ const STATES = [
     health: HEALTH_UNREACHABLE, scan: SCAN, run: RUN, buildInfo: BUILD_ZIP, after: null },
   { name: '9-model-not-installed', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_NO_MODEL, scan: SCAN, run: RUN, buildInfo: BUILD_REPO, after: null },
+  // Clicks Install and lets the real server stream a real pull, so the screenshot shows
+  // progress the panel actually parsed rather than a mock of it.
+  { name: '11-model-downloading', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
+    health: HEALTH_NO_MODEL, scan: SCAN, run: RUN, buildInfo: BUILD_REPO,
+    after: `document.getElementById('pullmodel').click()` },
   { name: '10-page-unreadable', tabUrl: 'https://financegpt.io/lander',
     health: HEALTH_OK, scan: SCAN_BLIND, run: RUN,
     after: `document.getElementById('scan').click()` },
