@@ -167,6 +167,10 @@ which is exactly the terminal step this removes.
 a native daemon, and should not be able to. `setup.sh` checks for it and links the
 installer; everything after that — including the 6 GB pull — the panel can do.
 
+**Full step-by-step, per platform, is in [`ONBOARDING.md`](ONBOARDING.md)** — installing
+ollama, the three ways to get the model, and why you verify with `ollama show` rather than
+`ollama list`.
+
 ## What this does NOT protect against
 
 **Read this before the feature list.** Aavaran narrows one specific channel: the data

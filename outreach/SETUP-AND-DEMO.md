@@ -142,9 +142,12 @@ happened to have something installed.
 
 ### The full run
 
+Installing ollama and the model is set out per platform in `ONBOARDING.md`; `setup.sh`
+pulls the model for you once ollama is present.
+
 ```
 ollama serve &
-ollama pull qwen2.5vl:7b
+ollama pull qwen2.5vl:7b   # only if setup.sh has not already done it
 (cd server && .venv/bin/uvicorn main:app --port 8975 &)
 ./test-all.sh --full
 ```

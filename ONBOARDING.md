@@ -41,11 +41,66 @@ cd Aavaran
 That takes ~10 minutes, mostly downloads. It checks your tools, fetches the models
 (~230 MB), builds the extension, sets up the Python server, and runs the tests.
 
-You'll also need the vision model — 6 GB, so start it early:
+### Installing ollama and the model
+
+**Only the first step is manual.** ollama is a native background service, and neither a
+shell script nor a browser extension can install one of those for you — that is the one
+thing you have to do yourself.
+
+**1. Install ollama.** Pick your platform:
 
 ```bash
-ollama pull qwen2.5vl:7b
+# macOS
+brew install ollama          # or the .dmg from https://ollama.com/download
+
+# Windows
+# OllamaSetup.exe from https://ollama.com/download
+
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh
 ```
+
+On macOS and Windows the app starts itself in the background after installing, so you
+usually do **not** need to run `ollama serve` by hand.
+
+Check it took:
+
+```bash
+ollama --version
+```
+
+**2. The model — you have three ways, and you only need one.**
+
+| | How | When to use it |
+|---|---|---|
+| **Automatic** | `./setup.sh` | **Default.** It already pulls `qwen2.5vl:7b` if ollama is installed. Nothing else to do. |
+| **From the panel** | Click **Install qwen2.5vl:7b** | If setup ran before you installed ollama. Shows a real progress bar. |
+| **By hand** | `ollama pull qwen2.5vl:7b` | If you prefer a terminal, or the pull was interrupted. |
+
+It is **6 GB**, so on a slow connection start it before you need it.
+
+**3. Verify it — with `show`, not `list`.**
+
+```bash
+ollama show qwen2.5vl:7b
+```
+
+⚠ `ollama list` displays a model even when its download was interrupted, so it will
+happily tell you a half-pulled model is present and you will find out at demo time.
+`show` reads the manifest and the blobs, so it fails when they are incomplete. `setup.sh`
+checks it this way for exactly that reason. If it fails:
+
+```bash
+ollama rm qwen2.5vl:7b && ollama pull qwen2.5vl:7b
+```
+
+**Venue wifi:** the 6 GB download is the single most likely thing to ruin a demo. Pull it
+on every laptop in advance. If you need it offline, ollama's blobs live in
+`~/.ollama/models` and that directory can be copied between machines on a USB stick —
+worth testing once beforehand rather than discovering it does not work on the day.
+
+**None of this is needed for Scan**, which is the whole privacy demonstration and runs
+with nothing installed but the extension.
 
 ### Running it for real
 
