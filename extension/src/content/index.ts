@@ -163,6 +163,11 @@ function observe(msg: { goal?: string; history?: unknown[] }, sendResponse: (r: 
       context: after,
       visionQueue: result.visionQueue,
       closedShadowHosts: result.closedShadowHosts,
+      // Reported in their own right, not just folded into piiBoxes for masking.
+      // An <iframe> is content we CANNOT SEE, and a scan that cannot see a page must
+      // not be free to report it clean.
+      unreadableRegions: result.unreadableRegions,
+      viewport: { w: after.innerWidth, h: after.innerHeight },
       piiBeyondTextCap: result.piiBeyondTextCap,
       piiBeyondNodeCap: result.piiBeyondNodeCap,
       nodeCount: result.nodeCount,

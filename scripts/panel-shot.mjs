@@ -149,6 +149,16 @@ const BUILD_REPO = {
 };
 const BUILD_ZIP = { variant: 'scan-only' };
 
+/**
+ * A GoDaddy parked domain: the whole body is inside a frame, so the top frame yields
+ * one element. The panel must NOT call this clean.
+ */
+const SCAN_BLIND = {
+  title: 'financegpt.io', url: 'https://financegpt.io/lander',
+  nodeCount: 1, bytes: 338, withheld: [], previews: [],
+  unreadable: [{ x: 0, y: 0, w: 1200, h: 900 }], blindRatio: 0.94, truncated: false,
+};
+
 const HEALTH_OK = { ok: true, model: 'qwen2.5vl:7b' };
 const HEALTH_DOWN = { ok: false, error: 'not ready' };
 /** null = the fetch itself rejects, which is what "unreachable" actually looks like. */
@@ -228,6 +238,9 @@ const STATES = [
     health: HEALTH_UNREACHABLE, scan: SCAN, run: RUN, buildInfo: BUILD_ZIP, after: null },
   { name: '9-model-not-installed', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_NO_MODEL, scan: SCAN, run: RUN, buildInfo: BUILD_REPO, after: null },
+  { name: '10-page-unreadable', tabUrl: 'https://financegpt.io/lander',
+    health: HEALTH_OK, scan: SCAN_BLIND, run: RUN,
+    after: `document.getElementById('scan').click()` },
   { name: '5-settings-open', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_OK, scan: SCAN, run: RUN,
     after: `document.getElementById('settings').open=true` },

@@ -35,7 +35,25 @@ async function ensureLocal(): Promise<typeof import('./handlers.ts')> {
   return localHandlers;
 }
 
-async function ensureOffscreen(): Promise<void> {
+/**
+ * THE one offscreen-document helper. Exported, because it was not.
+ *
+ * `orchestrator.ts` called a bare `ensureOffscreen()` that it never imported. There
+ * were two private copies — one here, one in `background/index.ts` — and neither was
+ * visible to it, so every turn that needed a screenshot threw `ensureOffscreen is not
+ * defined` and the panel reported "Screenshot withheld". The agent then had no vision
+ * at all and looped on "wait — form loading" until it hit the turn limit.
+ *
+ * ⚠ It also NO-OPS where the API does not exist. Firefox has no `chrome.offscreen`,
+ * and the orchestrator called this unconditionally — so importing the other copy would
+ * have replaced a crash on Chrome with a crash on Firefox.
+ *
+ * Chrome allows exactly one offscreen document per extension and `createDocument()`
+ * throws if one already exists, including one left from a previous service-worker
+ * lifetime, since MV3 kills and restarts workers freely.
+ */
+export async function ensureOffscreen(): Promise<void> {
+  if (!hasOffscreen()) return;
   const existing = await chrome.runtime.getContexts({
     contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType],
   });

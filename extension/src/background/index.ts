@@ -8,7 +8,7 @@
  */
 
 import { runAgentLoop } from './orchestrator.ts';
-import { callVision } from '../vision/bridge.ts';
+import { callVision, ensureOffscreen } from '../vision/bridge.ts';
 
 const OFFSCREEN_PATH = 'src/offscreen/index.html';
 const DEFAULT_SERVER_URL = 'http://127.0.0.1:8975';
@@ -26,25 +26,8 @@ async function serverUrl(): Promise<string> {
 // Spikes run without a panel, so they use the default directly.
 const SERVER_URL = DEFAULT_SERVER_URL;
 
-/**
- * Chrome allows exactly one offscreen document per extension, and createDocument()
- * throws if one already exists — including one left over from a previous service worker
- * lifetime, since workers are killed and restarted freely under MV3.
- */
-async function ensureOffscreen(): Promise<void> {
-  const existing = await chrome.runtime.getContexts({
-    contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType],
-  });
-  if (existing.length > 0) return;
-
-  await chrome.offscreen.createDocument({
-    url: OFFSCREEN_PATH,
-    reasons: ['WORKERS' as chrome.offscreen.Reason],
-    justification:
-      'Runs the on-device vision model (WebGPU/WASM). A service worker has neither a ' +
-      'DOM nor a GPU context, so inference cannot live there.',
-  });
-}
+// ensureOffscreen lives in vision/bridge.ts — one definition, and it no-ops on
+// Firefox, which has no chrome.offscreen at all.
 
 async function reportTo(url: string, payload: unknown): Promise<void> {
   try {
@@ -751,7 +734,25 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         timings: obs.timings,
         // Surfaced, never swallowed: a page we could not fully read is a page whose
         // screenshot we would refuse to send, and the user should see why.
-        unreadable: obs.closedShadowHosts ?? [],
+        // closedShadowHosts ALONE was a lie by omission: iframes were tracked by the
+        // extractor and never surfaced here, so a page whose whole body sits in a
+        // frame reported "nothing personal found" while we had read almost none of it.
+        unreadable: [...(obs.closedShadowHosts ?? []), ...(obs.unreadableRegions ?? [])],
+        /**
+         * How much of the viewport we could not see into.
+         *
+         * A GoDaddy parked domain renders its entire page inside a frame. The scan read
+         * ONE element, found nothing, and said so — which for a privacy tool is the
+         * worst possible output: a clean bill of health issued while blind.
+         */
+        blindRatio: (() => {
+          const vw = obs.viewport?.w ?? 0;
+          const vh = obs.viewport?.h ?? 0;
+          if (!vw || !vh) return 0;
+          const area = (obs.unreadableRegions ?? [])
+            .reduce((a: number, r: { w: number; h: number }) => a + (r.w * r.h), 0);
+          return Math.min(1, area / (vw * vh));
+        })(),
         piiBeyondTextCap: obs.piiBeyondTextCap === true,
         piiBeyondNodeCap: obs.piiBeyondNodeCap === true,
       };

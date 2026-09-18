@@ -1,0 +1,18 @@
+{
+  "//": "Type-checking ONLY. esbuild does the emitting and strips types WITHOUT checking them, which is how `ensureOffscreen is not defined` reached a live page: the orchestrator called an identifier it never imported, and nothing in the build or the suite could notice. `npm run typecheck` is wired into test-all.sh.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["chrome"],
+    "strict": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "noUnusedLocals": false,
+    "allowJs": false
+  },
+  "include": ["extension/src/**/*.ts"],
+  "exclude": ["**/*.test.ts", "node_modules"]
+}

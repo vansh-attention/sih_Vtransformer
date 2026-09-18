@@ -44,6 +44,10 @@ NODE="node --experimental-strip-types"
 # ---------------------------------------------------------------------------
 section "Build"
 run "extension builds (and manifests agree)" node build.mjs
+# esbuild strips types without checking them, so the build passing proves nothing about
+# whether an identifier exists. This is the check that would have caught
+# "ensureOffscreen is not defined" before it reached a live page.
+run "no undefined identifiers (tsc)" ./scripts/typecheck.sh
 
 section "Unit tests"
 for f in extension/src/pii/checksums.test.ts \

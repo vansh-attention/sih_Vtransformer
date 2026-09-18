@@ -11,7 +11,7 @@
 
 import type { AgentAction, SanitizedNode, SanitizedPayload } from '../contracts.ts';
 import { validateActions } from '../agent/validate.ts';
-import { callVision } from '../vision/bridge.ts';
+import { callVision, ensureOffscreen } from '../vision/bridge.ts';
 
 export interface LoopOptions {
   tabId: number;

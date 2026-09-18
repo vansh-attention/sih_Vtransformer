@@ -633,6 +633,17 @@ $('scan').addEventListener('click', async () => {
     const kinds = (r.withheld ?? []).map((w: { kind: string; count: number }) =>
       `${w.count} ${w.kind}`).join(', ') || 'nothing personal found';
 
+    /**
+     * A SCAN THAT COULD NOT READ THE PAGE MUST NOT REPORT IT CLEAN.
+     *
+     * On a GoDaddy parked domain the whole body is inside a frame. The content script
+     * runs in the top frame only, so it read ONE element, found nothing, and said
+     * "nothing personal found" — a clean bill of health issued while blind. For a
+     * privacy tool that is the most dangerous output there is: the user reasonably
+     * concludes the page holds nothing sensitive.
+     */
+    const blind = (r.blindRatio ?? 0) > 0.4 || (r.nodeCount ?? 0) <= 2;
+
     const warn = [
       r.unreadable?.length
         ? `${plural(r.unreadable.length, 'region')} unreadable, screenshot would be withheld` : '',
@@ -641,8 +652,9 @@ $('scan').addEventListener('click', async () => {
       r.truncated ? `page exceeded the node budget; form controls were rescued` : '',
     ].filter(Boolean);
 
-    $('phase').innerHTML =
-      `<b class="fig">${num(total)}</b> ${total === 1 ? 'value' : 'values'} would be withheld`
+    $('phase').innerHTML = blind
+      ? `<b class="fig">—</b> this page could not be read`
+      : `<b class="fig">${num(total)}</b> ${total === 1 ? 'value' : 'values'} would be withheld`
       + ` from <span class="src">${esc(r.title ?? r.url ?? 'this page')}</span>`
       + `<span class="t nums">${num(r.nodeCount)} elements read, `
       + `${num(r.bytes)} bytes would be sent</span>`;
@@ -659,7 +671,9 @@ $('scan').addEventListener('click', async () => {
       + `<div class="body">${(r.withheld ?? []).length
           ? (r.withheld as Array<{ kind: string; count: number }>)
               .map((w) => `<span class="chip"><b>${w.count}</b> ${esc(w.kind)}</span>`).join('')
-          : '<span class="chip">nothing personal found</span>'}`
+          : blind
+            ? '<span class="chip">page unreadable</span>'
+            : '<span class="chip">nothing personal found</span>'}`
       + (r.previews?.length
           ? `<table class="fields"><thead><tr><th scope="col">On screen</th><th scope="col">Sent instead</th></tr></thead><tbody>`
             + r.previews.map((p: Preview) =>
@@ -668,10 +682,16 @@ $('scan').addEventListener('click', async () => {
           // The likeliest first experience is an empty result, because a page holds no
           // personal data until somebody types some. "None found" reads as "broken", so
           // say what to do next — but in two lines, not a paragraph.
-          : `<div class="hint"><b>Nothing personal on this page yet.</b> Most pages hold `
-            + `none until you type something.<br>Put a made-up PAN such as `
-            + `<span class="tok" translate="no">ABCPE1234F</span> into a field you can `
-            + `see, then scan again.</div>`)
+          : blind
+            ? `<div class="warnbox"><b>This page could not be read, so this is not a `
+              + `clean result.</b><br>Its content sits inside a frame or a closed shadow `
+              + `root, which an extension cannot see into from the top of the page. `
+              + `${num(r.nodeCount ?? 0)} element${(r.nodeCount ?? 0) === 1 ? '' : 's'} `
+              + `were readable. Nothing was transmitted, and nothing was judged.</div>`
+            : `<div class="hint"><b>Nothing personal on this page yet.</b> Most pages hold `
+              + `none until you type something.<br>Put a made-up PAN such as `
+              + `<span class="tok" translate="no">ABCPE1234F</span> into a field you can `
+              + `see, then scan again.</div>`)
       // A successful scan ends with a table and no idea what it proved. The claim worth
       // making here is the one the reader can check for herself in ten seconds, so make
       // it, and say where to go next rather than leaving the panel a dead end.
