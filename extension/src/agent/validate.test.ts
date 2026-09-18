@@ -77,5 +77,47 @@ const ok = report.denied.length === denyCount;
 if (!ok) fail++;
 console.log(`\n${ok ? 'ok  ' : 'FAIL'}  refused ${report.denied.length}/${denyCount} expected denials`);
 
+
+/**
+ * A RETRY IS NOT A NO-OP WHEN THE PAGE DISAGREES — demoqa.com, 18 Sep.
+ *
+ * The no-op rule used to fire on the history of ATTEMPTS alone, and report it as
+ * "already has that value" — a claim about the element that nothing had checked.
+ * Refused actions are pushed into that same history, so one attempt that failed to
+ * stick became a permanent, self-reinforcing refusal.
+ *
+ * Live consequence: the Subjects box on demoqa is a React autocomplete that ignores a
+ * scripted value assignment. The type never landed, the model correctly retried, and
+ * the run was killed after two refusals carrying an untrue explanation.
+ */
+{
+  const mkPayload = (value: string) => ({
+    origin: 'demoqa.com', title: 'x', capturedAt: 0,
+    viewport: { w: 1200, h: 800, scrollX: 0, scrollY: 0 }, placeholders: [],
+    root: { id: 'root', role: 'form', box: { x: 0, y: 0, w: 10, h: 10 },
+      visible: true, enabled: true,
+      children: [{ id: 'el_49', role: 'textbox', label: 'Subjects', value,
+        box: { x: 0, y: 0, w: 10, h: 10 }, visible: true, enabled: true }] },
+  } as never);
+
+  const act = { kind: 'type', target: 'el_49', value: 'GRV-100234', reasoning: 'x' } as never;
+
+  const rows: Array<{ name: string; value: string; done: never[]; allow: boolean }> = [
+    { name: 'first attempt, field empty',            value: '',           done: [],              allow: true },
+    { name: 'retry after it did NOT stick',          value: '',           done: [act],           allow: true },
+    { name: 'retry when the field really holds it',  value: 'GRV-100234', done: [act],           allow: false },
+    { name: 'third attempt, still not sticking',     value: '',           done: [act, act],      allow: false },
+  ];
+
+  for (const r of rows) {
+    const rep = validateActions([act], mkPayload(r.value), r.done);
+    const got = rep.allowed.length === 1;
+    const ok = got === r.allow;
+    if (!ok) fail++;
+    console.log(`${ok ? 'ok  ' : 'FAIL'}  ${r.name.padEnd(36)} ${got ? 'ALLOW' : 'DENY '}`
+      + (rep.denied[0]?.reason ? `  ${rep.denied[0].reason.slice(0, 64)}` : ''));
+  }
+}
+
 console.log(fail ? `\n${fail} FAILURES` : '\nall validator cases pass');
 process.exit(fail ? 1 : 0);

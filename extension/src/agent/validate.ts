@@ -142,9 +142,38 @@ export function validateAction(
    * value. And the refusal is what lets the loop upstream recognise that every remaining
    * proposal is a repeat, which is the signal that the work is done.
    */
-  if (done.some((d) => d.kind === action.kind && d.target === action.target
-                    && (d.value ?? null) === (action.value ?? null))) {
+  /**
+   * ⛔ ASK THE PAGE, NOT THE HISTORY.
+   *
+   * This used to refuse on the history of ATTEMPTS alone and report it as
+   * "`${target}` already has that value" — a claim about the element that nothing had
+   * checked. Refused actions are themselves pushed into that history, so one attempt
+   * that failed to stick produced a permanent, self-reinforcing refusal.
+   *
+   * It broke a live run on demoqa.com: the Subjects box is a React autocomplete that
+   * does not keep a plain value assignment, so the type never took effect, the model
+   * correctly retried, and we blocked it twice with an untrue explanation and gave up.
+   *
+   * So the ELEMENT decides. If it really holds the value, this is a genuine no-op and
+   * refusing it is right. If it does not, the retry is legitimate — the first attempt
+   * simply did not land.
+   */
+  const repeats = done.filter((d) => d.kind === action.kind && d.target === action.target
+                    && (d.value ?? null) === (action.value ?? null)).length;
+  const nodeHasIt = (node.value ?? null) === (action.value ?? null);
+
+  if (repeats > 0 && nodeHasIt) {
     return deny(`${action.target} already has that value; this action would change nothing`);
+  }
+  /**
+   * Tried twice and the page still does not show it. Refuse — but say what is actually
+   * true, because "already has that value" would be the opposite of the truth here, and
+   * a custom widget that ignores a scripted value is a real and common thing.
+   */
+  if (repeats >= 2 && !nodeHasIt) {
+    return deny(`typing into ${action.target} is not taking effect after ${repeats} `
+      + `attempts — it is likely a custom widget that ignores a scripted value; `
+      + `try a different element or action`);
   }
 
   /**
