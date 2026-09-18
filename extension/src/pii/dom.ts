@@ -144,6 +144,18 @@ const KEYWORD_MAP: Array<{ kind: PiiKind; words: string[] }> = [
                              'ଆଧାର'] },     // or
   { kind: 'PAN', words: ['pan', 'permanent account',
                          'पैन', 'பான்', 'పాన్', 'প্যান', 'પાન', 'ಪಾನ್', 'പാൻ', 'ਪੈਨ'] },
+  /**
+   * Added 18 Sep: he typed a 15-digit account number and nothing fired. A bank
+   * account has no checksum and no fixed length, so the FIELD is the only evidence
+   * there is. Placed before GSTIN so "account number" is not shadowed by a shorter
+   * keyword elsewhere.
+   */
+  { kind: 'BANK_ACCOUNT', words: ['account number', 'account no', 'acct number',
+                                  'acct no', 'a/c no', 'a/c number', 'bank account',
+                                  'खाता संख्या', 'खाता क्रमांक', 'बैंक खाता',
+                                  'கணக்கு எண்', 'ఖాతా సంఖ్య', 'অ্যাকাউন্ট নম্বর',
+                                  'ખાતા નંબર', 'ಖಾತೆ ಸಂಖ್ಯೆ', 'അക്കൗണ്ട് നമ്പർ',
+                                  'ਖਾਤਾ ਨੰਬਰ'] },
   { kind: 'GSTIN', words: ['gstin', 'gst', 'जीएसटी'] },
   { kind: 'IFSC', words: ['ifsc', 'आईएफएससी'] },
   { kind: 'UPI', words: ['upi', 'vpa', 'यूपीआई'] },

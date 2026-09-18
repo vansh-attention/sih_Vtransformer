@@ -84,6 +84,13 @@ export type PiiKind =
   | 'PAN' | 'AADHAAR' | 'CARD' | 'GSTIN' | 'IFSC' | 'UPI'
   | 'PHONE' | 'EMAIL' | 'PASSWORD' | 'NAME' | 'ADDRESS' | 'FACE' | 'DOB'
   /**
+   * An Indian bank account number. 9-18 digits, NO checksum, NO fixed length — so
+   * unlike a PAN or a card there is nothing in the digits themselves to recognise.
+   * It is detectable only from its field, which is exactly why it needs its own kind
+   * rather than being left to the pattern layer.
+   */
+  | 'BANK_ACCOUNT'
+  /**
    * "Sensitive, but we will not name the kind."
    *
    * Added 18 Sep after the income-tax login page reported a PAN-shaped User ID as

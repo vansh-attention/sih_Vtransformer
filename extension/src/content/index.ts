@@ -124,6 +124,24 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 function observe(msg: { goal?: string; history?: unknown[] }, sendResponse: (r: unknown) => void) {
   {
+    /**
+     * CLEAR THE VAULT FIRST. Every observe is a fresh read of the page.
+     *
+     * The vault lives for the page session and `clear()` was never called, so
+     * `maskedPreviews()` returned every value ever minted on this tab. After typing a
+     * PAN, clearing it and typing a name, the evidence table still listed the PAN —
+     * the panel was claiming to have withheld a value that was no longer on screen,
+     * and reported "nothing personal found" in the same breath.
+     *
+     * That is worse than a cosmetic bug: the evidence table is the one artefact a
+     * judge is invited to check, and it was showing findings from a page state that
+     * no longer existed.
+     *
+     * Safe within a run: the loop is observe → reason → execute inside one turn, so
+     * no action outlives the vault that minted its tokens.
+     */
+    vault.clear();
+
     const before = captureContext();
     const t0 = performance.now();
     const result = extractPage(document);

@@ -47,6 +47,26 @@ interface Rule {
  * costs us redaction precision (20% of the grade). Layer 1 DOM context can promote it
  * later if the surrounding field is actually labelled "Aadhaar".
  */
+/**
+ * PRINTED FORMATTING IS EVIDENCE.
+ *
+ * `4540 2012 2334` is grouped exactly the way an Aadhaar is printed on the card, and
+ * `4111 1111 1111 1111` the way a card number is embossed. A bare run of the same
+ * digits could be an invoice or an order number — the grouping could not. Treating
+ * both identically threw away the strongest signal a human uses at a glance.
+ *
+ * This only ever RAISES an unverified score, and only for kinds with a published
+ * grouping. A checksum-verified match already scores higher and is untouched.
+ */
+function formattingBonus(kind: PiiKind, raw: string): number {
+  const s = raw.trim();
+  // 4-4-4 with a real separator: the UIDAI print format.
+  if (kind === 'AADHAAR' && /^\d{4}[ -]\d{4}[ -]\d{4}$/.test(s)) return 0.65;
+  // 4-4-4-4: the embossed card format.
+  if (kind === 'CARD' && /^(?:\d{4}[ -]){3}\d{4}$/.test(s)) return 0.65;
+  return 0;
+}
+
 const RULES: Rule[] = [
   {
     kind: 'CARD',
@@ -127,7 +147,9 @@ function collect(text: string): Array<Detection & { priority: number }> {
         end: m.index + raw.length,
         raw,
         verified,
-        confidence: verified ? rule.verifiedConfidence : rule.rawConfidence,
+        confidence: verified
+          ? rule.verifiedConfidence
+          : Math.max(rule.rawConfidence, formattingBonus(rule.kind, raw)),
         priority: rule.priority,
       });
     }

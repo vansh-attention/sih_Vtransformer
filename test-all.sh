@@ -52,6 +52,7 @@ run "no undefined identifiers (tsc)" ./scripts/typecheck.sh
 section "Unit tests"
 for f in extension/src/pii/checksums.test.ts \
          extension/src/pii/dom.test.ts \
+         extension/src/redact/sanitize.test.ts \
          extension/src/pii/names.test.ts \
          extension/src/content/extractor.test.ts \
          extension/src/agent/validate.test.ts \

@@ -15,7 +15,7 @@ import type {
   Acknowledgement, AgentAction, ElementId, ElementNode, PageStructure, PiiKind,
   Placeholder, SanitizedNode, SanitizedPayload,
 } from '../contracts.ts';
-import { classifyField, reconcile, REDACT_THRESHOLD, type FieldSignals } from '../pii/dom.ts';
+import { classifyField, reconcile, canBe, REDACT_THRESHOLD, type FieldSignals } from '../pii/dom.ts';
 import { scanText } from '../pii/patterns.ts';
 import { detectNames, gazetteerLoaded } from '../pii/names.ts';
 import { applyRedactions, Vault } from './vault.ts';
@@ -76,8 +76,57 @@ function redactValue(
   const detections = scanText(text);
   const spans: Array<{ start: number; end: number; kind: PiiKind }> = [];
 
+  /**
+   * A DIGIT RUN THAT IS THE WHOLE VALUE OF A FIELD IS NOT AN INVOICE NUMBER.
+   *
+   * The corpus lesson "an unverified 12-digit run is more likely an invoice than an
+   * Aadhaar" was learned from digits sitting in PROSE and in TABLE CELLS — an order
+   * total, a bank-statement reference. It was then applied everywhere, including to a
+   * value a person had typed into an input, where it is plainly wrong: somebody who
+   * types twelve digits into a box has entered a number that means something, and if
+   * it is shaped like an Aadhaar it must not be transmitted just because its checksum
+   * fails. A real Aadhaar with one digit mistyped is still the person's Aadhaar.
+   *
+   * So: when the detection covers essentially the entire value of a FORM CONTROL, an
+   * unverified digit-kind is promoted to the redact threshold. In prose it is not.
+   * This keeps the precision win where it was earned and stops it costing recall
+   * where it never applied.
+   */
+  const isFormValue = signals !== undefined
+    && ['input', 'textarea', 'select', 'output'].includes(signals.tag);
+  const trimmed = text.trim();
+  const DIGIT_KINDS = new Set<PiiKind>(['AADHAAR', 'CARD', 'PHONE']);
+  const coversWholeField = (d: { start: number; end: number; raw: string }) =>
+    isFormValue && d.raw.trim() === trimmed && trimmed.length > 0;
+
   for (const det of detections) {
     const resolved = reconcile(hint, det);
+    if (resolved && !resolved.redact && !det.verified
+        && DIGIT_KINDS.has(det.kind) && coversWholeField(det)) {
+      /**
+       * NAMING IT STILL NEEDS TWO SIGNALS.
+       *
+       * Reaching here means the SHAPE matched and the checksum did NOT, and that the
+       * printed grouping gave no corroboration either — a grouped `4540 2012 2334`
+       * already clears the threshold above and never arrives here.
+       *
+       * Shape alone is one signal. A 15-digit run is a card length AND an account
+       * length; calling it a CARD because the card rule has the higher priority is the
+       * same guess that published a PAN as an Aadhaar. So the field decides if it can,
+       * and otherwise this is redacted as SENSITIVE.
+       */
+      const hinted = hint && hint.kind !== 'NON_PII' ? (hint.kind as PiiKind) : undefined;
+      const kind: PiiKind = hinted && canBe(hinted, det.raw) ? hinted : 'SENSITIVE';
+      spans.push({ start: det.start, end: det.end, kind });
+      placeholders.push({
+        token: '',
+        kind,
+        source: 'dom',
+        confidence: REDACT_THRESHOLD,
+        verified: false,
+      });
+      continue;
+    }
     if (!resolved?.redact) {
       // Detected, examined, deliberately kept. Record WHY so the server can trust it.
       if (resolved) kept?.push({ kind: resolved.kind, reason: resolved.rationale });
