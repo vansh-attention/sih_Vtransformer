@@ -271,16 +271,21 @@ if (report.fails.length) process.exitCode = 1;
 
 /* A font that failed to load leaves the panel on a fallback and the whole
    redesign looks half-applied — so assert it, rather than eyeballing it. */
+/**
+ * ⚠ `document.fonts.check()` is NOT the test it looks like — it returns true when a
+ * FALLBACK can render the text, so it reported success for "Inter" and "JetBrains
+ * Mono" long after both had been removed from the panel. The only honest signal is
+ * which faces actually reached status 'loaded'.
+ */
+const EXPECT_FONTS = ['Archivo Black', 'Geist', 'Geist Mono'];
 const fonts = await send('Runtime.evaluate', {
-  expression: `JSON.stringify({
-    inter: document.fonts.check('600 13px Inter'),
-    mono: document.fonts.check('400 11px "JetBrains Mono"'),
-    loaded: [...document.fonts].filter(f => f.status === 'loaded').map(f => f.family),
-  })`, returnByValue: true });
-const fontReport = JSON.parse(fonts.result.result.value);
-console.log('fonts:', fontReport);
-if (!fontReport.inter || !fontReport.mono) {
-  console.error('✘ a vendored font did not load — the panel is on a fallback stack');
+  expression: `JSON.stringify([...document.fonts]
+    .filter(f => f.status === 'loaded').map(f => f.family))`, returnByValue: true });
+const loaded = JSON.parse(fonts.result.result.value);
+const missingFonts = EXPECT_FONTS.filter((f) => !loaded.includes(f));
+console.log(`fonts loaded: ${loaded.join(', ') || '(none)'}`);
+if (missingFonts.length) {
+  console.error(`  ✘ not loaded, panel is on a fallback: ${missingFonts.join(', ')}`);
   process.exitCode = 1;
 }
 

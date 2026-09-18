@@ -74,15 +74,17 @@ await esbuild.build({
   const { cpSync, mkdirSync } = await import('node:fs');
   const FONTS = 'extension/fonts';
   mkdirSync(FONTS, { recursive: true });
+  // Three roles, three faces. Archivo Black for the wordmark and the headline
+  // figures — heavy, square, institutional, the register of a stamp on a
+  // government form. Geist for UI text and Geist Mono for tokens and byte
+  // counts; both are variable, so one file each covers every weight.
   const vendor = [
-    ['node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
-     `${FONTS}/inter-var.woff2`],
-    ['node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2',
-     `${FONTS}/jetbrains-mono-400.woff2`],
-    ['node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2',
-     `${FONTS}/jetbrains-mono-500.woff2`],
-    ['node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2',
-     `${FONTS}/jetbrains-mono-700.woff2`],
+    ['node_modules/@fontsource/archivo-black/files/archivo-black-latin-400-normal.woff2',
+     `${FONTS}/archivo-black.woff2`],
+    ['node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2',
+     `${FONTS}/geist-var.woff2`],
+    ['node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2',
+     `${FONTS}/geist-mono-var.woff2`],
   ];
   for (const [from, to] of vendor) cpSync(from, to);
   console.log(`vendored ${vendor.length} font files -> ${FONTS}/`);

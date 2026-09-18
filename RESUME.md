@@ -21,7 +21,7 @@ The only thing between the deck and a portal upload is the Team ID.
 | **Remotes** | `origin` (the org) and `personal` (the old Vansh repo) both in sync |
 | **Suite** | **24 passed, 0 skipped with `--full`** — verified 18 Sep 08:45, see below |
 | **Deliverables** | **12** PDFs in `outreach/`, all rebuilt and current (this line said 9 until 18 Sep — counted, not recalled) |
-| **Zip** | `demo/privacy-agent-extension.zip`, **1.44 MB**, scan-only, emailable |
+| **Zip** | `demo/privacy-agent-extension.zip`, **1.74 MB**, scan-only, emailable |
 | **Deadline** | portal closes **30 Sept 2026** |
 
 **Waiting on people, in priority order:**
@@ -77,9 +77,10 @@ purpose. Re-tighten it only if we reach the finale.
 
 - `motion.dev/docs/ai-kit` is an **MCP server for coding agents**, not a shippable
   library, and its CSS-spring generator needs Motion+. The **`motion` npm package** is
-  what got bundled. Lucide icons and **Inter + JetBrains Mono vendored locally** —
-  never linked: a tool claiming nothing leaves your machine must not fetch
-  fonts.googleapis.com on first paint.
+  what got bundled. Lucide icons, and the typefaces are **vendored locally, never
+  linked**: a tool claiming nothing leaves your machine must not fetch
+  fonts.googleapis.com on first paint. (Inter + JetBrains Mono at this point; both were
+  replaced later the same day — see the MetaMask pass below.)
 - Springs are integrated from a real damped oscillator, so the CSS `linear()` curves and
   the JS springs are one physics. `prefers-reduced-motion` turns all of it off.
 
@@ -102,7 +103,7 @@ it lie first, both producing plausible screenshots:** CDP nests results twice
 `Page.addScriptToEvaluateOnNewDocument` **accumulates**, so every state after the first
 rendered with state 1's stub and the "server offline" shot showed a healthy server.
 
-⛔ **The zip is 1.67 MB now, not 1.4 MB.** `package-extension.sh` copies `extension/fonts/`
+⛔ **The zip is 1.74 MB now, not 1.4 MB.** `package-extension.sh` copies `extension/fonts/`
 and **refuses to ship if any `url()` in the panel's CSS is absent from the zip** —
 sabotage-verified. Without that guard a missing woff2 errors nowhere; the panel just
 falls back to system fonts and looks half-finished on her laptop.
@@ -112,6 +113,49 @@ falls back to system fonts and looks half-finished on her laptop.
 ⚠ **`extension/src/ledger/render.ts` did NOT get this redesign.** It is a separate
 standalone renderer and it produces `bench/out/ledger.html` — **Figure 2 in the SPOC
 report**. Ask him whether it should be brought in line.
+
+### 🖤 THE METAMASK PASS — the panel's CURRENT look (18 Sep, third pass)
+
+He showed the MetaMask popup as the target and said the UI *"will be the most important
+thing of our project"*. The previous pass was indigo-tinted, dense and card-heavy — the
+opposite of the reference on every axis. **This is the current design; the two sections
+above are its history.**
+
+**THE SIGNATURE — the wordmark redacts itself.** Aavaran means *veil*. A solid ink bar
+sweeps across `AAV█N` on load, which is the product performing its own mechanism on its
+own name, and is literally the operation `sanitize()` runs on a screenshot. Reused once
+more: **masked values render as real bars (`ABC████F`), not bullet dots** — far more
+striking and more truthful than `•`. One bold idea, used twice, everything else quiet.
+
+- **True black `#000`, NEUTRAL greys.** The old greys were blue-tinted, which was most of
+  why it did not read like a wallet-grade extension.
+- **Pill controls, 1.5px borders. The primary button is WHITE**, as MetaMask's Unlock is.
+  ⛔ Deliberate: amber must keep meaning *withheld* in the evidence, so it is never spent
+  on a control. **This mistake was made twice** — first with green, then with amber on the
+  promoted Scan button — and the fix the second time was better: with no server, **Run and
+  Scan SWAP roles** (`#run.demoted` / `#scan.promoted`), so the working action is the white
+  one. State the hierarchy, don't hint at it.
+- **Type: Archivo Black (wordmark + figures only), Geist (UI), Geist Mono (tokens).**
+  Inter was dropped on purpose — it is the default anyone reaches for. Archivo Black is
+  restricted to FIGURES; applied to every `<b>` it put page titles in a display face and
+  made them shout.
+
+⚠ **Traps, all caught on pixels:**
+- **A black redaction bar on a black page is invisible.** Outlining it to compensate made
+  it read as an empty input box. On a dark surface the covering mark must be the LIGHT one.
+- **An inline-block's box is the LINE box, including leading** — a full-bleed bar stood
+  41px tall against 30px letters and hung below the baseline. Now `top:.08em;height:.81em`,
+  measured off the render, not guessed.
+- The bar needs a **black keyline** or, at this tracking, it fuses with the V and N and
+  reads as a font fault.
+- It must start `scaleX(0)` **in CSS**, or it paints covered for 220ms, snaps open, then
+  sweeps. Degrades to plain `AAVARAN` if the script never runs.
+- ⚠⚠ **`document.fonts.check()` IS NOT A TEST** — it returns true via fallback, so the
+  harness reported `inter: true, mono: true` long after both fonts had been deleted from
+  the panel. It now asserts the `status === 'loaded'` family list against an expected set.
+
+`plural()` was added — the panel said "1 turn(s)" and "value(s)", which asks the reader to
+do the work.
 
 ### ♿ ACCESSIBILITY PASS ON THE PANEL (18 Sep, after the redesign)
 
@@ -556,7 +600,7 @@ that stood since 12 Sep is gone: a clone today gives what the report describes.
 change to the vision handlers left the old chunk behind forever. **Four handler chunks had
 accumulated, three of them dead, and all four were shipping in the zip.** `build.mjs` now
 clears the output directory first. The zip was **1.4 MB** from then until the 18 Sep panel
-redesign, which added Motion, Lucide and the vendored typefaces; **it is 1.67 MB now.**
+redesign, which added Motion, Lucide and the vendored typefaces; **it is 1.74 MB now.**
 Both numbers are right for their date — check the zip, do not quote this line.
 
 Untracked as part of this: `.DS_Store` and `server/__pycache__/*.pyc` were committed and
@@ -571,7 +615,7 @@ showed as a diff on every run. `probe*.ts` is now ignored.
   `./test-all.sh`. Part 3 is `why.html` for anyone who will not install an extension.
 - `outreach/message-to-team.txt` — paste-ready Slack/WhatsApp messages. **Single**
   asterisks; Slack renders double ones literally and he has hit that before.
-- Send them the zip directly. 1.67 MB, so WhatsApp and Gmail both take it.
+- Send them the zip directly. 1.74 MB, so WhatsApp and Gmail both take it.
 
 **RENDERER BUG FOUND AND FIXED — it had already shipped.** `build-doc-pdf.py` had no
 fenced-code support, so every ``` block in SETUP-AND-DEMO collapsed into one wrapped
@@ -647,7 +691,7 @@ invited to clone is still at the 12 Sep commit.
   running the real pipeline with redaction off vs on. Best single artefact for Ma'am.
 - `demo/replay.html` ← `build-demo.mjs` — steps through a real recorded run
 - `demo/scenario.html` — realistic filled Indian tax refund form
-- `demo/privacy-agent-extension.zip` (1.67 MB, scan-only) ← `scripts/package-extension.sh` —
+- `demo/privacy-agent-extension.zip` (1.74 MB, scan-only) ← `scripts/package-extension.sh` —
   load-unpacked, **no Node/model/terminal needed**. Zip itself is verified working.
 - `scripts/retarget-repo.sh` — one command to move to a team org once named
 

@@ -88,10 +88,29 @@ createIcons({
  * Indian reader sees 1,20,000 rather than a grouping nobody here writes.
  */
 const num = (n: number) => new Intl.NumberFormat(navigator.language).format(n);
+/** "1 value", "4 values" — never "value(s)", which asks the reader to do the work. */
+const plural = (n: number, one: string, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`;
 const ms = (n: number) => `${num(n)}&nbsp;ms`;
 const kb = (bytes: number) =>
   `${new Intl.NumberFormat(navigator.language, { maximumFractionDigits: 1 })
     .format(bytes / 1024)}&nbsp;KB`;
+
+/**
+ * Draw a masked value as the BAR that actually covers it, not as bullet dots.
+ *
+ * `maskPreview` returns e.g. `AB••••••F` — two characters of recognition, the rest
+ * destroyed. Rendering those bullets as a solid block is the honest picture: it is
+ * precisely what the redactor paints over the value in the transmitted screenshot,
+ * and for the same reason a blur was rejected there. The kept characters stay
+ * readable so a reader can tell WHICH field it was without the value surviving.
+ *
+ * Width is in `ch`, so the bar covers exactly the columns the characters occupied
+ * in the monospaced face and the row cannot reflow when the mask length changes.
+ */
+function maskHtml(masked: string): string {
+  return esc(masked).replace(/•+/g,
+    (run) => `<span class="blk" style="width:${run.length}ch"></span>`);
+}
 
 interface Preview { token: string; kind: string; masked: string }
 
@@ -120,7 +139,7 @@ function renderTurn(rec: any, previews: Map<string, Preview>): string {
     </div>`).join('');
 
   const masked = [...previews.values()].slice(0, 8).map((p) =>
-    `<div class="row"><span class="mask" translate="no">${esc(p.masked)}</span> &rarr; <span class="tok" translate="no">${esc(p.token)}</span></div>`
+    `<div class="row"><span class="mask" translate="no">${maskHtml(p.masked)}</span> &rarr; <span class="tok" translate="no">${esc(p.token)}</span></div>`
   ).join('');
 
   // A withheld screenshot is a PROTECTION FIRING, not an error. It was recorded and
@@ -197,8 +216,11 @@ function setLamp(state: 'ok' | 'bad' | 'unknown', label: string): void {
   // screen reader hears the whole thing.
   $('lamptext').textContent = label;
   // When the model cannot be reached, Run is dead weight and Scan is the whole
-  // demo — so say so on the button rather than leaving the user to discover it.
-  $('scan').classList.toggle('promoted', state === 'bad');
+  // demo — so the two SWAP visual roles rather than leaving the user to discover
+  // it by pressing the big button and reading a failure.
+  const down = state === 'bad';
+  $('scan').classList.toggle('promoted', down);
+  $('run').classList.toggle('demoted', down);
 }
 
 async function checkServer(url: string): Promise<boolean> {
@@ -386,7 +408,7 @@ $('run').addEventListener('click', async () => {
       const cls = GOOD.has(reason) ? 'allow' : 'deny';
       $('phase').innerHTML =
         `<span class="${cls}">${esc(label[reason] ?? reason)}</span>`
-        + ` &middot; ${res.records.length} turn(s)`
+        + ` &middot; ${plural(res.records.length, 'turn')}`
         + (res.detail ? `<div class="t">${esc(res.detail)}</div>` : '');
       // Session totals up front. A judge should see the headline number without
       // adding up chips across turns.
@@ -469,14 +491,16 @@ $('scan').addEventListener('click', async () => {
       `${w.count} ${w.kind}`).join(', ') || 'nothing personal found';
 
     const warn = [
-      r.unreadable?.length ? `${r.unreadable.length} region(s) unreadable, screenshot would be withheld` : '',
+      r.unreadable?.length
+        ? `${plural(r.unreadable.length, 'region')} unreadable, screenshot would be withheld` : '',
       r.piiBeyondTextCap ? 'PII-shaped text beyond the length cap, screenshot would be withheld' : '',
       r.piiBeyondNodeCap ? 'PII-shaped content below the node budget, screenshot would be withheld' : '',
       r.truncated ? `page exceeded the node budget; form controls were rescued` : '',
     ].filter(Boolean);
 
     $('phase').innerHTML =
-      `<b>${total}</b> value(s) would be withheld from <b>${esc(r.title ?? r.url ?? 'this page')}</b>`
+      `<b class="fig">${num(total)}</b> ${total === 1 ? 'value' : 'values'} would be withheld`
+      + ` from <span class="src">${esc(r.title ?? r.url ?? 'this page')}</span>`
       + `<span class="t nums">${num(r.nodeCount)} elements read, `
       + `${num(r.bytes)} bytes would be sent</span>`;
 
@@ -491,7 +515,7 @@ $('scan').addEventListener('click', async () => {
       + (r.previews?.length
           ? `<table class="fields"><thead><tr><th scope="col">On screen</th><th scope="col">Sent instead</th></tr></thead><tbody>`
             + r.previews.map((p: Preview) =>
-                `<tr><td class="mask" translate="no">${esc(p.masked)}</td><td class="tok" translate="no">${esc(p.token)}</td></tr>`).join('')
+                `<tr><td class="mask" translate="no">${maskHtml(p.masked)}</td><td class="tok" translate="no">${esc(p.token)}</td></tr>`).join('')
             + `</tbody></table>`
           : `<div class="hint">`
             // The likeliest first experience is an empty result, because a page holds
@@ -563,14 +587,38 @@ if (!STILL) {
 }
 
 /**
+ * THE ONE ORCHESTRATED MOMENT: the wordmark redacts itself.
+ *
+ * The bar wipes left-to-right across AAVARAN, which is the product performing
+ * its own mechanism on its own name — the name means "veil", and a privacy tool
+ * whose logotype demonstrates the covering is self-evidencing to a reader who
+ * arrived sceptical. It is also literally the same operation the redactor runs
+ * on a screenshot: a solid fill, swept over a region, before anything is sent.
+ *
+ * scaleX from a left origin, so it composites and never triggers layout. One
+ * moment, deliberately — everything else on this panel stays quiet.
+ */
+function sweepRedaction(): void {
+  const bar = document.getElementById('markbar');
+  if (!bar) return;
+  if (STILL) { bar.style.transform = 'scaleX(1)'; return; }
+  bar.style.transformOrigin = 'left center';
+  void animate(bar,
+    { transform: ['scaleX(0)', 'scaleX(1)'] },
+    { duration: 0.52, ease: [0.22, 1, 0.36, 1], delay: 0.22 });
+}
+sweepRedaction();
+
+/**
  * Mount: the panel assembles rather than appearing.
  *
- * The stagger runs top-down in reading order, so the eye is walked from the
- * mark, to which tab is targeted, to the thing it is being asked to do. ~260ms
- * end to end — long enough to be felt, short enough that nobody waits for it.
+ * Reading order, top-down, so the eye is walked from the mark to the tagline to
+ * the thing it is being asked to do. The hero is excluded — it has the sweep, and
+ * two animations on one element is how a page starts to look busy.
  */
 enter(
   Array.from(document.querySelectorAll(
-    '.hdr, .target, .lbl-field, #goal, .btns, #scan, #settings, .phase, .empty, .note')),
-  { delay: stagger(0.028) },
+    '.statusbar, .tagline, .lbl-field, #goal, .btns, #scan, .subnote, '
+    + '.target, #settings, .phase, .empty, .note')),
+  { delay: stagger(0.026) },
 );
