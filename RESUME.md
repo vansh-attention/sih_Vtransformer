@@ -21,7 +21,7 @@ The only thing between the deck and a portal upload is the Team ID.
 | **Remotes** | `origin` (the org) and `personal` (the old Vansh repo) both in sync |
 | **Suite** | **24 passed, 0 skipped with `--full`** — verified 18 Sep 08:45, see below |
 | **Deliverables** | **12** PDFs in `outreach/`, all rebuilt and current (this line said 9 until 18 Sep — counted, not recalled) |
-| **Zip** | `demo/privacy-agent-extension.zip`, **1.74 MB**, scan-only, emailable |
+| **Zip** | `demo/privacy-agent-extension.zip`, **1.63 MB**, scan-only, emailable |
 | **Deadline** | portal closes **30 Sept 2026** |
 
 **Waiting on people, in priority order:**
@@ -103,7 +103,7 @@ it lie first, both producing plausible screenshots:** CDP nests results twice
 `Page.addScriptToEvaluateOnNewDocument` **accumulates**, so every state after the first
 rendered with state 1's stub and the "server offline" shot showed a healthy server.
 
-⛔ **The zip is 1.74 MB now, not 1.4 MB.** `package-extension.sh` copies `extension/fonts/`
+⛔ **The zip is 1.63 MB now, not 1.4 MB.** `package-extension.sh` copies `extension/fonts/`
 and **refuses to ship if any `url()` in the panel's CSS is absent from the zip** —
 sabotage-verified. Without that guard a missing woff2 errors nowhere; the panel just
 falls back to system fonts and looks half-finished on her laptop.
@@ -803,7 +803,7 @@ that stood since 12 Sep is gone: a clone today gives what the report describes.
 change to the vision handlers left the old chunk behind forever. **Four handler chunks had
 accumulated, three of them dead, and all four were shipping in the zip.** `build.mjs` now
 clears the output directory first. The zip was **1.4 MB** from then until the 18 Sep panel
-redesign, which added Motion, Lucide and the vendored typefaces; **it is 1.74 MB now.**
+redesign, which added Motion, Lucide and the vendored typefaces; **it is 1.63 MB now.**
 Both numbers are right for their date — check the zip, do not quote this line.
 
 Untracked as part of this: `.DS_Store` and `server/__pycache__/*.pyc` were committed and
@@ -818,7 +818,7 @@ showed as a diff on every run. `probe*.ts` is now ignored.
   `./test-all.sh`. Part 3 is `why.html` for anyone who will not install an extension.
 - `outreach/message-to-team.txt` — paste-ready Slack/WhatsApp messages. **Single**
   asterisks; Slack renders double ones literally and he has hit that before.
-- Send them the zip directly. 1.74 MB, so WhatsApp and Gmail both take it.
+- Send them the zip directly. 1.63 MB, so WhatsApp and Gmail both take it.
 
 **RENDERER BUG FOUND AND FIXED — it had already shipped.** `build-doc-pdf.py` had no
 fenced-code support, so every ``` block in SETUP-AND-DEMO collapsed into one wrapped
@@ -894,7 +894,7 @@ invited to clone is still at the 12 Sep commit.
   running the real pipeline with redaction off vs on. Best single artefact for Ma'am.
 - `demo/replay.html` ← `build-demo.mjs` — steps through a real recorded run
 - `demo/scenario.html` — realistic filled Indian tax refund form
-- `demo/privacy-agent-extension.zip` (1.74 MB, scan-only) ← `scripts/package-extension.sh` —
+- `demo/privacy-agent-extension.zip` (1.63 MB, scan-only) ← `scripts/package-extension.sh` —
   load-unpacked, **no Node/model/terminal needed**. Zip itself is verified working.
 - `scripts/retarget-repo.sh` — one command to move to a team org once named
 

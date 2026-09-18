@@ -29,7 +29,7 @@ The longer version is in `TEAM-EXPLAINER.pdf`. You do not need it to test.
 
 ### Install
 
-1. Download `privacy-agent-extension.zip` and unzip it. It is 1.7 MB.
+1. Download `privacy-agent-extension.zip` and unzip it. It is 1.63 MB.
 2. Open **Chrome**. Go to `chrome://extensions`
 3. Turn on **Developer mode**, top right.
 4. Press **Load unpacked** and choose the unzipped folder, the one holding `manifest.json`.
@@ -91,7 +91,7 @@ cd Aavaran
 ./test-all.sh
 ```
 
-Expect **17 passed, 0 skipped**, in about a minute. No browser and no network needed.
+Expect **19 passed, 0 skipped**, in about a minute. No browser and no network needed.
 
 **If anything fails on your machine, that is a genuine finding, so send the output rather
 than working around it.** Two bugs have already been caught exactly this way, both of them

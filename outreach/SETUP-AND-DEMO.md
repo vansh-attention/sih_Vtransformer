@@ -22,7 +22,7 @@ is hers, not ours.
 
 ### Option B, step by step
 
-Send her `privacy-agent-extension.zip` (**1.7 MB**, so it attaches to an email). Build it with
+Send her `privacy-agent-extension.zip` (**1.63 MB**, so it attaches to an email). Build it with
 `./scripts/package-extension.sh`. It contains a `READ-ME-FIRST.txt` saying the same
 things, so she does not need this document.
 
@@ -56,7 +56,7 @@ If she would still rather not install it, that is a reasonable position. Show he
 7. Type something into a field: a name, a phone number, a PAN. Use a made-up
    value such as `ABCPE1234F`, never her own.
 8. Click the extension icon in the toolbar. A panel opens on the right.
-9. Press **Scan this page (no model needed)**.
+9. Press **Scan this page**.
 
 The panel lists every personal value found, what would have been sent instead, and how
 many bytes would have left the machine. **Nothing is transmitted.** The scan stops at the
@@ -107,7 +107,7 @@ panel, type a goal, press **Run on this tab**. Expect about half a minute for a
 three-field form, and say so beforehand: it is slower than doing it by hand, and the
 report says that too.
 
-**It completes seven runs in eight.** If it stalls, that is the one in eight. Have the
+**It completes most runs but not all** — measured between two in three and seven in eight depending on the page. If it stalls, that is the miss. Have the
 recorded replay open in another tab as a fallback: `demo/replay.html`, a real recorded
 run you can step through, which needs nothing at all.
 
@@ -133,7 +133,7 @@ cd Aavaran
 ./test-all.sh
 ```
 
-`setup.sh` installs dependencies and builds the extension. `test-all.sh` runs **17
+`setup.sh` installs dependencies and builds the extension. `test-all.sh` runs **19
 checks** in about a minute and needs no browser and no network.
 
 If anything fails on your machine, that is a real finding worth reporting. Two bugs have
@@ -149,7 +149,7 @@ ollama pull qwen2.5vl:7b
 ./test-all.sh --full
 ```
 
-**24 checks**, including real browsers and the live model. Slower, and worth doing before
+**26 checks**, including real browsers and the live model. Slower, and worth doing before
 any demonstration.
 
 ### Loading the extension yourself

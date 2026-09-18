@@ -120,8 +120,17 @@ await esbuild.build({
  * Inter is the variable file: one 48 KB woff2 covers every weight we use.
  */
 {
-  const { cpSync, mkdirSync } = await import('node:fs');
+  const { cpSync, mkdirSync, rmSync } = await import('node:fs');
   const FONTS = 'extension/fonts';
+  /**
+   * CLEAR IT FIRST — the same rule as extension/dist above, learned the same way.
+   *
+   * Vendoring without clearing leaves every font a previous design used sitting in the
+   * directory, and the packager ships whatever is there. Inter and three weights of
+   * JetBrains Mono survived the move to Geist and Archivo Black and were going out in
+   * the zip: 91 KB of typefaces no stylesheet references, downloaded by everyone.
+   */
+  rmSync(FONTS, { recursive: true, force: true });
   mkdirSync(FONTS, { recursive: true });
   // Three roles, three faces. Archivo Black for the wordmark and the headline
   // figures — heavy, square, institutional, the register of a stamp on a
