@@ -116,10 +116,11 @@ extracted file — and right-click → Open is macOS's consent step for that. Af
 double-click works. Windows shows a SmartScreen notice the first time; "More info" then
 "Run anyway".
 
-⛔ **It starts things; it never installs anything.** If ollama is missing it stops and
-opens the download page rather than installing a background daemon on your machine
-uninvited — which is exactly the behaviour this project tells people to be suspicious of.
-Both launchers are deliberately short enough to read before you trust them.
+**If ollama is missing it offers to install it — and asks first.** You are shown the exact
+command, the disk cost (~0.5 GB for ollama, ~6 GB for the model), and what still works if
+you say no. **The default is No**, and declining is a real option: Scan needs none of it.
+`INSTALL-OLLAMA.txt` in the repository root repeats all of it for later, including how to
+uninstall. Both launchers are deliberately short enough to read before you trust them.
 
 <details><summary>Or do it by hand, in three terminals</summary>
 

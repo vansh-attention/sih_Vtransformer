@@ -21,7 +21,10 @@ look like.
 **After `./setup.sh`, double-click `Start Aavaran.command`** (macOS) or
 **`Start Aavaran.bat`** (Windows) to bring up ollama and the reasoning server. First run on
 macOS needs right-click → Open, because anything out of a downloaded zip is quarantined.
-The launchers start things and never install anything, and are short enough to read first.
+The launcher offers to install ollama, but only after telling you the exact command, the
+~6.5 GB disk cost and what still works if you decline — and it defaults to No.
+**[`INSTALL-OLLAMA.txt`](INSTALL-OLLAMA.txt)** has the same information for later,
+including how to remove it again.
 
 
 ```bash

@@ -1,0 +1,132 @@
+INSTALLING OLLAMA FOR AAVARAN
+=============================
+
+You can do this later. Nothing is lost by saying no now — this file is here so the
+decision stays yours, and stays reversible.
+
+
+WHAT IT IS, AND WHY AAVARAN WANTS IT
+------------------------------------
+
+Ollama runs a language model on your own machine instead of sending your screen to
+somebody's cloud. That is the entire point of this project, so the model has to live
+locally, and ollama is what runs it.
+
+
+HOW MUCH DISK IT COSTS (measured, not estimated)
+------------------------------------------------
+
+  Ollama itself                     ~0.5 GB   (516 MB on macOS)
+  The model, qwen2.5vl:7b            6.0 GB
+                                    --------
+  Total                             ~6.5 GB
+
+The 6 GB model is one download, kept on disk, and never downloaded again.
+
+
+WHAT WORKS WITHOUT IT
+---------------------
+
+  WORKS   "Scan this page"
+          Reads the page, finds every PAN, Aadhaar, card, phone, name and address,
+          and shows you exactly what would be sent instead. It stops immediately
+          before the point where a request would be made, so nothing is transmitted.
+          This is the whole privacy demonstration and it needs nothing installed.
+
+  NEEDS   "Run on this tab"
+  OLLAMA  The agent that actually fills in a form for you. Without a local model
+          there is nothing to do the reasoning, so the button is disabled and the
+          panel says so.
+
+If all you want is to see whether the privacy claim is true, you do not need any of
+this. Load the extension and press Scan.
+
+
+STEP 1 — INSTALL OLLAMA
+-----------------------
+
+  macOS
+    brew install ollama
+    ...or download the installer from https://ollama.com/download
+
+  Windows
+    winget install Ollama.Ollama
+    ...or download the installer from https://ollama.com/download
+
+  Linux
+    curl -fsSL https://ollama.com/install.sh | sh
+
+On macOS and Windows it starts by itself in the background afterwards, so you do not
+normally need to run "ollama serve" by hand.
+
+Check it worked:
+
+    ollama --version
+
+
+STEP 2 — GET THE MODEL (pick ONE)
+---------------------------------
+
+  Easiest       Run ./setup.sh in the Aavaran folder. It pulls the model for you
+                once ollama is installed, and tells you what it is doing.
+
+  From the      Open the Aavaran panel. If the server is running and the model is
+  extension     missing, there is an "Install qwen2.5vl:7b" button with a progress
+                bar. No terminal needed.
+
+  By hand       ollama pull qwen2.5vl:7b
+
+
+STEP 3 — CHECK IT PROPERLY
+--------------------------
+
+    ollama show qwen2.5vl:7b
+
+Use "show", NOT "list".
+
+"ollama list" displays a model even when its download was interrupted, so it will
+tell you a half-finished model is present and you will only discover otherwise when
+you try to use it. "show" reads the manifest and the actual data files, so it fails
+when they are incomplete. If it fails:
+
+    ollama rm qwen2.5vl:7b
+    ollama pull qwen2.5vl:7b
+
+
+IF YOUR CONNECTION IS SLOW OR UNRELIABLE
+----------------------------------------
+
+Download it before you need it, not on the day. A 6 GB download over conference or
+campus wifi is the most likely thing to spoil a demonstration.
+
+If the network cannot be trusted at all, ollama keeps its models in:
+
+    ~/.ollama/models          (macOS and Linux)
+    %USERPROFILE%\.ollama\models   (Windows)
+
+That folder can be copied to another machine on a USB stick. Worth trying once
+beforehand rather than finding out on the day that it does not work.
+
+
+REMOVING IT AGAIN
+-----------------
+
+Reasonable thing to want to know before installing anything.
+
+    ollama rm qwen2.5vl:7b        frees the 6 GB model
+    brew uninstall ollama         macOS, if installed with Homebrew
+    winget uninstall Ollama.Ollama    Windows
+
+On macOS you can also just drag Ollama.app to the Bin. Deleting ~/.ollama removes
+every model you have pulled.
+
+
+STARTING EVERYTHING AFTERWARDS
+------------------------------
+
+Double-click "Start Aavaran.command" (macOS) or "Start Aavaran.bat" (Windows) in the
+Aavaran folder. It starts ollama and the reasoning server and leaves a window open
+while they run.
+
+First run on macOS needs right-click then Open rather than a double-click, because
+anything extracted from a downloaded zip is quarantined until you approve it once.
