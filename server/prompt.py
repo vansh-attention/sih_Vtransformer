@@ -72,8 +72,11 @@ IF THE GOAL IS A QUESTION, ANSWER IT — do not act on the page.
   to: write the token exactly as it appears and the client will substitute the real
   value for the user's eyes only. So
       "The mobile number on this page is <PII_PHONE_1>."
-  is CORRECT and useful. Never write "[redacted]", never say you are unable to see it,
-  and never invent a value — a token is an answer, an apology is not.
+  is CORRECT and useful.
+  ⛔ Copy the token EXACTLY, angle brackets and all: <PII_PHONE_1>. Do NOT write the
+  kind on its own — "the details are NAME and PHONE" is useless to the reader. Never
+  write "[redacted]", never say you are unable to see it, and never invent a value.
+  A token is an answer; an apology is not.
 
 BEFORE ANYTHING ELSE, check whether you are done: a confirmation message, a button now
 disabled with a changed label, the history already covering the goal, or the fields
@@ -166,8 +169,22 @@ def build_messages(payload: dict[str, Any]) -> list[dict[str, Any]]:
         kinds: dict[str, int] = {}
         for p in held:
             kinds[p["kind"]] = kinds.get(p["kind"], 0) + 1
-        withheld_line = "Withheld on this page: " + ", ".join(
-            f"{n}x {k}" for k, n in sorted(kinds.items())
+        # NAME THE TOKENS, not just the counts.
+        #
+        # This line used to read "Withheld on this page: 1x NAME, 1x PHONE", which never
+        # connected those kinds to the tokens standing in the element tree. Asked "find
+        # the contact details", the model answered "the contact details are not visible"
+        # in four runs out of four — it could see <PII_PHONE_1> in the tree and did not
+        # recognise it as the thing being asked for. Listing the tokens next to their
+        # kinds closes that gap, and costs a handful of prompt tokens.
+        by_kind: dict[str, list[str]] = {}
+        for p_ in held:
+            by_kind.setdefault(p_["kind"], []).append(p_["token"])
+        # ⚠ TOKEN FIRST, kind in parentheses. Written as "NAME = <PII_NAME_1>" the model
+        # answered "the contact details are NAME and PHONE" — it copied the left-hand
+        # side. Whatever leads this line is what comes back.
+        withheld_line = "Values on this page, each replaced by the token you must quote: " + ", ".join(
+            f"{t} (a {k})" for k, ts in sorted(by_kind.items()) for t in ts
         )
     else:
         withheld_line = "Nothing was withheld on this page."
