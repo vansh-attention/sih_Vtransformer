@@ -2,20 +2,26 @@
 
 **READ THIS FIRST.**
 
-## ⭐ PICK UP HERE — state at the close of 17 Sep 2026
+## ⭐ PICK UP HERE — state at 18 Sep 2026 morning
 
 Everything is committed, pushed and verified. **Nothing is half-finished.** Every open
 item below is waiting on another person, not on the next session.
+
+**Re-verified from scratch on 18 Sep 08:30–08:45, not read off this file:** `--full` at
+**24/24**, the 19 source→artefact pairs swept for mtime staleness (**zero stale**), slide 1
+and slide 2 checked **on the JPG pixels**, and the shipped zip's `dist/` bytes compared
+against a fresh rebuild (**identical** — the zip is current). **The build is finished.**
+The only thing between the deck and a portal upload is the Team ID.
 
 | | |
 |---|---|
 | **Team** | **Vagabonds** |
 | **Project** | **Aavaran** |
-| **Repo** | `AavaranAI/Aavaran` — **PRIVATE**, HEAD `1d1100e`, tree clean |
+| **Repo** | `AavaranAI/Aavaran` — **PRIVATE**, tree clean |
 | **Remotes** | `origin` (the org) and `personal` (the old Vansh repo) both in sync |
-| **Suite** | 17 passed, 0 skipped · 24 with `--full` |
-| **Deliverables** | 9 PDFs in `outreach/`, all rebuilt and current |
-| **Zip** | `demo/privacy-agent-extension.zip`, **1.4 MB**, scan-only, emailable |
+| **Suite** | **24 passed, 0 skipped with `--full`** — verified 18 Sep 08:45, see below |
+| **Deliverables** | **12** PDFs in `outreach/`, all rebuilt and current (this line said 9 until 18 Sep — counted, not recalled) |
+| **Zip** | `demo/privacy-agent-extension.zip`, **1.44 MB**, scan-only, emailable |
 | **Deadline** | portal closes **30 Sept 2026** |
 
 **Waiting on people, in priority order:**
@@ -26,8 +32,11 @@ item below is waiting on another person, not on the next session.
    `pujasarkar@iimmumbai.ac.in` with `SIH26171-Project-Report.pdf` attached
 3. **Vansh archives** `vansh-attention/sih_Vtransformer`, or the two copies diverge
 4. **Portal Team ID** — the **last remaining** placeholder on deck slide 1, and the only
-   value that genuinely cannot exist until the team registers
-5. Optional: the org's About still reads "vision transfer problem statement of the SIH"
+   value that genuinely cannot exist until the team registers. **He confirmed on 18 Sep
+   that the team has NOT registered yet**, so the amber `«Team ID»` is correct as it
+   stands. Re-export the deck PDF from PowerPoint the moment the ID exists.
+5. Optional: the org's About still reads "vision transfer problem statement of the SIH",
+   and its display name reads "Aavran" — a different spelling from the login `AavaranAI`
 
 ⚠ **Found 17 Sep evening, after the block above was written: the built deck was STALE.**
 `deck/build.py` was updated with `TEAM_NAME = "Vagabonds"` but never re-run, so
@@ -83,9 +92,10 @@ Three placements: the **slide 1 title** (replacing the template's `TITLE PAGE` f
 The team oval on slides 2–6 still carries **Vagabonds**, which is what that oval is for.
 
 Slide 2's heading was the template's *other* fill-in, `IDEA TITLE`, and had been missed for
-the same reason as `TITLE PAGE`. It now reads **REDACT BEFORE YOU SEND** — ⚠ **my wording,
-not his.** The `IDEA_TITLE` constant at the top of `build.py` changes it in one line.
-Slides 3–6 carry real section headings and are untouched.
+the same reason as `TITLE PAGE`. It reads **REDACT BEFORE YOU SEND** — ✅ **he was shown it
+and chose to KEEP it (18 Sep). No longer an open question; do not re-raise.** The
+`IDEA_TITLE` constant at the top of `build.py` is the one line that changes it if he ever
+does. Slides 3–6 carry real section headings and are untouched.
 
 ⚠ **Two python-pptx traps, both commented in `build.py`:**
 - That placeholder holds **two runs** — a vertical-tab break, then the words. Writing *every*
@@ -139,8 +149,11 @@ Local: `~/sih-browser-agent` · released **v0.1.0**, **v0.1.1**
 ./test-all.sh --full   # 24 checks: + real browsers + live model
 ```
 
-**17 Sep: `--full` ran 23/23, 0 skipped** at the time, live model and both real browsers
-included. The full suite is **24** now; Spikes H and I were added after that run. To reproduce it on this Mac, all three are needed:
+✅ **18 Sep 08:45: `--full` ran 24/24, 0 skipped** — live model and both real browsers.
+**This is the first green run at 24.** The 23/23 of 17 Sep predated Spikes H and I, so the
+two newest checks — text masking proven on pixels, and scan-any-page — had never been in a
+full run. Both pass. ⇒ *A suite that grew after its last full run has never been fully run.*
+To reproduce it on this Mac, all three prerequisites are needed:
 
 ```bash
 ollama serve &                                     # qwen2.5vl:7b, confirmed present
