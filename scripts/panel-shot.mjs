@@ -140,6 +140,20 @@ const SCAN = {
   unreadable: [], truncated: false,
 };
 
+/**
+ * The state he was actually looking at: the real income-tax login page, where the
+ * User ID field accepts a PAN or an Aadhaar and the value settles neither. Kept as a
+ * fixture so the SENSITIVE label and the unreadable-regions warning both stay on
+ * screen for review rather than being rediscovered from a screenshot.
+ */
+const SCAN_ITD = {
+  title: 'Income Tax e-Filing', url: 'https://eportal.incometax.gov.in/iec/foservices/#/login',
+  nodeCount: 118, bytes: 13079,
+  withheld: [{ kind: 'SENSITIVE', count: 1 }],
+  previews: [{ token: '<PII_SENSITIVE_1>', kind: 'SENSITIVE', masked: 'IM••••••••T' }],
+  unreadable: new Array(14).fill({}), truncated: false,
+};
+
 const RUN = {
   stopReason: 'goal-complete',
   previews: SCAN.previews,
@@ -174,6 +188,9 @@ const STATES = [
     health: HEALTH_OK, scan: SCAN, run: RUN,
     after: `document.getElementById('goal').value='Fill in the form and submit it';
             document.getElementById('run').click()` },
+  { name: '6-scan-ambiguous-field', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/#/login',
+    health: HEALTH_DOWN, scan: SCAN_ITD, run: RUN,
+    after: `document.getElementById('scan').click()` },
   { name: '5-settings-open', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_OK, scan: SCAN, run: RUN,
     after: `document.getElementById('settings').open=true` },

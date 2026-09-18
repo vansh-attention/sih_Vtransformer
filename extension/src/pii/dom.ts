@@ -44,6 +44,16 @@ export interface FieldHint {
   kind: PiiKind | 'NON_PII';
   confidence: number;
   source: 'input-type' | 'autocomplete' | 'keyword';
+  /**
+   * EVERY kind whose keywords fired, when more than one did.
+   *
+   * A field can legitimately accept several kinds — "PAN/ Aadhaar/ Other User ID" is a
+   * real placeholder on eportal.incometax.gov.in. Previously only the first match
+   * survived and the winner was whichever kind sat earlier in `KEYWORD_MAP`, which is
+   * an arbitrary fact about source order masquerading as a finding. Keeping all of them
+   * lets `reconcile` choose with the value in hand.
+   */
+  alternatives?: PiiKind[];
 }
 
 // ---------------------------------------------------------------------------
@@ -117,7 +127,12 @@ const AUTOCOMPLETE_MAP: Record<string, PiiKind> = {
  * a first pass — a wrong word here fails open (a missed label), not closed.
  */
 const KEYWORD_MAP: Array<{ kind: PiiKind; words: string[] }> = [
-  { kind: 'AADHAAR', words: ['aadhaar', 'aadhar', 'uidai', 'uid',
+  /**
+   * ⛔ `uid` was removed 18 Sep. On Indian portals it means "user id" far more often
+   * than "unique identification" — `id="uid"` alone classified a login box as an
+   * Aadhaar field. `uidai` is kept because it names the authority and nothing else.
+   */
+  { kind: 'AADHAAR', words: ['aadhaar', 'aadhar', 'uidai',
                              'आधार',        // hi/mr
                              'ஆதார்',        // ta
                              'ఆధార్',        // te
@@ -236,6 +251,46 @@ function haystack(s: FieldSignals): string {
     .toLowerCase();
 }
 
+/**
+ * Could this string POSSIBLY be that kind?
+ *
+ * The income-tax login page put a PAN-shaped value in a field whose placeholder reads
+ * "PAN/ Aadhaar/ Other User ID". Both keywords fire, and the label alone cannot settle
+ * it — but the VALUE can: an Aadhaar is twelve digits, so anything containing a letter
+ * is not one, whatever the field is called.
+ *
+ * ⚠ Deliberately CONSERVATIVE. A kind absent from this table is always considered
+ * possible, because declaring a value impossible is how a redaction turns into a leak.
+ * Only kinds with a rigid published format appear here, and each is the published
+ * format — not a guess.
+ */
+const bare = (s: string) => s.replace(/[\s-]/g, '');
+const digitsOnly = (s: string) => /^[\d\s-]+$/.test(s.trim());
+
+const SHAPE: Partial<Record<PiiKind, (raw: string) => boolean>> = {
+  // UIDAI: 12 digits, never starting 0 or 1.
+  AADHAAR: (s) => digitsOnly(s) && /^[2-9]\d{11}$/.test(bare(s)),
+  // ISO/IEC 7812: 13-19 digits.
+  CARD: (s) => digitsOnly(s) && /^\d{13,19}$/.test(bare(s)),
+  // Indian subscriber number, with or without country code / trunk 0.
+  PHONE: (s) => /^[+\d\s()-]+$/.test(s.trim())
+    && /^[6-9]\d{9}$/.test(bare(s).replace(/^(?:\+?91|0)/, '')),
+  // Income Tax Dept: five letters, four digits, one letter. Exactly ten characters.
+  PAN: (s) => /^[A-Za-z]{5}\d{4}[A-Za-z]$/.test(bare(s)),
+  // GSTN: 15 characters, with a literal Z in position 14.
+  GSTIN: (s) => /^\d{2}[A-Za-z]{5}\d{4}[A-Za-z][0-9A-Za-z]Z[0-9A-Za-z]$/.test(bare(s)),
+  // RBI: four letters, a zero, then six alphanumerics.
+  IFSC: (s) => /^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(bare(s)),
+  UPI: (s) => /^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(s.trim()),
+  EMAIL: (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim()),
+};
+
+/** True unless the value structurally cannot be this kind. */
+export function canBe(kind: PiiKind, raw: string): boolean {
+  const shape = SHAPE[kind];
+  return shape ? shape(raw) : true;
+}
+
 /** Classify a field from DOM signals alone. Returns null when nothing fires. */
 export function classifyField(signals: FieldSignals): FieldHint | null {
   // A password input is never anything else, and never negotiable.
@@ -260,12 +315,21 @@ export function classifyField(signals: FieldSignals): FieldHint | null {
   // both "pan" and "invoices". Demoting on the negative word made a real PAN survive
   // into the outbound payload — a false negative, which is the expensive kind of
   // mistake here. Negative context only wins when nothing positive fires at all.
+  // Collect EVERY kind that fires, not just the first. Returning early here is what
+  // let keyword-array order decide a PAN/Aadhaar field.
+  const fired: PiiKind[] = [];
   for (const { kind, res } of KEYWORD_PATTERNS) {
-    for (const re of res) {
-      if (re.test(hay)) {
-        return { kind, confidence: 0.75, source: 'keyword' };
-      }
-    }
+    if (res.some((re) => re.test(hay)) && !fired.includes(kind)) fired.push(kind);
+  }
+  if (fired.length) {
+    return {
+      kind: fired[0]!,
+      // An ambiguous field is weaker evidence than an unambiguous one, and saying so
+      // here is what stops a coin-flip being reported at 0.75 like a real reading.
+      confidence: fired.length > 1 ? 0.6 : 0.75,
+      source: 'keyword',
+      ...(fired.length > 1 ? { alternatives: fired } : {}),
+    };
   }
 
   for (const word of NON_PII_WORDS) {
@@ -305,6 +369,14 @@ export const REDACT_THRESHOLD = 0.6;
 export function reconcile(
   hint: FieldHint | null,
   detection: Detection | null,
+  /**
+   * The field's own value, when the caller has it.
+   *
+   * Only needed for the "field says PII, characters say nothing" branch: without it
+   * that branch has to take the label's word for the KIND, which is how a User ID
+   * containing letters was published as `<PII_AADHAAR_1>`.
+   */
+  raw?: string,
 ): Resolved | null {
   // 1. Password fields are unconditional. Never reasoned about, never thresholded.
   if (hint?.kind === 'PASSWORD') {
@@ -317,15 +389,69 @@ export function reconcile(
     };
   }
 
-  // 2. Field says PII, characters say nothing. Trust the field — an unrecognised
-  //    format in a field labelled "Aadhaar" is still an Aadhaar to somebody.
+  // 2. Field says PII, characters say nothing.
+  //
+  //    STILL REDACT — an unrecognised format in a field labelled "Aadhaar" is
+  //    sensitive to somebody, and failing open here would be a leak.
+  //
+  //    But do not take the label's word for the KIND. This branch published a PAN-
+  //    shaped User ID as <PII_AADHAAR_1> on eportal.incometax.gov.in, because that
+  //    field's placeholder names both kinds and AADHAAR sits earlier in the keyword
+  //    array. Where the value rules a kind out, it is ruled out; where nothing
+  //    survives, the honest label is SENSITIVE.
+  //
+  //    ⇒ Redaction may fail safe. A KIND must never be guessed — the tag is the one
+  //      thing on screen that claims to be a finding.
   if (hint && hint.kind !== 'NON_PII' && !detection) {
+    const candidates: PiiKind[] = [];
+    for (const k of [hint.kind, ...(hint.alternatives ?? [])]) {
+      if (k !== 'NON_PII' && !candidates.includes(k)) candidates.push(k);
+    }
+    const viable = raw === undefined ? candidates : candidates.filter((k) => canBe(k, raw));
+
+    if (viable.length === 1 && viable[0] === hint.kind) {
+      return {
+        kind: hint.kind,
+        confidence: hint.confidence,
+        verified: false,
+        redact: hint.confidence >= REDACT_THRESHOLD,
+        rationale: `field labelled ${hint.kind} (${hint.source}), value unrecognised`,
+      };
+    }
+    if (viable.length === 1) {
+      // The field was ambiguous and the value settled it.
+      return {
+        kind: viable[0]!,
+        confidence: Math.max(hint.confidence, 0.7),
+        verified: false,
+        redact: true,
+        rationale: `field could be ${candidates.join(' or ')}; only ${viable[0]} `
+          + `fits the value's shape`,
+      };
+    }
+    if (viable.length === 0) {
+      return {
+        kind: 'SENSITIVE',
+        confidence: hint.confidence,
+        verified: false,
+        redact: hint.confidence >= REDACT_THRESHOLD,
+        rationale: `field labelled ${candidates.join(' or ')} (${hint.source}), but the `
+          + `value cannot be ${candidates.length > 1
+            ? 'any of those'
+            // "a AADHAAR" appeared in the ledger, which a judge reads.
+            : `${/^[AEIOU]/.test(candidates[0]!) ? 'an' : 'a'} ${candidates[0]}`}`
+          + ` — redacted without naming a kind`,
+      };
+    }
+    // Several kinds remain genuinely possible. Redact, and say it is unsettled rather
+    // than picking the one that happens to be listed first.
     return {
-      kind: hint.kind,
+      kind: 'SENSITIVE',
       confidence: hint.confidence,
       verified: false,
       redact: hint.confidence >= REDACT_THRESHOLD,
-      rationale: `field labelled ${hint.kind} (${hint.source}), value unrecognised`,
+      rationale: `field could be ${viable.join(' or ')} and the value fits more than `
+        + `one — redacted without naming a kind`,
     };
   }
 

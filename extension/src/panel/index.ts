@@ -517,30 +517,40 @@ $('scan').addEventListener('click', async () => {
     $('ledger').innerHTML =
       `<div class="entry"><header><b>Scan only</b>`
       + `<span class="t">nothing was transmitted</span></header>`
-      + `<div class="body"><div class="t">Withheld: ${esc(kinds)}</div>`
+      // Chips, not "Withheld: 1 PAN, 2 NAME". A colon-separated sentence of counts is
+      // a log line; the chips are already the panel's vocabulary for this.
+      + `<div class="body">${(r.withheld ?? []).length
+          ? (r.withheld as Array<{ kind: string; count: number }>)
+              .map((w) => `<span class="chip"><b>${w.count}</b> ${esc(w.kind)}</span>`).join('')
+          : '<span class="chip">nothing personal found</span>'}`
       + (r.previews?.length
           ? `<table class="fields"><thead><tr><th scope="col">On screen</th><th scope="col">Sent instead</th></tr></thead><tbody>`
             + r.previews.map((p: Preview) =>
                 `<tr><td class="mask" translate="no">${maskHtml(p.masked)}</td><td class="tok" translate="no">${esc(p.token)}</td></tr>`).join('')
             + `</tbody></table>`
-          : `<div class="hint">`
-            // The likeliest first experience is an empty result, because a page holds
-            // no personal data until somebody types some. Saying only "none found"
-            // reads as "it does not work", so say what to do next.
-            + `<b>No personal values on this page.</b> Most pages hold none until you `
-            + `type something.<br><br>Try this: put a name or a made-up PAN such as `
-            + `<span class="tok" translate="no">ABCPE1234F</span> into a field you can SEE, then scan `
-            + `again. Hidden fields are ignored on purpose.</div>`)
+          // The likeliest first experience is an empty result, because a page holds no
+          // personal data until somebody types some. "None found" reads as "broken", so
+          // say what to do next — but in two lines, not a paragraph.
+          : `<div class="hint"><b>Nothing personal on this page yet.</b> Most pages hold `
+            + `none until you type something.<br>Put a made-up PAN such as `
+            + `<span class="tok" translate="no">ABCPE1234F</span> into a field you can `
+            + `see, then scan again.</div>`)
       // A successful scan ends with a table and no idea what it proved. The claim worth
       // making here is the one the reader can check for herself in ten seconds, so make
       // it, and say where to go next rather than leaving the panel a dead end.
       + (r.previews?.length
-          ? `<div class="hint"><b>Nothing left this machine.</b> `
-            + `Open DevTools, switch to the Network tab and press Scan again: no request `
-            + `appears. The values on the left never leave the page; only the tags on the `
-            + `right would be sent.<br><br>Next, open <span class="tok" translate="no">why.html</span> in `
-            + `the same folder as this extension: the same page sent with and without this, `
-            + `side by side.</div>`
+          // THREE SCANNABLE LINES, not two paragraphs.
+          //
+          // This was ~7 lines of grey prose, and in a 400px panel a wall of low-contrast
+          // body copy is what makes a tool read as documentation. The reader needs three
+          // facts, each checkable in seconds, so each gets one line and no more.
+          ? `<ul class="verify">`
+            + `<li><b>Nothing left this machine.</b> DevTools → Network, press Scan `
+            + `again: no request appears.</li>`
+            + `<li>Only the tags on the right would be sent.</li>`
+            + `<li>Open <span class="tok" translate="no">why.html</span> beside this `
+            + `extension for the same page, sent both ways.</li>`
+            + `</ul>`
           : '')
       + (warn.length
           ? `<div class="warnbox">${warn.map(esc).join('<br>')}</div>`

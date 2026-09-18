@@ -82,7 +82,21 @@ export interface PageStructure {
 
 export type PiiKind =
   | 'PAN' | 'AADHAAR' | 'CARD' | 'GSTIN' | 'IFSC' | 'UPI'
-  | 'PHONE' | 'EMAIL' | 'PASSWORD' | 'NAME' | 'ADDRESS' | 'FACE' | 'DOB';
+  | 'PHONE' | 'EMAIL' | 'PASSWORD' | 'NAME' | 'ADDRESS' | 'FACE' | 'DOB'
+  /**
+   * "Sensitive, but we will not name the kind."
+   *
+   * Added 18 Sep after the income-tax login page reported a PAN-shaped User ID as
+   * `<PII_AADHAAR_1>`. That field is `placeholder="PAN/ Aadhaar/ Other User ID"`, so
+   * BOTH keywords fire, and the winner was decided by position in the keyword array.
+   * The value contained letters and so could not have been an Aadhaar at all.
+   *
+   * Redacting it was right; naming it was not. This kind exists so the honest answer
+   * is expressible — a field we are sure is sensitive and whose type the evidence does
+   * not settle. Guessing a specific kind in front of a technical reader costs more
+   * credibility than admitting the ambiguity.
+   */
+  | 'SENSITIVE';
 
 /** Which cascade layer fired. Layer 1 and 2 are near-certain; layer 3 is probabilistic. */
 export type DetectionSource = 'dom' | 'pattern' | 'model';

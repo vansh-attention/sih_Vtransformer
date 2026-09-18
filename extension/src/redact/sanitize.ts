@@ -142,7 +142,9 @@ function redactValue(
     && ['input', 'textarea', 'select', 'dd', 'output'].includes(signals.tag);
   if (spans.length === 0 && isFormControl && text.length <= FIELD_VALUE_MAX
       && hint && hint.kind !== 'NON_PII') {
-    const resolved = reconcile(hint, null);
+    // `text` is the field's own value — reconcile needs it to rule out a hinted kind
+    // the value cannot possibly be.
+    const resolved = reconcile(hint, null, text);
     if (resolved?.redact) {
       const token = vault.mint(resolved.kind, text);
       return {

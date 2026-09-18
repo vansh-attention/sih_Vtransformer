@@ -114,6 +114,66 @@ falls back to system fonts and looks half-finished on her laptop.
 standalone renderer and it produces `bench/out/ledger.html` — **Figure 2 in the SPOC
 report**. Ask him whether it should be brought in line.
 
+### ⛔ A PAN WAS REPORTED AS AN AADHAAR — fixed 18 Sep. READ THIS BEFORE TOUCHING dom.ts
+
+He scanned **eportal.incometax.gov.in/#/login**, typed `IMQPB9685CT` into the User ID
+box, and the panel reported **`<PII_AADHAAR_1>` / "Withheld: 1 AADHAAR"**. Redacting was
+right. **Naming it was not** — that value contains letters and an Aadhaar is twelve digits.
+
+**Root cause, confirmed by dumping the LIVE page (not guessed):**
+
+```
+id/name     = "panAdhaarUserId"     (their spelling)
+placeholder = "PAN/ Aadhaar/ Other User ID"
+label       = "Enter your User ID*"
+```
+
+Both the PAN and AADHAAR keywords fire on that haystack. `classifyField` **returned on
+the first match**, so the reported kind was decided by **position in `KEYWORD_MAP`** —
+AADHAAR simply sits earlier. Then `reconcile`'s branch 2 (*"Field says PII, characters say
+nothing — trust the field"*) minted the token from that arbitrary winner, because
+`IMQPB9685CT` is 11 characters and matches no pattern at all.
+
+⇒ **REDACTION MAY FAIL SAFE. A KIND MUST NEVER BE GUESSED.** The tag is the one thing on
+screen claiming to be a finding, and a wrong one in front of a technical reader costs more
+than the redaction earns.
+
+**The four fixes, all in `extension/src/pii/dom.ts` unless noted:**
+1. **`canBe(kind, raw)` + the `SHAPE` table** — the published format for AADHAAR, CARD,
+   PHONE, PAN, GSTIN, IFSC, UPI, EMAIL. ⚠ Deliberately conservative: **a kind absent from
+   the table is always considered possible**, because declaring a value impossible is how
+   a redaction becomes a leak.
+2. **`classifyField` collects EVERY firing kind** into `FieldHint.alternatives`, and drops
+   confidence 0.75 → 0.6 when more than one fires. An ambiguous field is weaker evidence.
+3. **`reconcile(hint, detection, raw)`** — new third argument. Branch 2 now filters the
+   candidates by `canBe`. One survivor → that kind. None → **`SENSITIVE`**. Several →
+   `SENSITIVE`. Still redacts in every case.
+4. **New `PiiKind` `'SENSITIVE'`** in `contracts.ts` — "sensitive, kind not settled".
+   ⛔ `'uid'` was **removed** from the AADHAAR keywords; on Indian portals it means
+   "user id". `uidai` stays.
+
+**Verified end-to-end through `sanitize()`, not just the unit:**
+
+| typed | token | withheld | leaked |
+|---|---|---|---|
+| `IMQPB9685CT` | `<PII_SENSITIVE_1>` | 1 SENSITIVE | no |
+| `ABCPE1234F` | `<PII_PAN_1>` | 1 PAN | no |
+| `234567890123` | `<PII_AADHAAR_1>` | 1 AADHAAR | no |
+
+`dom.test.ts` carries the **real dumped signals** as a fixture, and the guard is
+**sabotage-verified** (forcing `viable = candidates` flips 2 cases red). `panel-shot.mjs`
+keeps this exact state as `6-scan-ambiguous-field.png`.
+
+### 🧨 THE FLEX-ROW BUG HAS NOW BITTEN THREE TIMES — the structural fix
+
+`.note`, then `.target`, then `.verify`: **every inline child of a flex container becomes
+its own flex item**, so `<b>Nothing left this machine.</b> DevTools → …` renders as two
+columns. Wrapping the prose in a single child fixes *an instance*.
+
+⇒ **For "marker + prose", ABSOLUTELY POSITION THE MARKER on a plain block. Never flex the
+row.** There is then no flex container left to mis-parent anything. `.verify li` is the
+reference implementation.
+
 ### 🎬 THE PANEL'S CURRENT LOOK — rebuilt from a RECORDING of MetaMask in use (18 Sep, 4th pass)
 
 He recorded MetaMask being used (`~/screen-captures/Recordings/Screen Recording 2026-09-18
