@@ -60,6 +60,22 @@ cp -R extension/fonts "$STAGE/fonts"
 
 cp extension/manifest.json "$STAGE/manifest.json"
 
+# DECLARE WHAT THIS PACKAGE IS.
+#
+# It has no server/ directory, so the reasoning server cannot be started from it at all
+# and "Run on this tab" can never work here. The panel reads this file and stops printing
+# a shell command that refers to a directory the reader does not have — it says what IS
+# true instead: Scan needs nothing, and the agent needs the repository.
+#
+# Deliberately overwrites the repo stamp written by build.mjs, which carries an absolute
+# path from THIS machine and would be meaningless on anybody else's.
+cat > "$STAGE/build-info.json" <<'JSON'
+{
+  "variant": "scan-only",
+  "note": "This package ships the scanner only. It contains no reasoning server, so the agent cannot run from it. Scan needs no server and is the whole privacy demonstration."
+}
+JSON
+
 # SHIP why.html INSIDE THE ZIP.
 #
 # READ-ME-FIRST offers it as the option for somebody who would rather not install an
@@ -192,6 +208,23 @@ if missing_assets:
     sys.exit('  REFUSING to ship: the panel references assets not in the zip: '
              + ', '.join(missing_assets))
 print(f'  panel assets check out: {len(set(refs))} url() reference(s) all present')
+
+# THE BUILD STAMP MUST BE THE SCAN-ONLY ONE.
+#
+# build.mjs writes a repo stamp carrying this machine's ABSOLUTE paths — including the
+# home directory name. Shipping that would both tell the reader to start a server this
+# package does not contain, and print a stranger's home path on her screen.
+import json as _json
+info = _json.loads(z.read('privacy-agent-extension/build-info.json'))
+if info.get('variant') != 'scan-only':
+    sys.exit(f"  REFUSING to ship: build-info.json says variant={info.get('variant')!r}, "
+             "expected 'scan-only' — the repo stamp has leaked into the package")
+leaked = [n for n in z.namelist()
+          if n.endswith(('.json', '.txt', '.html'))
+          and b'/Users/' in z.read(n)]
+if leaked:
+    sys.exit('  REFUSING to ship: a local absolute path appears in: ' + ', '.join(leaked))
+print('  build stamp: scan-only, no local paths')
 # Gmail rejects attachments over 25 MB, which is how the 45 MB build was found.
 mb = sum(i.file_size for i in z.infolist()) / 1e6
 print(f'  unpacked size: {mb:.1f} MB')

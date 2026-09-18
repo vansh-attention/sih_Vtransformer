@@ -172,6 +172,54 @@ function renderTurn(rec: any, previews: Map<string, Preview>): string {
 const DEFAULT_SERVER = 'http://127.0.0.1:8975';
 
 /**
+ * What kind of build is this, and can its server be started at all?
+ *
+ * `build-info.json` is stamped by `build.mjs` (repo, with absolute paths) and replaced
+ * by `scripts/package-extension.sh` (scan-only). Reading it is what stops the panel
+ * telling a zip user to `cd server` — a directory the zip does not contain.
+ */
+interface BuildInfo {
+  variant: 'repo' | 'scan-only';
+  root?: string;
+  setupNeeded?: boolean;
+  setupCommand?: string;
+  startCommands?: string[];
+  note?: string;
+}
+let build: BuildInfo = { variant: 'repo' };
+
+async function loadBuildInfo(): Promise<void> {
+  try {
+    const r = await fetch(chrome.runtime.getURL('build-info.json'));
+    if (r.ok) build = await r.json();
+  } catch {
+    // An older package with no stamp. Leave the default and say nothing misleading.
+  }
+}
+
+/**
+ * In a scan-only package the agent can NEVER run, so Run must not look pressable.
+ *
+ * It was the big white primary button next to instructions that could not be followed.
+ * A control that cannot work should say so before it is pressed, not after.
+ */
+function applyBuildVariant(): void {
+  if (build.variant !== 'scan-only') return;
+  const run = $('run') as HTMLButtonElement;
+  run.disabled = true;
+  run.title = 'This package ships the scanner only — it contains no reasoning server.';
+  $('goal').setAttribute('disabled', '');
+  ($('goal') as HTMLInputElement).placeholder = 'Needs the full repository';
+  $('scan').classList.add('promoted');
+  $('serveradvice').innerHTML =
+    '<b>This package cannot run the agent.</b> It ships the scanner only and contains '
+    + 'no reasoning server — there is nothing to start. <b>Scan this page</b> needs no '
+    + 'server and is the whole privacy demonstration. To run the agent, clone the '
+    + 'repository and follow its README.';
+  $('serveradvice').hidden = false;
+}
+
+/**
  * The server URL is configurable rather than compiled in.
  *
  * Teammates run the server on whatever port is free, and at the finale it may not be
@@ -190,9 +238,13 @@ async function probe(url: string, ms = 1500): Promise<{ ok: boolean; model?: str
   try {
     const r = await fetch(`${url}/health`, { signal: ctl.signal }).then((x) => x.json());
     if (r.ok) return { ok: true, model: r.model };
-    return { ok: false, detail: r.available?.length
-      ? `model ${r.model} not pulled — run: ollama pull ${r.model}`
-      : String(r.error ?? 'not ready') };
+    return {
+      ok: false,
+      model: r.available?.length ? r.model : undefined,
+      detail: r.available?.length
+        ? `model ${r.model} is not installed`
+        : String(r.error ?? 'not ready'),
+    };
   } catch {
     return { ok: false };
   } finally {
@@ -224,7 +276,9 @@ function setLamp(state: 'ok' | 'bad' | 'unknown', label: string): void {
   // When the model cannot be reached, Run is dead weight and Scan is the whole
   // demo — so the two SWAP visual roles rather than leaving the user to discover
   // it by pressing the big button and reading a failure.
-  const down = state === 'bad';
+  // In a scan-only package Scan is permanently the primary action, so this must not
+  // toggle it back off — setLamp runs after applyBuildVariant and was clobbering it.
+  const down = state === 'bad' || build.variant === 'scan-only';
   $('scan').classList.toggle('promoted', down);
   $('run').classList.toggle('demoted', down);
 }
@@ -240,13 +294,83 @@ async function checkServer(url: string): Promise<boolean> {
   } else if (r.detail) {
     el.innerHTML = `<span class="deny">not ready</span> · ${esc(r.detail)}`;
     setLamp('bad', 'no model');
+    // The server answered, so it is running — only the model is absent. Different
+    // problem, different command, and it must be copyable for the same reason.
+    if (r.model) {
+      const box = $('serveradvice');
+      box.innerHTML = `<b>The server is running, but the model is not installed.</b> `
+        + `Pull it once — it is about 6&nbsp;GB:`
+        + cmdBlock([{ cmd: `ollama pull ${r.model}` }])
+        + `<div class="advice-note">Scan this page needs none of this.</div>`;
+      box.hidden = false;
+    }
   } else {
-    el.innerHTML = '<span class="deny">unreachable</span> · start it with: '
-      + '<span class="mono">cd server &amp;&amp; .venv/bin/uvicorn main:app --port 8975</span>';
+    el.innerHTML = '<span class="deny">unreachable</span>';
     setLamp('bad', 'offline');
+    showStartAdvice();
   }
   return r.ok;
 }
+
+/**
+ * Say how to start the server — correctly, for THIS build, and copyably.
+ *
+ * The old message was a single relative command printed inline: `cd server && ...`. It
+ * was wrong for the zip (no server/ exists there) and wrong for the repo unless the
+ * reader's shell already sat in the repository root. It also had to be retyped by hand
+ * from a panel, which is its own small cruelty.
+ */
+function showStartAdvice(): void {
+  const box = $('serveradvice');
+  if (build.variant === 'scan-only') { applyBuildVariant(); return; }
+
+  const raw = build.startCommands ?? [];
+  // Each of these holds a terminal open, which is the bit people get wrong: they run
+  // the first, see it stop printing, and assume it failed.
+  const notes = ['Terminal 1 — leave it running', 'Terminal 2 — leave it running'];
+  const steps = raw.length
+    ? raw.map((cmd, i) => ({ cmd, note: notes[i] }))
+    : [{ cmd: 'See the repository README', note: 'This build carries no start command' }];
+
+  const setup = build.setupNeeded && build.setupCommand
+    // A fresh clone has no venv, so the uvicorn line cannot work yet. Telling someone
+    // who has not run setup to "start the server" sends them to a file that is absent.
+    ? '<div class="advice-note">This clone has no Python environment yet — run setup '
+      + 'once first.</div>'
+      + cmdBlock([{ cmd: build.setupCommand, note: 'Once, then the two below' }])
+    : '';
+
+  box.innerHTML = '<b>The reasoning server is not running.</b> It is a local process on '
+    + 'your machine, so an extension cannot start it — Chrome does not let any extension '
+    + 'launch a program. Paste these into a terminal:'
+    + setup + cmdBlock(steps)
+    + '<div class="advice-note"><b>Scan this page</b> needs none of this.</div>';
+  box.hidden = false;
+}
+
+/**
+ * A copyable command, one per block.
+ *
+ * Not one block for both: `ollama serve` and uvicorn each OCCUPY a terminal, and
+ * stacking them in a single pre read as one long command with a wrapped path. Each
+ * gets its own Copy button and its own caption saying where it runs.
+ */
+function cmdBlock(cmds: Array<{ cmd: string; note?: string }>): string {
+  return cmds.map(({ cmd, note }) =>
+    `<div class="cmd">${note ? `<div class="cmd-note">${note}</div>` : ''}`
+    + `<pre>${esc(cmd)}</pre>`
+    + `<button type="button" class="copy" data-cmd="${esc(cmd)}">Copy</button></div>`).join('');
+}
+
+// Delegated, because these blocks are rendered after load.
+document.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement)?.closest?.('.copy') as HTMLButtonElement | null;
+  if (!btn) return;
+  void navigator.clipboard.writeText(btn.dataset.cmd ?? '').then(() => {
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1600);
+  });
+});
 
 /**
  * Try the ports the server is realistically on.
@@ -254,7 +378,13 @@ async function checkServer(url: string): Promise<boolean> {
  * Teammates start it on whatever is free, and at a hackathon someone will have 8975
  * already taken. Asking a user to guess a port is a worse experience than trying six.
  */
-const CANDIDATE_PORTS = [8975, 8000, 8080, 5000, 11434, 8976];
+/**
+ * ⛔ 11434 was removed. That is ollama's own port, and ollama serves no `/health`, so
+ * probing it was guaranteed to fail — a candidate that could never succeed, padding the
+ * "no server found" path with an extra timeout and implying we support something we do
+ * not. The reasoning server is the only thing this URL can point at.
+ */
+const CANDIDATE_PORTS = [8975, 8000, 8080, 8976, 5000];
 async function autodetect(): Promise<void> {
   const el = $('serverstatus');
   for (const port of CANDIDATE_PORTS) {
@@ -270,6 +400,8 @@ async function autodetect(): Promise<void> {
   }
   el.innerHTML = '<span class="deny">no server found</span> on ports '
     + CANDIDATE_PORTS.join(', ');
+  setLamp('bad', 'offline');
+  showStartAdvice();
 }
 
 $('testsrv').addEventListener('click', () => {
@@ -283,8 +415,13 @@ $('resetsrv').addEventListener('click', async () => {
 });
 
 void (async () => {
+  // Build info FIRST. Probing before we know whether a server can exist at all is how
+  // a scan-only package ends up being told to start one.
+  await loadBuildInfo();
+  applyBuildVariant();
   const url = await loadServer();
   ($('server') as HTMLInputElement).value = url;
+  if (build.variant === 'scan-only') { setLamp('unknown', 'scan only'); return; }
   void checkServer(url);
 })();
 

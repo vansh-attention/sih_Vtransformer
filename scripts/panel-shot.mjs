@@ -107,25 +107,54 @@ await send('Runtime.enable');
  * Each state below decides what chrome.* returns, so one harness can render the
  * offline case, the scan result and a finished run without a server or a model.
  */
-function stub({ tabUrl, health, scan, run }) {
+function stub({ tabUrl, health, scan, run, buildInfo }) {
+  // getURL must exist: loadBuildInfo() calls it, and without it the whole
+  // build-detection path throws and silently falls back to the repo default — so the
+  // harness would render advice that no real install would ever show.
   return `
   globalThis.chrome = {
     storage: { local: { get: async () => ({}), set: async () => {} } },
     tabs: { query: async () => [{ url: ${JSON.stringify(tabUrl)} }],
             onActivated: { addListener(){} }, onUpdated: { addListener(){} } },
     runtime: { onMessage: { addListener(){} },
+      getURL: (p) => 'stub://' + p,
       sendMessage: async (m) => m.type === 'scan-page' ? ${JSON.stringify(scan)}
                              : m.type === 'run-agent'  ? ${JSON.stringify(run)} : {} },
   };
   const realFetch = globalThis.fetch;
-  globalThis.fetch = async (u, o) => String(u).includes('/health')
-    ? new Response(JSON.stringify(${JSON.stringify(health)}), { headers: { 'content-type': 'application/json' } })
-    : realFetch(u, o);
+  const json = (o) => new Response(JSON.stringify(o), { headers: { 'content-type': 'application/json' } });
+  globalThis.fetch = async (u, o) => {
+    const s = String(u);
+    if (s.includes('build-info.json')) return json(${JSON.stringify(buildInfo ?? { variant: 'repo' })});
+    if (s.includes('/health')) {
+      const h = ${JSON.stringify(health)};
+      if (h === null) throw new TypeError('Failed to fetch');   // truly unreachable
+      return json(h);
+    }
+    return realFetch(u, o);
+  };
   `;
 }
 
+/** What build.mjs stamps on this machine, near enough for a screenshot. */
+const BUILD_REPO = {
+  variant: 'repo',
+  root: '/Users/you/sih-browser-agent',
+  setupNeeded: false,
+  startCommands: [
+    'ollama serve',
+    '"/Users/you/sih-browser-agent/server/.venv/bin/uvicorn" main:app --port 8975'
+      + ' --app-dir "/Users/you/sih-browser-agent/server"',
+  ],
+};
+const BUILD_ZIP = { variant: 'scan-only' };
+
 const HEALTH_OK = { ok: true, model: 'qwen2.5vl:7b' };
 const HEALTH_DOWN = { ok: false, error: 'not ready' };
+/** null = the fetch itself rejects, which is what "unreachable" actually looks like. */
+const HEALTH_UNREACHABLE = null;
+/** Server up, model absent — a different screen and a different command. */
+const HEALTH_NO_MODEL = { ok: false, model: 'qwen2.5vl:7b', available: ['llama3.1:8b'] };
 
 const SCAN = {
   title: 'Income Tax e-Filing', url: 'https://eportal.incometax.gov.in', nodeCount: 101,
@@ -191,6 +220,14 @@ const STATES = [
   { name: '6-scan-ambiguous-field', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/#/login',
     health: HEALTH_DOWN, scan: SCAN_ITD, run: RUN,
     after: `document.getElementById('scan').click()` },
+  // The two states he hit: the server is down and you are told how to start it, and
+  // the zip, where it cannot be started at all and must not be implied otherwise.
+  { name: '7-server-unreachable-repo', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
+    health: HEALTH_UNREACHABLE, scan: SCAN, run: RUN, buildInfo: BUILD_REPO, after: null },
+  { name: '8-scan-only-package', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
+    health: HEALTH_UNREACHABLE, scan: SCAN, run: RUN, buildInfo: BUILD_ZIP, after: null },
+  { name: '9-model-not-installed', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
+    health: HEALTH_NO_MODEL, scan: SCAN, run: RUN, buildInfo: BUILD_REPO, after: null },
   { name: '5-settings-open', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_OK, scan: SCAN, run: RUN,
     after: `document.getElementById('settings').open=true` },

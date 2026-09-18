@@ -39,3 +39,4 @@ probe*.ts
 
 # The unpacked build Chrome loads via "Load unpacked" - a build output, never delete it
 demo/privacy-agent-extension/
+extension/build-info.json

@@ -202,6 +202,24 @@
   /* ───────────────────────────────────────────────────────────────────────
      TARGET + SETTINGS
      ─────────────────────────────────────────────────────────────────────── */
+  /* ── how to start the server ────────────────────────────────────────── */
+  .advice{margin:20px 18px 0;padding:14px 16px;border-radius:var(--r-lg);
+          background:var(--card);font-size:12px;color:var(--ash);line-height:1.6}
+  .advice b{color:var(--ink);font-weight:600}
+  .advice-note{margin-top:9px;color:var(--ash-2);font-size:11.5px}
+  /* A command the reader has to retype out of a side panel is not instructions. */
+  .cmd{position:relative;margin-top:11px}
+  .cmd-note{font-size:10.5px;color:var(--ash-2);margin-bottom:5px}
+  .cmd pre{margin:0;padding:11px 58px 11px 12px;background:var(--pit);
+           border-radius:var(--r-md);font-size:11px;color:var(--ink);
+           white-space:pre-wrap;overflow-wrap:anywhere;max-height:none;line-height:1.55}
+  /* pinned to the pre, not the block, so a caption above does not push it off */
+  .cmd:has(.cmd-note) .copy{top:29px}
+  .copy{position:absolute;top:8px;right:8px;padding:5px 10px;border-radius:var(--r-pill);
+        background:var(--card-2);border:1px solid var(--edge-2);color:var(--ash);
+        font-size:10.5px;font-weight:500}
+  .copy:hover{border-color:var(--ink);color:var(--ink)}
+
   .target{margin:26px 18px 0;padding-top:16px;border-top:1px solid var(--edge);
           font-size:12.5px;color:var(--ash-2);display:flex;gap:9px;
           align-items:flex-start;line-height:1.5}
@@ -446,6 +464,11 @@
       <span id="scanlabel">Scan this page</span>
     </button>
   </div>
+
+  <!-- Out here, NOT inside the collapsed Settings panel. The one thing a user needs
+       when the agent will not run was previously a red line behind a disclosure
+       triangle, so nobody read it — and what it said was wrong anyway. -->
+  <div class="advice" id="serveradvice" role="status" aria-live="polite" hidden></div>
 
   <div class="target" id="target" role="status" aria-live="polite">
     <span class="tmsg">checking this tab…</span></div>

@@ -114,6 +114,46 @@ falls back to system fonts and looks half-finished on her laptop.
 standalone renderer and it produces `bench/out/ledger.html` — **Figure 2 in the SPOC
 report**. Ask him whether it should be brought in line.
 
+### ⛔ THE "START THE SERVER" ADVICE WAS FICTION — fixed 18 Sep
+
+He said the server is *"almost always unreachable and there's no way someone can even
+start it, and whatever command is given won't work there."* Both halves were true.
+
+**1. THE ZIP CONTAINS NO `server/` AT ALL.** `unzip -l | grep -c server` → **0**. The panel
+printed `cd server && .venv/bin/uvicorn main:app --port 8975`, which for every person he
+sends the zip to — **including Dr. Sarkar** — names a directory they do not have. And
+"Run on this tab" was the big white primary button while being permanently dead for them.
+That is the "walk the recipient's path" failure, a second time.
+
+**2. EVEN IN THE REPO THE COMMAND WAS WRONG** unless the reader's shell already sat in the
+repository root. Verified by pasting it as a user would, and watching it fail twice in
+succession: `no such file or directory` for the relative binary, then
+`Could not import module "main"` once the binary was absolute but the `cd` had not taken
+effect. ⇒ **The final form uses `--app-dir` and NO `cd` and NO `&&`** — one absolute
+command that survives being pasted anywhere.
+
+**The fix — the build now states what it is.** `build.mjs` stamps
+`extension/build-info.json` (gitignored) with `variant: "repo"`, absolute paths,
+`setupNeeded`, and the exact start commands. `package-extension.sh` **overwrites** it with
+`variant: "scan-only"`. The panel reads it at startup, before probing.
+
+- **scan-only:** Run is `disabled`, the goal box reads "Needs the full repository", Scan
+  becomes the white primary, the lamp reads "scan only", and the panel says plainly that
+  this package has no server to start. **No shell command is offered at all.**
+- **repo, unreachable:** each command in its own block with its own **Copy** button and a
+  "Terminal 1 / Terminal 2 — leave it running" caption, because both processes block and
+  people assume the first one failed when it stops printing.
+- **repo, model missing:** a different screen and a copyable `ollama pull <model>`.
+- ⛔ `11434` removed from `CANDIDATE_PORTS` — that is ollama's port, ollama serves no
+  `/health`, so it was a candidate that could never succeed.
+
+**Two packager guards, both sabotage-verified:** the zip must declare `variant:
+"scan-only"`, and **no file in it may contain `/Users/`** — the repo stamp carries his home
+directory and shipping it would print a stranger's path on her screen.
+
+⚠ `setLamp` ran after `applyBuildVariant` and toggled `.promoted` back off, so Scan lost
+its primary styling in the scan-only build. State applied in two places needs one owner.
+
 ### ⛔ A PAN WAS REPORTED AS AN AADHAAR — fixed 18 Sep. READ THIS BEFORE TOUCHING dom.ts
 
 He scanned **eportal.incometax.gov.in/#/login**, typed `IMQPB9685CT` into the User ID

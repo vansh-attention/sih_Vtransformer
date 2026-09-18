@@ -61,6 +61,55 @@ await esbuild.build({
 });
 
 /**
+ * Stamp the build with WHAT IT IS and HOW TO START ITS SERVER.
+ *
+ * The panel used to print `cd server && .venv/bin/uvicorn main:app --port 8975` whenever
+ * the reasoning server was unreachable. For anyone holding the ZIP that command is
+ * fiction: the zip ships no `server/` directory at all, so there is nothing to cd into
+ * and no venv to run — and "Run on this tab" can never work for them however carefully
+ * they follow it. That is the exact "walk the recipient's path" failure this project has
+ * already been bitten by once.
+ *
+ * So the build records the truth about itself. Here that is an ABSOLUTE path, because a
+ * relative `cd server` is only correct if the reader's shell happens to be sitting in
+ * the repository root. The packager overwrites this file with the scan-only variant.
+ */
+{
+  const { writeFileSync, existsSync } = await import('node:fs');
+  const root = process.cwd();
+  const venv = `${root}/server/.venv/bin/uvicorn`;
+  writeFileSync('extension/build-info.json', `${JSON.stringify({
+    variant: 'repo',
+    root,
+    // Needed on a fresh clone: the venv does not exist until setup runs.
+    setupNeeded: !existsSync(venv),
+    setupCommand: `cd ${JSON.stringify(root)} && ./setup.sh`,
+    // Two processes, and the panel can only see one of them. ollama first: uvicorn
+    // starts happily without it and then reports the model missing, which reads as a
+    // different fault than it is.
+    /**
+     * NO `cd`, and no shell chaining. One absolute command per line.
+     *
+     * The original advice was `cd server && .venv/bin/uvicorn main:app --port 8975`,
+     * which is wrong twice over: both paths are relative, so the command only works
+     * if the reader's shell already sits in the repository root. Verifying it by
+     * pasting it the way a user would showed both halves failing in turn — first
+     * "no such file or directory" for the binary, then `Could not import module
+     * "main"` once the binary was absolute but the cd had not taken effect.
+     *
+     * `--app-dir` tells uvicorn where to import from, so the command depends on no
+     * working directory at all and survives being pasted anywhere.
+     */
+    startCommands: [
+      'ollama serve',
+      `${JSON.stringify(`${root}/server/.venv/bin/uvicorn`)} main:app --port 8975`
+        + ` --app-dir ${JSON.stringify(`${root}/server`)}`,
+    ],
+  }, null, 2)}\n`);
+  console.log(`stamped extension/build-info.json (repo build at ${root})`);
+}
+
+/**
  * Vendor the panel's typefaces into the extension.
  *
  * MV3 forbids remote code and a Google Fonts <link> is both a remote fetch and a
