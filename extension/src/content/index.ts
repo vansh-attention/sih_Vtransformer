@@ -76,8 +76,20 @@ function captureContext(): CaptureContext {
 }
 
 /** Token + a masked shadow of what it replaced. Never the value. */
+/**
+ * Tokens minted by the MOST RECENT observation.
+ *
+ * `maskedPreviews()` used to walk the whole vault, which accumulates for the life of the
+ * page. After typing a PAN, clearing the box and typing a name, the evidence table still
+ * listed the PAN — the panel claimed to have withheld a value that was no longer on
+ * screen while reporting "nothing personal found" in the same breath. The evidence table
+ * is the one artefact a judge is invited to check, so it must describe THIS read of the
+ * page and nothing else.
+ */
+let lastObservedTokens: Set<string> = new Set();
+
 function maskedPreviews(): Array<{ token: string; kind: string; masked: string }> {
-  return vault.tokens().map((token) => {
+  return vault.tokens().filter((t) => lastObservedTokens.has(t)).map((token) => {
     const value = vault.resolve(token) ?? '';
     const kind = token.match(/^<PII_(.+)_\d+>$/)?.[1] ?? '';
     // Passwords reveal nothing: unlike a card number there is no legitimate reason to
@@ -125,22 +137,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 function observe(msg: { goal?: string; history?: unknown[] }, sendResponse: (r: unknown) => void) {
   {
     /**
-     * CLEAR THE VAULT FIRST. Every observe is a fresh read of the page.
+     * ⛔ DO NOT CLEAR THE VAULT HERE. Tried it; it broke multi-turn runs twice.
      *
-     * The vault lives for the page session and `clear()` was never called, so
-     * `maskedPreviews()` returned every value ever minted on this tab. After typing a
-     * PAN, clearing it and typing a name, the evidence table still listed the PAN —
-     * the panel was claiming to have withheld a value that was no longer on screen,
-     * and reported "nothing personal found" in the same breath.
+     * The model sees the history of earlier turns and will legitimately propose typing
+     * a token it was shown two turns ago. Clearing on every observe made those tokens
+     * unresolvable — Spike E failed with `unknown placeholder token: <PII_PHONE_2>`.
+     * The vault must outlive a single observation; it is the page session's memory.
      *
-     * That is worse than a cosmetic bug: the evidence table is the one artefact a
-     * judge is invited to check, and it was showing findings from a page state that
-     * no longer existed.
-     *
-     * Safe within a run: the loop is observe → reason → execute inside one turn, so
-     * no action outlives the vault that minted its tokens.
+     * The stale-evidence bug is a PRESENTATION bug and is fixed as one, below: the
+     * panel shows only the tokens minted by the LATEST observation.
      */
-    vault.clear();
 
     const before = captureContext();
     const t0 = performance.now();
@@ -166,6 +172,12 @@ function observe(msg: { goal?: string; history?: unknown[] }, sendResponse: (r: 
       && before.scrollY === after.scrollY
       && before.innerWidth === after.innerWidth
       && before.innerHeight === after.innerHeight;
+
+    // What THIS read of the page produced. The vault keeps everything; the panel is
+    // shown only this.
+    lastObservedTokens = new Set(
+      (payload.placeholders ?? []).map((ph: { token: string }) => ph.token).filter(Boolean),
+    );
 
     sendResponse({
       ok: true,

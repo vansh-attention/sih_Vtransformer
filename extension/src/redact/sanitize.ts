@@ -101,7 +101,18 @@ function redactValue(
 
   for (const det of detections) {
     const resolved = reconcile(hint, det);
+    /**
+     * ⛔ NEVER over a NON_PII field. This condition was missing and it cost precision
+     * immediately: an "application number" decoy on the Hindi fixtures is twelve digits
+     * filling a whole input, so the promotion redacted it and the scorer caught two
+     * over-redactions that had not been there before.
+     *
+     * A field the classifier has positively identified as commercial context is EVIDENCE,
+     * and stronger evidence than "these digits are Aadhaar-shaped". Over-redaction is
+     * scored exactly as heavily as leaking.
+     */
     if (resolved && !resolved.redact && !det.verified
+        && hint?.kind !== 'NON_PII'
         && DIGIT_KINDS.has(det.kind) && coversWholeField(det)) {
       /**
        * NAMING IT STILL NEEDS TWO SIGNALS.

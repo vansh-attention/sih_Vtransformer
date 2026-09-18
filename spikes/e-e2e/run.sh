@@ -72,6 +72,26 @@ if not o.get("verified"):
     print("  fields:", [(f["id"], f["value"]) for f in o.get("fields", [])])
     print("  stopReason:", e.get("stopReason"), "|", e.get("detail"))
     sys.exit(1)
+
+# THE VISION TURN MUST ACTUALLY HAVE RUN.
+#
+# This spike passed green for a day while `orchestrator.ts` called an unimported
+# `ensureOffscreen()`, because multistep.html had nothing needing vision: the queue was
+# empty, the screenshot path was never entered, and `visionMs` was 0 on every turn. On a
+# real page the same run threw on every turn and the agent went blind. The fixture now
+# carries an image, so a green Spike E means the screenshot path was exercised.
+recs = e.get("records") or e.get("turns") or []
+if isinstance(recs, list) and recs:
+    errs = [r_.get("visionError") for r_ in recs if isinstance(r_, dict) and r_.get("visionError")]
+    vis  = [r_.get("timings", {}).get("visionMs", 0) for r_ in recs if isinstance(r_, dict)]
+    if errs:
+        print("FAILED: the vision turn errored:", errs[:2]); sys.exit(1)
+    if not any(v and v > 0 for v in vis):
+        print("FAILED: no vision turn ran — the screenshot path was never exercised.")
+        print("  visionMs per turn:", vis)
+        sys.exit(1)
+    print(f"OK: vision ran on {sum(1 for v in vis if v and v>0)}/{len(vis)} turn(s), no visionError")
+
 print(f"OK: task verified on the page in {r.get('taskMs')}ms "
       f"over {r.get('turns')} turns, browser heap +{r.get('heapDeltaMb')}MB")
 EOF

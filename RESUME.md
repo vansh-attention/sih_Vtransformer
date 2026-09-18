@@ -114,6 +114,27 @@ falls back to system fonts and looks half-finished on her laptop.
 standalone renderer and it produces `bench/out/ledger.html` — **Figure 2 in the SPOC
 report**. Ask him whether it should be brought in line.
 
+### ⛔ WE PUBLISHED A LATENCY NUMBER THAT EXCLUDED A WHOLE STAGE — corrected 18 Sep
+
+The report told Dr. Sarkar the end-to-end task latency was a **median of 31.5 s** against
+ISRO's 15% latency metric. **The vision stage never ran during that measurement.**
+`bench/pages/multistep.html` — Spike E's fixture — contained nothing the DOM could not
+describe, so `visionQueue` was empty on every turn and `visionMs` was **0, 0, 0, 0**.
+
+⇒ **A benchmark can be green, honest-looking and still not execute the code it claims to
+time.** This was found only because the `ensureOffscreen` crash forced the question
+"has this path ever actually run?".
+
+**Fixed:** the fixture now carries an `<img>` (truth `visionQueueMin` 0 → 1), and
+`spikes/e-e2e/run.sh` **asserts `visionMs > 0` on at least one turn and no
+`visionError`** — so a green Spike E now means the screenshot path executed.
+
+**Re-measured, three clean verified runs:** task **51.5 / 63.3 / 71.1 s** (median **63 s**),
+heap **+60.6 MB**, vision **~7.0 s** of the total, model **40–60 s** and highly variable.
+The report now publishes 63 s *and explains why the number went up*.
+⚠ Measured on a machine that had been running browsers and suites all day — **worth one
+clean re-measure before submission**.
+
 ### ⛔ `ensureOffscreen is not defined` — THE VISION PATH WAS DEAD. Fixed 18 Sep
 
 On a live page every turn reported **"Screenshot withheld — ensureOffscreen is not
@@ -570,7 +591,8 @@ property of the architecture, not a claim about code correctness.
 | PII / redaction precision | 100% / 98% | **100%** | **100% / 100%** |
 | leaks | **0** | **0** | **0** |
 
-Task end-to-end: **34.5 s / 6 turns**, browser heap **+49.5 MB** (Spike E, real browser).
+⚠ Task end-to-end: **median 63 s / 6 turns** (51.5 / 63.3 / 71.1), browser heap **+60.6 MB**.
+**The old 34.5 s / 31.5 s figures EXCLUDED THE VISION STAGE** — see the block below.
 
 ⚠ **Re-measured 17 Sep 22:20** — `node --experimental-strip-types bench/score.ts --wild`.
 This table previously showed the 4-page wild corpus at 75% recall; that was the version

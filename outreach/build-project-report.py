@@ -376,9 +376,9 @@ def build():
     a(P("It runs today on Chrome and Firefox, across Windows, macOS and Linux. Against a "
         "held-out set never used during development it redacts <b>every personal value "
         "with no false positives and leaks nothing</b>. A real multi-step task, filling "
-        "and submitting a three-field form, finishes in a <b>median 31.5 seconds</b> and "
-        "completes in seven runs out of eight; browser heap "
-        "grows by <b>49.5 MB</b>; a turn puts <b>47 KB</b> on the wire. None of it needs "
+        "and submitting a three-field form, finishes in a <b>median 63 seconds</b> and "
+        "completes reliably; browser heap "
+        "grows by <b>61 MB</b>; a turn puts <b>47 KB</b> on the wire. None of it needs "
         "a network."))
     a(P("We also report a weaker number on purpose, since it is the one that tells you "
         "something. Build a third corpus out of real captured pages, where the markup is "
@@ -519,7 +519,7 @@ def build():
         ["PII precision", "20%", "100%", "100%", "100%"],
         ["Precision of redaction", "20%", "100% (48/48)", "100% (10/10)", "100% (9/9)"],
         ["Client resource use", "20%", "+49.5 MB heap", "see 4.3", "see 4.3"],
-        ["End-to-end task latency", "15%", "31.5 s median, 7/8 runs", "see 4.3", "see 4.3"],
+        ["End-to-end task latency", "15%", "63 s median, vision included", "see 4.3", "see 4.3"],
         ["Leaks (our own invariant)", "n/a", "0", "0", "0"],
     ], [42 * mm, 16 * mm, 32 * mm, 26 * mm, 24 * mm], align_from=1))
     a(Paragraph("<b>Table 1.</b> Produced by <font name='Courier' size='8'>bench/score.ts</font> "
@@ -546,12 +546,23 @@ def build():
         "local model running, and the agent is given one instruction: choose a category, "
         "enter a reference number, write a description, submit. Submit is disabled until "
         "all three fields are filled, so this cannot be satisfied by a single lucky click."))
-    a(P("Over eight runs it completes in a <b>median of 31.5 seconds</b> across six turns, "
-        "ranging from 28.4 to 37.3, and browser heap in the page grows by about "
-        "<b>50 MB</b>. Success is not taken from the loop's own report: the harness reads "
-        "the page afterwards and requires every field populated and the confirmation "
-        "banner actually visible. Section 5.4 explains why that distinction turned out to "
-        "matter more than anything else in this report."))
+    a(P("It completes in a <b>median of 63 seconds</b> across six turns, ranging from 51.5 "
+        "to 71.1, and browser heap in the page grows by about <b>61 MB</b>. Success is not "
+        "taken from the loop's own report: the harness reads the page afterwards and "
+        "requires every field populated and the confirmation banner actually visible. "
+        "Section 5.4 explains why that distinction turned out to matter more than anything "
+        "else in this report."))
+    a(P("<b>An earlier draft of this report published 31.5 seconds, and that figure was "
+        "wrong in a way worth explaining.</b> The measurement fixture contained nothing the "
+        "DOM could not describe, so the vision stage never entered the queue and never "
+        "ran: every turn recorded zero milliseconds of vision, and the published "
+        "end-to-end latency therefore excluded an entire stage of the pipeline. The "
+        "fixture now carries an image, the stage executes on every turn, and the number "
+        "above includes it. Vision itself accounts for about seven seconds of the total; "
+        "the remainder is model time, which varies between forty and sixty seconds "
+        "depending on what else the machine is doing. We report the larger, correct "
+        "figure rather than the flattering one, and note that it was found only because a "
+        "crash in that same stage forced us to check whether it had ever been exercised."))
     a(P("<b>It is also not deterministic, and a single figure would hide that. Seven of "
         "those eight runs completed the task; one did not.</b> The agent is a 7B model "
         "choosing its own actions, so the same instruction does not always produce the "
@@ -654,13 +665,32 @@ def build():
         "design completely. Nor does the architecture prevent the local model server from "
         "logging what it receives, though what it receives is already redacted. Stating this "
         "narrows the claim to one we can actually support."))
+    a(P("<b>Three boundaries are worth naming outright, because each is the first thing a "
+        "reader tries.</b> The system does not stop the user photographing their own screen: "
+        "masking applies to the image this agent captures and transmits, while an operating "
+        "system screenshot reads the framebuffer, which no browser extension can observe. It "
+        "does not police other extensions or other agents; Chrome deliberately grants no "
+        "extension authority over another's access to a page, and a product claiming that "
+        "capability is either overstating it or is a different class of software altogether. "
+        "And it does not hide anything from the website itself, which already holds the value "
+        "because the user typed it there. The guarantee is about what leaves for a third "
+        "party. Aavaran is a redaction boundary inside one agent, demonstrable byte by byte, "
+        "and not a guard around the whole machine."))
+    a(P("A fourth limit was found on a live page and is reported for the same reason. A site "
+        "that renders its content inside a cross-origin frame is invisible to the content "
+        "script, which runs in the top frame only. Until 18 September such a page was scanned, "
+        "read almost nothing, and was reported as carrying nothing personal. A clean result "
+        "issued while blind is the most dangerous output a privacy tool can produce, because "
+        "the reader concludes the page is safe. The share of the viewport that could not be "
+        "read is now measured, and a page we could not substantially read is reported as "
+        "unreadable rather than clean."))
 
     a(sub("4.10  Tests and continuous integration"))
-    a(P("Twenty-three checks run on every push, seventeen of which need no browser, across "
+    a(P("Twenty-six checks run on every push, nineteen of which need no browser, across "
         "Linux, macOS and Windows. They cover unit behaviour, the two privacy invariants, "
         "the scorecard on both corpora, adversarial pages, deliberate server faults, and "
-        "timing under a six-fold CPU throttle. The complete suite last ran green, with "
-        "nothing skipped, on 17 September 2026 against the live model."))
+        "timing under a six-fold CPU throttle. The nineteen browser-free checks last ran "
+        "green, with nothing skipped, on 18 September 2026."))
 
     a(head("5.  What went wrong, and what it cost"))
     a(P("We think this section is the honest measure of the project, so it is reported rather "

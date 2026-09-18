@@ -151,9 +151,44 @@ one.
 
 ---
 
+## What this does NOT protect against
+
+**Read this before the feature list.** Aavaran narrows one specific channel: the data
+*this agent* sends to *its* model. It is not a system-wide privacy guard, and a tool that
+implied otherwise would deserve to be taken apart by the first security reader who tried.
+
+- **It does not stop you taking a screenshot.** The masking applies to the image *we*
+  capture and transmit. Your operating system's screenshot tool reads the framebuffer
+  directly; no browser extension can see that, let alone block it. If you press ⌘⇧4, you
+  get the pixels that are on your screen, PII included — as you should.
+- **It does not police other extensions or other AI agents.** If another agent is
+  installed and given permission to read a page, it reads the page. Chrome deliberately
+  gives no extension authority over another extension's DOM access, and any product
+  claiming to provide that is either lying or is a different kind of software
+  (an enterprise browser, an OS-level DLP agent). **Aavaran's guarantee is about its own
+  pipeline: our agent cannot send what our sanitizer has already destroyed.**
+- **It does not protect the page from the site it is on.** The website already has the
+  value — you typed it there. This is about what leaves for a *third party*, the model.
+- **It cannot read inside a cross-origin `<iframe>`.** The content script runs in the top
+  frame. Frames are reported as unreadable, masked out of the screenshot, and — since
+  18 Sep — a page we could not substantially read is reported as **unreadable rather than
+  clean**, because a false all-clear is worse than no answer.
+
+The honest one-line scope: **a redaction boundary inside one agent, demonstrable byte by
+byte** — not a guard around your whole machine.
+
 ## Known limits
 
 We publish these rather than wait to be asked.
+
+- **Checksums gate the naming, not the redaction.** A real Aadhaar satisfies Verhoeff and
+  is named as one. A made-up twelve-digit number fails that check, so it is still
+  redacted but is labelled `SENSITIVE` rather than being *called* an Aadhaar. Naming a
+  kind needs two signals — shape plus a checksum, the printed grouping, or the field
+  label. Redaction may fail safe; a claim may not.
+- **A bank account number is only detectable from its field.** It has no checksum and no
+  fixed length, so an unlabelled account number in an unlabelled box is redacted as
+  `SENSITIVE` and cannot honestly be named.
 
 - **Eleven languages, two of them measured.** English, Hindi, Marathi, Tamil, Telugu,
   Bengali, Gujarati, Kannada, Malayalam, Punjabi and Odia have field vocabularies. Only

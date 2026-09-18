@@ -2,14 +2,48 @@
   "name": "multistep",
   "note": "THE DEMO FIXTURE. Added to the scored corpus after a recorded run was found transmitting 'Vikram Sharma' in the clear on turn 1. The fixture existed for months and had no truth file, so nothing scored it, and the one page we put in front of people was the one page nobody checked. If it is worth demonstrating it is worth scoring.",
   "elements": [
-    { "id": "who", "kind": "NAME", "redact": true },
-    { "id": "pan", "kind": "PAN", "redact": true },
-    { "id": "contact", "kind": "PHONE", "redact": true },
-    { "id": "category", "kind": null, "redact": false, "why": "a dropdown of issue categories, no personal value" },
-    { "id": "refno", "kind": null, "redact": false, "why": "grievance reference, empty at load and not personal when filled" },
-    { "id": "detail", "kind": null, "redact": false, "why": "free text description, empty at load" }
+    {
+      "id": "who",
+      "kind": "NAME",
+      "redact": true
+    },
+    {
+      "id": "pan",
+      "kind": "PAN",
+      "redact": true
+    },
+    {
+      "id": "contact",
+      "kind": "PHONE",
+      "redact": true
+    },
+    {
+      "id": "category",
+      "kind": null,
+      "redact": false,
+      "why": "a dropdown of issue categories, no personal value"
+    },
+    {
+      "id": "refno",
+      "kind": null,
+      "redact": false,
+      "why": "grievance reference, empty at load and not personal when filled"
+    },
+    {
+      "id": "detail",
+      "kind": null,
+      "redact": false,
+      "why": "free text description, empty at load"
+    }
   ],
-  "mustFind": ["Submit grievance", "Category"],
-  "mustNotFind": ["Vikram Sharma", "ABCPE1234F", "9845012345"],
-  "visionQueueMin": 0
+  "mustFind": [
+    "Submit grievance",
+    "Category"
+  ],
+  "mustNotFind": [
+    "Vikram Sharma",
+    "ABCPE1234F",
+    "9845012345"
+  ],
+  "visionQueueMin": 1
 }
