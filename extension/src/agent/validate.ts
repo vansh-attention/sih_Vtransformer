@@ -44,7 +44,7 @@ const NEVER_TYPE_ROLES = new Set(['password']);
  */
 const TYPEABLE_ROLES = new Set(['textbox']);
 
-const TOKEN_RE = /^<PII_[A-Z]+_\d+>$/;
+const TOKEN_RE = /^<PII_[A-Z_]+_\d+>$/;
 
 /**
  * Raw-PII shapes that must never appear in a server response. Deliberately loose:
@@ -73,7 +73,7 @@ function indexNodes(root: SanitizedNode): Map<ElementId, SanitizedNode> {
 
 /** Does this element currently hold a redacted value? */
 function holdsRedactedValue(node: SanitizedNode): boolean {
-  return typeof node.value === 'string' && /<PII_[A-Z]+_\d+>/.test(node.value);
+  return typeof node.value === 'string' && /<PII_[A-Z_]+_\d+>/.test(node.value);
 }
 
 export function validateAction(

@@ -161,7 +161,7 @@ check('no action targets an unknown element',
 // that has not understood the redaction scheme, and the PS requires that it does.
 const tokenFields = new Set<string>();
 (function walk(n: { id: string; value?: string; children?: unknown[] }) {
-  if (n.value && /<PII_[A-Z]+_\d+>/.test(n.value)) tokenFields.add(n.id);
+  if (n.value && /<PII_[A-Z_]+_\d+>/.test(n.value)) tokenFields.add(n.id);
   (n.children as typeof n[] | undefined)?.forEach(walk);
 })(payload.root as never);
 

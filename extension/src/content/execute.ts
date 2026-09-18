@@ -75,7 +75,7 @@ export async function executeAction(
         if (!el) return fail(`element ${action.target} is gone`);
 
         let value = action.value ?? '';
-        if (/^<PII_[A-Z]+_\d+>$/.test(value)) {
+        if (/^<PII_[A-Z_]+_\d+>$/.test(value)) {
           // The server directed this value without ever seeing it. Resolve locally,
           // at the last possible moment.
           const real = resolveToken(value);

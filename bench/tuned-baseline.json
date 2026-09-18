@@ -1,0 +1,9 @@
+{
+  "//": "ACCEPTED failures on the TUNED corpus. Anything here is a known, explained shortfall; anything NOT here is a regression and fails the suite. Kept as a file rather than a number so each entry has to be justified in writing.",
+  "accepted": [
+    {
+      "id": "multistep: pan: over-redacted — all surrounding context destroyed",
+      "why": "The PAN span loses its own context once the adjacent name is redacted. This is the single point behind the honest 98% (49/50) redaction-precision figure reported to the SPOC. Fixing it means teaching redaction to preserve a neighbouring span's context, which has not been attempted."
+    }
+  ]
+}

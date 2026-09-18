@@ -70,7 +70,7 @@ function rows(node, out = []) {
 const raw = new Map(rows(structure.root).map((r) => [r.id, r]));
 const safe = new Map(rows(payload.root).map((r) => [r.id, r]));
 
-const TOKEN = /<PII_[A-Z]+_\d+>/;
+const TOKEN = /<PII_[A-Z_]+_\d+>/;
 const merged = [...safe.keys()].map((id) => {
   const before = raw.get(id)?.value ?? '';
   const after = safe.get(id)?.value ?? '';

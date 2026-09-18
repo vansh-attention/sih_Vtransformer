@@ -145,7 +145,7 @@ function scorePage(file: string, truth: Truth): PageScore {
     }
 
     const text = `${node.value ?? ''} ${node.label ?? ''}`;
-    const wasRedacted = /<PII_[A-Z]+_\d+>/.test(text);
+    const wasRedacted = /<PII_[A-Z_]+_\d+>/.test(text);
 
     if (t.redact && wasRedacted) {
       s.tp++;
@@ -163,7 +163,7 @@ function scorePage(file: string, truth: Truth): PageScore {
         s.contextTotal++;
         const contextSurvived = [node.label, node.contextLabel]
           .filter(Boolean)
-          .some((txt) => !/^<PII_[A-Z]+_\d+>$/.test(txt!));
+          .some((txt) => !/^<PII_[A-Z_]+_\d+>$/.test(txt!));
         if (contextSurvived) s.contextKept++;
         else s.failures.push(`${t.id}: over-redacted — all surrounding context destroyed`);
       }
@@ -256,9 +256,45 @@ if (failures.length) {
   for (const f of failures) console.log(`  ${f}`);
 }
 
-// Leaks are always fatal. Detection misses are reported but do not fail the run on a
-// held-out corpus, because such a corpus exists to MEASURE generalisation, not to be
-// passed: gating on it would create steady pressure to tune against it, which is the one
-// thing that would destroy its value. The suite names this explicitly rather than
-// printing a tick that a reader would take for a clean bill of health.
+// Leaks are always fatal. Detection misses on a HELD-OUT corpus are reported but do not
+// fail the run, because such a corpus exists to MEASURE generalisation, not to be passed:
+// gating on it would create steady pressure to tune against it, which is the one thing
+// that would destroy its value.
+//
+// ⛔ THE TUNED CORPUS IS DIFFERENT, AND USED NOT TO BE GATED AT ALL.
+//
+// This script exited 0 no matter how many tuned-corpus failures it printed, so
+// `run "tuned corpus"` in test-all.sh was a tick that could not go red. A detection
+// change on 18 Sep introduced two fresh over-redactions — "application number" decoys —
+// and the suite stayed green through all nineteen checks while this very script printed
+// them. The scorecard measures four of the five ISRO metrics and could not fail the build.
+//
+// The tuned corpus IS the development corpus, so gating it creates no holdout pressure.
+// Gated against a NAMED baseline rather than a count, so the one accepted shortfall stays
+// visible and has to be justified in writing, and anything new is a regression.
+if (!HOLDOUT && !WILD && !NO_LAYER3) {
+  const baselinePath = new URL('./tuned-baseline.json', import.meta.url);
+  const baseline: { accepted: Array<{ id: string; why: string }> } =
+    JSON.parse(readFileSync(baselinePath, 'utf8'));
+  const accepted = new Set(baseline.accepted.map((a) => a.id));
+  const unexpected = failures.filter((f) => !accepted.has(f));
+  const fixed = [...accepted].filter((a) => !failures.includes(a));
+
+  if (unexpected.length) {
+    console.log(`\n✘ ${unexpected.length} NEW failure(s) — not in bench/tuned-baseline.json:`);
+    for (const f of unexpected) console.log(`    ${f}`);
+    console.log('  Either fix them, or add them to the baseline WITH a written reason.');
+    process.exit(1);
+  }
+  if (fixed.length) {
+    // A baseline that outlives the problem it records starts hiding the next one.
+    console.log(`\n✘ ${fixed.length} baseline entr(y/ies) no longer fail — remove them:`);
+    for (const f of fixed) console.log(`    ${f}`);
+    process.exit(1);
+  }
+  if (accepted.size) {
+    console.log(`\n  ${accepted.size} accepted shortfall(s), see bench/tuned-baseline.json`);
+  }
+}
+
 process.exit(leaks > 0 ? 1 : 0);

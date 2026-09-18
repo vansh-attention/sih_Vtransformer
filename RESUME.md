@@ -591,8 +591,10 @@ property of the architecture, not a claim about code correctness.
 | PII / redaction precision | 100% / 98% | **100%** | **100% / 100%** |
 | leaks | **0** | **0** | **0** |
 
-⚠ Task end-to-end: **median 63 s / 6 turns** (51.5 / 63.3 / 71.1), browser heap **+60.6 MB**.
-**The old 34.5 s / 31.5 s figures EXCLUDED THE VISION STAGE** — see the block below.
+⚠ Task end-to-end: **median ~30 s / 6 turns** on `multistep.html`, heap **+50 MB** —
+**but that page triggers NO vision, so the figure excludes the whole vision stage.**
+With one image added, vision runs on all 6 turns (~7 s) and the same task takes
+**median 63 s** (51.5 / 63.3 / 71.1). Both are true of the page they were measured on.
 
 ⚠ **Re-measured 17 Sep 22:20** — `node --experimental-strip-types bench/score.ts --wild`.
 This table previously showed the 4-page wild corpus at 75% recall; that was the version

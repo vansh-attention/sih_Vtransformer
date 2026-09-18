@@ -41,7 +41,7 @@ function valueFields(root: SanitizedNode): SanitizedNode[] {
   return out;
 }
 
-const TOKEN_RE = /<PII_[A-Z]+_\d+>/g;
+const TOKEN_RE = /<PII_[A-Z_]+_\d+>/g;
 
 /**
  * The side-by-side row. "Before" is reconstructed from masked previews, never from

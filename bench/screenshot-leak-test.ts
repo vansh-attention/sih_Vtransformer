@@ -70,7 +70,7 @@ function run(dir: string, file: string): Case {
     signals: (id) => { const el = resolveElement(id); return el ? signalsFor(el) : undefined; },
   });
 
-  const tokens = new Set(JSON.stringify(payload).match(/<PII_[A-Z]+_\d+>/g) ?? []);
+  const tokens = new Set(JSON.stringify(payload).match(/<PII_[A-Z_]+_\d+>/g) ?? []);
   return {
     page: file.replace(/\.html$/, ''),
     visionQueue: visionQueue.length,

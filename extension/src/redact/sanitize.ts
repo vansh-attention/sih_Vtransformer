@@ -126,8 +126,17 @@ function redactValue(
        * same guess that published a PAN as an Aadhaar. So the field decides if it can,
        * and otherwise this is redacted as SENSITIVE.
        */
-      // The enclosing branch already excluded NON_PII, so no re-check here.
-      const hinted = hint ? (hint.kind as PiiKind) : undefined;
+      /**
+       * NON_PII is a CLASSIFICATION, not a kind, and must never become a token.
+       *
+       * Removing this check once produced `<PII_NON_PII_1>` — an incoherent token that
+       * also happened to be INVISIBLE to the scorer, whose token regex could not match
+       * an underscore inside the kind. The decoy was destroyed and the scorecard
+       * reported it clean. Belt and braces, because the cost of being wrong here is a
+       * silent one.
+       */
+      const hinted = hint && hint.kind !== 'NON_PII'
+        ? (hint.kind as PiiKind) : undefined;
       const kind: PiiKind = hinted && canBe(hinted, det.raw) ? hinted : 'SENSITIVE';
       spans.push({ start: det.start, end: det.end, kind });
       placeholders.push({
@@ -378,7 +387,7 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
        * the value. Here, evidence about a value must not consist solely of another
        * value's placeholder.
        */
-      if (contextLabel && /^\s*(<PII_[A-Z]+_\d+>\s*)+$/.test(contextLabel)) {
+      if (contextLabel && /^\s*(<PII_[A-Z_]+_\d+>\s*)+$/.test(contextLabel)) {
         contextLabel = undefined;
       }
       allPlaceholders.push(...r.placeholders);

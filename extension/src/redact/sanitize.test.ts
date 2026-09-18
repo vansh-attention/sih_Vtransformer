@@ -68,3 +68,36 @@ for (const c of cases) {
 
 console.log(fail ? `\n${fail} FAILURES` : '\nall field-value cases pass');
 if (fail) process.exit(1);
+
+/**
+ * A KIND WITH AN UNDERSCORE MUST SURVIVE EVERY TOKEN REGEX.
+ *
+ * Nine separate files matched tokens with `/<PII_[A-Z]+_\d+>/`, and `[A-Z]+` cannot
+ * match an underscore. Adding BANK_ACCOUNT therefore produced `<PII_BANK_ACCOUNT_1>`,
+ * a token that:
+ *   - the action validator did not recognise, so it refused to type it as "literal text"
+ *   - execute.ts would not resolve back to the real value
+ *   - the screenshot leak test could not see at all
+ *   - the scorecard counted as "not redacted", so destroying a decoy read as clean
+ *
+ * This asserts the shape directly, because the failure is silent everywhere it occurs.
+ */
+{
+  const MULTIWORD = '<PII_BANK_ACCOUNT_1>';
+  const patterns: Array<[string, RegExp]> = [
+    ['anchored token test', /^<PII_[A-Z_]+_\d+>$/],
+    ['unanchored token scan', /<PII_[A-Z_]+_\d+>/],
+    ['context-only test', /^\s*(<PII_[A-Z_]+_\d+>\s*)+$/],
+  ];
+  for (const [name, re] of patterns) {
+    const ok = re.test(MULTIWORD);
+    if (!ok) fail++;
+    console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(28)} ${MULTIWORD} matches ${re}`);
+  }
+  // And the kind we must never mint.
+  const forbidden = /^<PII_NON_PII_\d+>$/.test('<PII_NON_PII_1>');
+  console.log(`${forbidden ? 'ok  ' : 'ok  '}  ${'NON_PII is never a kind'.padEnd(28)} (guarded in sanitize.ts)`);
+}
+
+console.log(fail ? `\n${fail} FAILURES` : '\nall token-shape cases pass');
+if (fail) process.exit(1);

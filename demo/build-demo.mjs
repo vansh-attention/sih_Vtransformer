@@ -47,7 +47,7 @@ function rows(node, out = []) {
       role: node.role,
       label: node.label ?? node.contextLabel ?? '',
       value: node.value ?? '',
-      redacted: typeof node.value === 'string' && /<PII_[A-Z]+_\d+>/.test(node.value),
+      redacted: typeof node.value === 'string' && /<PII_[A-Z_]+_\d+>/.test(node.value),
     });
   }
   (node.children ?? []).forEach((c) => rows(c, out));
