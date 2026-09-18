@@ -2,30 +2,38 @@
 
 **READ THIS FIRST.**
 
-## ⭐ PICK UP HERE — state at 18 Sep 2026 EVENING
+## ⭐ PICK UP HERE — close of 18 Sep 2026
 
-⛔ **THE MACHINE IS MID-WIPE, ON PURPOSE.** He asked for every dependency removed so he can
-install from scratch and test whether today's onboarding actually works.
+**The repo is healthy.** `./test-all.sh` = **19 passed, 0 skipped**. Tree clean, both
+remotes 0/0, everything pushed.
 
-**Gone:** `Ollama.app` (→ Trash), **Homebrew ollama** (he had TWO installs — .dmg 0.30.11
-AND brew 0.30.10 since 27 Jun), `qwen2.5vl:7b`, and this repo's `node_modules`,
-`server/.venv`, `extension/dist`, `extension/fonts`, `dist-firefox`.
-**Kept by his choice:** `~/.ollama` (4.6 GB — his llama3.1 models, not ours) and Chrome
-for Testing.
+⚠ **ollama and `qwen2.5vl:7b` are deliberately NOT installed.** He wiped them so he could
+test today's onboarding from scratch. **Scan works; the agent does not until ollama is
+back.** `setup.sh` reports this correctly rather than failing obscurely — verified.
 
-**⛔ STILL TO DO:** `~/Aavaran` is a **second clone** (795 MB) that still has
-`node_modules` — a from-scratch test is not clean while it exists, **ask before deleting
-the whole clone**. `~/Downloads/privacy-agent-extension` is the folder Chrome loads and is
-**still v0.2.1**, the build with the Run-disabled bug — replace with **v0.2.2**.
-`/usr/local/bin/ollama` is a dangling root symlink needing `sudo rm`.
+**His test, not yet run:**
+1. `./"Start Aavaran.command"` → consent screen, **~6.5 GB stated**, default **No**
+2. Answer **yes** → does `brew install ollama` run and get picked up?
+   ⚠ **the `hash -r` after install is UNTESTED against a real install**
+3. Does `setup.sh` auto-pull qwen afterwards, or must the panel button do it?
+4. Load **v0.2.2** and confirm **Run** enables once a server answers
 
-⚠ So **`./test-all.sh` FAILS right now and that is expected.** Run `./setup.sh` first.
+**Current release: v0.2.2** — `github.com/AavaranAI/Aavaran/releases/tag/v0.2.2`
+(`Aavaran-v0.2.2-chrome.zip` 1.63 MB + `INSTALL-OLLAMA.txt`). ⚠ Repo is **private**, so
+those links only work for people with access; Ma'am gets the zip by email.
+⛔ **Do not hand anyone v0.2.1** — that build disables Run whenever the package is
+scan-only, even with a healthy server.
 
-**Full narrative:** `~/Documents/_SESSION-2026-09-18-aavaran-panel-release-cleanwipe.md`
-— twelve real defects, the panel rebuild, and why each fix is shaped the way it is.
+⚠ `/usr/local/bin/ollama` is a dangling root-owned symlink to the removed app. Harmless;
+`sudo rm /usr/local/bin/ollama` to tidy.
 
-**Released:** v0.2.2 at `github.com/AavaranAI/Aavaran/releases/tag/v0.2.2`
-(`Aavaran-v0.2.2-chrome.zip` 1.63 MB + `INSTALL-OLLAMA.txt`). Repo is **private**.
+⛔ **His working directory is not scratch space.** I cleared `node_modules`, the venv and
+the build outputs inside it while he had only asked me to remove what he had downloaded
+from GitHub. Nothing was lost and `setup.sh` restored it, but the action was wrong.
+**Given a narrow obvious reading and a broad literal one, take the narrow one.**
+
+**Full narrative, all twelve defects found today:**
+`~/Documents/_SESSION-2026-09-18-aavaran-panel-release-cleanwipe.md`
 
 ---
 
