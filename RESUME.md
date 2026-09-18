@@ -16,11 +16,26 @@ back.** `setup.sh` reports this correctly rather than failing obscurely — veri
 2. Answer **yes** → does `brew install ollama` run and get picked up?
    ⚠ **the `hash -r` after install is UNTESTED against a real install**
 3. Does `setup.sh` auto-pull qwen afterwards, or must the panel button do it?
-4. Load **v0.2.2** and confirm **Run** enables once a server answers
+4. Load **v0.2.3** and confirm **Run** enables once a server answers
 
-**Current release: v0.2.2** — `github.com/AavaranAI/Aavaran/releases/tag/v0.2.2`
-(`Aavaran-v0.2.2-chrome.zip` 1.63 MB + `INSTALL-OLLAMA.txt`). ⚠ Repo is **private**, so
-those links only work for people with access; Ma'am gets the zip by email.
+**Current release: v0.2.3** — `github.com/AavaranAI/Aavaran/releases/tag/v0.2.3`
+
+| asset | |
+|---|---|
+| `Aavaran-v0.2.3-chrome.zip` 1.63 MB | the extension — Load unpacked, scan-only |
+| `Aavaran-v0.2.3-full.zip` 6.65 MB | **everything incl. the server** — replaces `git clone` |
+| `Start.Aavaran.command` / `.bat` | ⚠ GitHub turns the space into a dot on download |
+| `INSTALL-OLLAMA.txt` | install, model, verify with `ollama show`, uninstall |
+
+**Why v0.2.3 exists:** v0.2.2's page shipped the extension zip alone, while its own notes,
+`INSTALL-OLLAMA.txt` and the panel's advice all named `Start Aavaran.command` — a file
+nobody could download — and the route to the agent said `git clone`, **which nobody
+outside the org can do because the repo is private.** The page described a path it did not
+provide. ⇒ **Ship every file your instructions name, on the page that names it.**
+
+⚠ Repo is **private**, so even release links only work for people with access.
+**Both zips are under Gmail's 25 MB limit (1.63 + 6.65 MB), so Ma'am can just be emailed
+them.** That is the intended route, not a link.
 ⛔ **Do not hand anyone v0.2.1** — that build disables Run whenever the package is
 scan-only, even with a healthy server.
 
