@@ -113,6 +113,43 @@ falls back to system fonts and looks half-finished on her laptop.
 standalone renderer and it produces `bench/out/ledger.html` — **Figure 2 in the SPOC
 report**. Ask him whether it should be brought in line.
 
+### ♿ ACCESSIBILITY PASS ON THE PANEL (18 Sep, after the redesign)
+
+He installed `vercel-labs/agent-skills` and the `web-design-guidelines` skill was run
+against the panel. **The panel had exactly ONE `aria-` attribute in 490 lines.** Fixed:
+a real `<label for="goal">`, `role="status" aria-live="polite"` on all four
+asynchronously-updated surfaces (`#phase`, `#lamp`, `#target`, `#serverstatus`), a
+`.sr` visually-hidden prefix so the lamp reads "READY" but announces "Reasoning server:
+ready", `<b>`→`<h2>` for the empty-state headings, `:focus-visible` on the inputs, a
+focus ring on `<summary>` (focusable, and the `button:focus-visible` rule never covered
+it), `type="url" inputmode="url" spellcheck="false"` on the server field,
+`translate="no"` on every code token, `scope="col"` on the table headers, `Intl`+`&nbsp;`
+for units, and `touch-action`/`theme-color`/font-`preload`/`overscroll-behavior`.
+
+**`scripts/panel-shot.mjs` now ASSERTS these on the live DOM** — unnamed controls,
+missing live regions, unhidden icons, missing `#lamptext`. Sabotage-verified: stripping
+`aria-live` and reverting the label both fire.
+
+⚠⚠ **Two things the review got WRONG, and the checks are what caught it:**
+- **"lucide icons render without `aria-hidden`" was FALSE.** Lucide adds it itself
+  (`replaceElement.mjs`, `hasA11yProp`). My "fix" was redundant, and the icon assertion
+  **cannot fail for lucide icons however they are configured** — proven by sabotaging
+  `createIcons` and getting 0 failures. It does catch a hand-written inline `<svg>`,
+  verified separately. `focusable:'false'` is the only part of that attrs object doing work.
+- **The "placeholders end with `…`" rule was applied mechanically and made the copy
+  worse** — the ellipsis signals continuation, and this placeholder is a complete example
+  sentence, so it read as truncated. Reverted.
+
+⇒ **A guideline is evidence, not a verdict.** Two of the findings were wrong on this
+codebase. **Title Case on buttons was rejected outright**: it is Vercel house style and
+collides with this project's deliberately sentence-case voice across the report, deck and
+readme — applying it to the panel alone would make the panel the odd one out.
+
+⛔ **STILL OPEN, his call:** `Run on this tab` sets an agent loose to fill and **submit**
+forms on the open page with **no confirmation and no undo**. That is a real hit against
+"destructive actions need confirmation". It is a product decision, not a CSS one, and
+changing it alters the demo Ma'am sees.
+
 ### ⛔ THE THEME WAS NEVER UNKNOWN — corrected 18 Sep after he asked why I couldn't get it
 
 **It is `Smart Automation`.** It belongs to the **problem statement**, not to the team: it is

@@ -61,10 +61,37 @@ function countUp(el: Element, to: number, suffix = ''): void {
   });
 }
 
+/**
+ * Every icon here sits beside its own text label, so all of them are decorative.
+ *
+ * `aria-hidden` is REDUNDANT — lucide adds it itself unless the placeholder already
+ * carries an a11y prop (`replaceElement.mjs`, `hasA11yProp`). It is stated anyway so
+ * that reading this file tells you the icons are hidden, rather than requiring you to
+ * know a library default. `focusable: 'false'` is NOT a lucide default and is the part
+ * doing real work here.
+ *
+ * ⚠ Consequence: the icon assertion in `scripts/panel-shot.mjs` cannot fail for these
+ * icons however they are configured. It still catches a hand-written inline <svg>,
+ * which is verified by sabotage — that is the case it exists for.
+ */
 createIcons({
   icons: { Zap, Square, ScanEye, Settings2, ShieldCheck, Lightbulb, FileSearch },
-  attrs: { 'stroke-width': 2.1 },
+  attrs: { 'stroke-width': 2.1, 'aria-hidden': 'true', focusable: 'false' },
 });
+
+/**
+ * Numbers, formatted for the reader's locale, with the unit bound to the value.
+ *
+ * Two reasons this is not string concatenation. A hard space between the figure
+ * and its unit stops "3901" and "ms" landing on different lines, which happens
+ * constantly in a 400px panel and reads as two separate facts. And Intl means an
+ * Indian reader sees 1,20,000 rather than a grouping nobody here writes.
+ */
+const num = (n: number) => new Intl.NumberFormat(navigator.language).format(n);
+const ms = (n: number) => `${num(n)}&nbsp;ms`;
+const kb = (bytes: number) =>
+  `${new Intl.NumberFormat(navigator.language, { maximumFractionDigits: 1 })
+    .format(bytes / 1024)}&nbsp;KB`;
 
 interface Preview { token: string; kind: string; masked: string }
 
@@ -86,14 +113,14 @@ function renderTurn(rec: any, previews: Map<string, Preview>): string {
     <div class="row">
       <span class="${a.allowed ? 'allow' : 'deny'}">${a.allowed ? 'ALLOW' : 'DENY '}</span>
       <b>${esc(a.action.kind)}</b> ${esc(a.action.target ?? '')}
-      ${a.action.value ? `<span class="tok">${esc(a.action.value)}</span>` : ''}
+      ${a.action.value ? `<span class="tok" translate="no">${esc(a.action.value)}</span>` : ''}
       ${a.allowed && a.executed === false ? '<span class="deny">(not executed)</span>' : ''}
       <div class="t">${esc(a.action.reasoning ?? '')}</div>
       ${a.reason ? `<div class="deny t">refused: ${esc(a.reason)}</div>` : ''}
     </div>`).join('');
 
   const masked = [...previews.values()].slice(0, 8).map((p) =>
-    `<div class="row"><span class="mask">${esc(p.masked)}</span> &rarr; <span class="tok">${esc(p.token)}</span></div>`
+    `<div class="row"><span class="mask" translate="no">${esc(p.masked)}</span> &rarr; <span class="tok" translate="no">${esc(p.token)}</span></div>`
   ).join('');
 
   // A withheld screenshot is a PROTECTION FIRING, not an error. It was recorded and
@@ -111,11 +138,11 @@ function renderTurn(rec: any, previews: Map<string, Preview>): string {
     <details><summary>Raw bytes transmitted this turn — inspect it yourself</summary>
       <pre>${esc(JSON.stringify(rec.transmitted ?? { note: 'payload omitted', bytes: rec.transmittedBytes }, null, 2))}</pre>
     </details>
-    <div class="row t">
-      extract <b>${t.extractMs}ms</b> &middot; sanitize <b>${t.sanitizeMs}ms</b> &middot;
-      vision <b>${t.visionMs}ms</b> &middot; model <b>${t.networkMs}ms</b> &middot;
-      total <b>${t.totalMs}ms</b> &middot; ${rec.nodeCount} nodes &middot;
-      ${(rec.transmittedBytes / 1024).toFixed(1)}KB sent
+    <div class="row t nums">
+      extract <b>${ms(t.extractMs)}</b> &middot; sanitize <b>${ms(t.sanitizeMs)}</b> &middot;
+      vision <b>${ms(t.visionMs)}</b> &middot; model <b>${ms(t.networkMs)}</b> &middot;
+      total <b>${ms(t.totalMs)}</b> &middot; ${num(rec.nodeCount)}&nbsp;nodes &middot;
+      ${kb(rec.transmittedBytes)} sent
     </div>
   </div>`;
 }
@@ -161,7 +188,14 @@ async function probe(url: string, ms = 1500): Promise<{ ok: boolean; model?: str
 function setLamp(state: 'ok' | 'bad' | 'unknown', label: string): void {
   const lamp = $('lamp');
   lamp.className = `lamp${state === 'unknown' ? '' : ` ${state}`}`;
-  lamp.querySelector('span')!.textContent = label;
+  // Write to #lamptext, never querySelector('span') — the first span is now the
+  // decorative dot, and writing text into it would both lose the label and make
+  // the dot announce itself.
+  //
+  // Short text only — the header has no room for a sentence. The context ("Reasoning
+  // server:") is a visually-hidden prefix in the markup, so the eye reads READY and a
+  // screen reader hears the whole thing.
+  $('lamptext').textContent = label;
   // When the model cannot be reached, Run is dead weight and Scan is the whole
   // demo — so say so on the button rather than leaving the user to discover it.
   $('scan').classList.toggle('promoted', state === 'bad');
@@ -443,7 +477,8 @@ $('scan').addEventListener('click', async () => {
 
     $('phase').innerHTML =
       `<b>${total}</b> value(s) would be withheld from <b>${esc(r.title ?? r.url ?? 'this page')}</b>`
-      + `<span class="t">${r.nodeCount} elements read, ${r.bytes} bytes would be sent</span>`;
+      + `<span class="t nums">${num(r.nodeCount)} elements read, `
+      + `${num(r.bytes)} bytes would be sent</span>`;
 
     // These classes had NO rules in the stylesheet at all, so the scan result —
     // the path a sceptic actually presses, on their own bank — rendered as an
@@ -454,9 +489,9 @@ $('scan').addEventListener('click', async () => {
       + `<span class="t">nothing was transmitted</span></header>`
       + `<div class="body"><div class="t">Withheld: ${esc(kinds)}</div>`
       + (r.previews?.length
-          ? `<table class="fields"><thead><tr><th>On screen</th><th>Sent instead</th></tr></thead><tbody>`
+          ? `<table class="fields"><thead><tr><th scope="col">On screen</th><th scope="col">Sent instead</th></tr></thead><tbody>`
             + r.previews.map((p: Preview) =>
-                `<tr><td class="mask">${esc(p.masked)}</td><td class="tok">${esc(p.token)}</td></tr>`).join('')
+                `<tr><td class="mask" translate="no">${esc(p.masked)}</td><td class="tok" translate="no">${esc(p.token)}</td></tr>`).join('')
             + `</tbody></table>`
           : `<div class="hint">`
             // The likeliest first experience is an empty result, because a page holds
@@ -464,7 +499,7 @@ $('scan').addEventListener('click', async () => {
             // reads as "it does not work", so say what to do next.
             + `<b>No personal values on this page.</b> Most pages hold none until you `
             + `type something.<br><br>Try this: put a name or a made-up PAN such as `
-            + `<span class="tok">ABCPE1234F</span> into a field you can SEE, then scan `
+            + `<span class="tok" translate="no">ABCPE1234F</span> into a field you can SEE, then scan `
             + `again. Hidden fields are ignored on purpose.</div>`)
       // A successful scan ends with a table and no idea what it proved. The claim worth
       // making here is the one the reader can check for herself in ten seconds, so make
@@ -473,7 +508,7 @@ $('scan').addEventListener('click', async () => {
           ? `<div class="hint"><b>Nothing left this machine.</b> `
             + `Open DevTools, switch to the Network tab and press Scan again: no request `
             + `appears. The values on the left never leave the page; only the tags on the `
-            + `right would be sent.<br><br>Next, open <span class="tok">why.html</span> in `
+            + `right would be sent.<br><br>Next, open <span class="tok" translate="no">why.html</span> in `
             + `the same folder as this extension: the same page sent with and without this, `
             + `side by side.</div>`
           : '')

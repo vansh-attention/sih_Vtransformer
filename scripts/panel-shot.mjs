@@ -215,6 +215,60 @@ for (const s of STATES) {
   console.log(`${s.name}.png  ${WIDTH}x${height}`);
 }
 
+/**
+ * Accessibility invariants, asserted on the LIVE DOM.
+ *
+ * These are the fixes from the Web Interface Guidelines review, and every one of
+ * them is invisible: an unlabelled input, a silent live region and an icon that
+ * announces itself all look perfect in a screenshot. A check is the only thing
+ * that can notice them coming back.
+ */
+const a11y = await send('Runtime.evaluate', {
+  expression: `JSON.stringify((() => {
+    const fails = [];
+    // every control has an accessible name
+    for (const el of document.querySelectorAll('input, button')) {
+      const labelled = el.labels?.length
+        || el.getAttribute('aria-label')
+        || el.textContent.trim().length;
+      if (!labelled) fails.push('unnamed control: ' + (el.id || el.className));
+    }
+    // clicking the label must focus the field
+    const lab = document.querySelector('label[for="goal"]');
+    if (!lab) fails.push('#goal has no <label for>');
+    // icons must not be announced
+    // NOTE: lucide sets aria-hidden itself, so this can only ever catch a
+    // HAND-WRITTEN inline <svg> — which is exactly what it caught in sabotage.
+    // Identify it by its parent chain; an <svg> has no useful id of its own.
+    for (const svg of document.querySelectorAll('svg')) {
+      if (svg.getAttribute('aria-hidden') !== 'true') {
+        const where = svg.closest('[id]')?.id
+          || svg.parentElement?.className
+          || svg.parentElement?.tagName
+          || 'unknown';
+        fails.push('icon not aria-hidden, inside: ' + where);
+      }
+    }
+    // async surfaces must announce
+    for (const id of ['phase', 'lamp', 'target', 'serverstatus']) {
+      const el = document.getElementById(id);
+      if (!el) { fails.push('missing #' + id); continue; }
+      if (el.getAttribute('aria-live') !== 'polite') fails.push('#' + id + ' not aria-live');
+    }
+    // the lamp's label element must exist, or setLamp writes into the dot
+    if (!document.getElementById('lamptext')) fails.push('#lamptext missing');
+    // a focusable summary needs a focus style
+    const sum = document.querySelector('#settings summary');
+    if (sum && !getComputedStyle(sum).outlineStyle) fails.push('summary has no outline rule');
+    return { fails, controls: document.querySelectorAll('input, button').length,
+             icons: document.querySelectorAll('svg[aria-hidden="true"]').length };
+  })())`, returnByValue: true });
+const report = JSON.parse(a11y.result.result.value);
+console.log(`a11y: ${report.controls} controls, ${report.icons} icons hidden, `
+  + `${report.fails.length} failure(s)`);
+for (const f of report.fails) console.error(`  ✘ ${f}`);
+if (report.fails.length) process.exitCode = 1;
+
 /* A font that failed to load leaves the panel on a fallback and the whole
    redesign looks half-applied — so assert it, rather than eyeballing it. */
 const fonts = await send('Runtime.evaluate', {
