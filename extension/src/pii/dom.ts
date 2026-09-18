@@ -417,7 +417,8 @@ export function reconcile(
   if (hint && hint.kind !== 'NON_PII' && !detection) {
     const candidates: PiiKind[] = [];
     for (const k of [hint.kind, ...(hint.alternatives ?? [])]) {
-      if (k !== 'NON_PII' && !candidates.includes(k)) candidates.push(k);
+      // hint.kind is already non-NON_PII here and alternatives are PiiKind.
+      if (!candidates.includes(k)) candidates.push(k);
     }
     const viable = raw === undefined ? candidates : candidates.filter((k) => canBe(k, raw));
 

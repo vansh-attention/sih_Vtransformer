@@ -126,7 +126,8 @@ function redactValue(
        * same guess that published a PAN as an Aadhaar. So the field decides if it can,
        * and otherwise this is redacted as SENSITIVE.
        */
-      const hinted = hint && hint.kind !== 'NON_PII' ? (hint.kind as PiiKind) : undefined;
+      // The enclosing branch already excluded NON_PII, so no re-check here.
+      const hinted = hint ? (hint.kind as PiiKind) : undefined;
       const kind: PiiKind = hinted && canBe(hinted, det.raw) ? hinted : 'SENSITIVE';
       spans.push({ start: det.start, end: det.end, kind });
       placeholders.push({

@@ -733,7 +733,12 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
       const node = walk(el);
       rescuing = false;
       if (node) rescued.push(node);
-      else if (process?.env?.SIH_DEBUG) console.error('rescue: walk returned null for', el.id);
+      else if (typeof process !== 'undefined' && process.env?.SIH_DEBUG) {
+        // `process?.env` does NOT protect an undeclared identifier — optional
+        // chaining still evaluates the base, so in a browser this threw a
+        // ReferenceError instead of skipping. typeof is the only safe test.
+        console.error('rescue: walk returned null for', el.id);
+      }
     }
     if (rescued.length) {
       // No manual increment: walk() already counted each of these as it built them.

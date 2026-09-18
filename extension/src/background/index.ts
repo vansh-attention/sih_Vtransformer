@@ -93,7 +93,7 @@ async function runSpikeC(pageUrl: string): Promise<Record<string, unknown>> {
   // Wait for the load to settle. A screenshot of a half-painted page would produce
   // mismatches that look like mapping bugs but are not.
   await new Promise<void>((resolve) => {
-    const listener = (id: number, info: chrome.tabs.TabChangeInfo) => {
+    const listener = (id: number, info: chrome.tabs.OnUpdatedInfo) => {
       if (id === tabId && info.status === 'complete') {
         chrome.tabs.onUpdated.removeListener(listener);
         resolve();
@@ -390,7 +390,7 @@ async function runSpikeH(pageUrl: string, truthUrl: string): Promise<Record<stri
   const tab = await chrome.tabs.create({ url: pageUrl, active: true });
   const tabId = tab.id!;
   await new Promise<void>((resolve) => {
-    const l = (id: number, info: chrome.tabs.TabChangeInfo) => {
+    const l = (id: number, info: chrome.tabs.OnUpdatedInfo) => {
       if (id === tabId && info.status === 'complete') {
         chrome.tabs.onUpdated.removeListener(l); resolve();
       }
@@ -535,7 +535,7 @@ async function runSpikeI(liveUrl: string): Promise<Record<string, unknown>> {
       chrome.tabs.onUpdated.removeListener(l);
       resolve(clean);
     };
-    const l = (id: number, info: chrome.tabs.TabChangeInfo) => {
+    const l = (id: number, info: chrome.tabs.OnUpdatedInfo) => {
       if (id === tabId && info.status === 'complete') finish(true);
     };
     chrome.tabs.onUpdated.addListener(l);
@@ -818,7 +818,7 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
   const tabId = tab.id!;
 
   await new Promise<void>((resolve) => {
-    const l = (id: number, info: chrome.tabs.TabChangeInfo) => {
+    const l = (id: number, info: chrome.tabs.OnUpdatedInfo) => {
       if (id === tabId && info.status === 'complete') {
         chrome.tabs.onUpdated.removeListener(l); resolve();
       }
