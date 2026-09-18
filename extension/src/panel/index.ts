@@ -206,19 +206,38 @@ async function loadBuildInfo(): Promise<void> {
  * It was the big white primary button next to instructions that could not be followed.
  * A control that cannot work should say so before it is pressed, not after.
  */
+/**
+ * ⛔ A scan-only PACKAGE does not mean the agent is impossible.
+ *
+ * This used to disable Run and the goal box outright whenever `build-info.json` said
+ * scan-only, on the reasoning that the zip contains no `server/` directory. That
+ * reasoning was wrong, and it locked a working setup out of its own agent: the panel
+ * reaches the reasoning server over HTTP at 127.0.0.1:8975 and does not care in the
+ * slightest whether that server's files happen to sit inside the extension folder.
+ *
+ * Someone can perfectly well install the zip in Chrome while running the server from a
+ * clone — which is exactly what he was doing when the panel told him "Needs the full
+ * repository" with `ready · qwen2.5vl:7b` visible two inches below it.
+ *
+ * So the SERVER decides, never the package. What scan-only genuinely means is narrower:
+ * this package cannot START a server for you, and has no absolute paths to offer,
+ * so if none is reachable the advice must not pretend otherwise.
+ */
 function applyBuildVariant(): void {
   if (build.variant !== 'scan-only') return;
-  const run = $('run') as HTMLButtonElement;
-  run.disabled = true;
-  run.title = 'This package ships the scanner only — it contains no reasoning server.';
-  $('goal').setAttribute('disabled', '');
-  ($('goal') as HTMLInputElement).placeholder = 'Needs the full repository';
+  // Promote Scan, because it is the thing that needs nothing. Nothing is disabled here:
+  // whether Run can work is decided by probing, in checkServer.
   $('scan').classList.add('promoted');
+}
+
+/** What to say when a scan-only package finds no server. It cannot start one. */
+function scanOnlyAdvice(): void {
   $('serveradvice').innerHTML =
-    '<b>This package cannot run the agent.</b> It ships the scanner only and contains '
-    + 'no reasoning server — there is nothing to start. <b>Scan this page</b> needs no '
-    + 'server and is the whole privacy demonstration. To run the agent, clone the '
-    + 'repository and follow its README.';
+    '<b>No reasoning server is running, and this package cannot start one.</b> It ships '
+    + 'the scanner only. <b>Scan this page</b> needs no server and is the whole privacy '
+    + 'demonstration.<div class="advice-note">Already running a server from a clone? '
+    + 'Check the address in Settings and press Test — the agent works from this package '
+    + 'too, it just cannot launch the server for you.</div>';
   $('serveradvice').hidden = false;
 }
 
@@ -279,9 +298,10 @@ function setLamp(state: 'ok' | 'bad' | 'unknown', label: string): void {
   // When the model cannot be reached, Run is dead weight and Scan is the whole
   // demo — so the two SWAP visual roles rather than leaving the user to discover
   // it by pressing the big button and reading a failure.
-  // In a scan-only package Scan is permanently the primary action, so this must not
-  // toggle it back off — setLamp runs after applyBuildVariant and was clobbering it.
-  const down = state === 'bad' || build.variant === 'scan-only';
+  // The SERVER decides which action is primary, in every build. Including
+  // `build.variant === 'scan-only'` here kept Run demoted on a machine whose server was
+  // answering perfectly well, which is the same mistake as disabling it outright.
+  const down = state === 'bad';
   $('scan').classList.toggle('promoted', down);
   $('run').classList.toggle('demoted', down);
 }
@@ -439,7 +459,7 @@ async function pullModel(serverUrl: string): Promise<void> {
  */
 function showStartAdvice(): void {
   const box = $('serveradvice');
-  if (build.variant === 'scan-only') { applyBuildVariant(); return; }
+  if (build.variant === 'scan-only') { scanOnlyAdvice(); return; }
 
   const raw = build.startCommands ?? [];
   // Each of these holds a terminal open, which is the bit people get wrong: they run
@@ -538,7 +558,8 @@ void (async () => {
   applyBuildVariant();
   const url = await loadServer();
   ($('server') as HTMLInputElement).value = url;
-  if (build.variant === 'scan-only') { setLamp('unknown', 'scan only'); return; }
+  // Probe in every build. A scan-only package used to skip this entirely, so a running
+  // server was never noticed and the agent stayed locked out of a machine that had one.
   void checkServer(url);
 })();
 

@@ -243,6 +243,11 @@ const STATES = [
   // the zip, where it cannot be started at all and must not be implied otherwise.
   { name: '7-server-unreachable-repo', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_UNREACHABLE, scan: SCAN, run: RUN, buildInfo: BUILD_REPO, after: null },
+  // His case: the scan-only zip installed in Chrome while a server runs from a clone.
+  // Run must be usable — the package cannot START a server, which is not the same as
+  // the agent being impossible.
+  { name: '12-scan-only-but-server-up', tabUrl: 'https://demoqa.com/automation-practice-form',
+    health: HEALTH_OK, scan: SCAN, run: RUN, buildInfo: BUILD_ZIP, after: null },
   { name: '8-scan-only-package', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_UNREACHABLE, scan: SCAN, run: RUN, buildInfo: BUILD_ZIP, after: null },
   { name: '9-model-not-installed', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
