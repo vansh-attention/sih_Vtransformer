@@ -103,7 +103,15 @@ fi
 # setup.sh builds this venv. Without it there is nothing to run, and saying so beats
 # a Python traceback.
 if [ ! -x server/.venv/bin/uvicorn ]; then
-  say "No Python environment yet. Run ./setup.sh once, then run this again."
+  if [ ! -f setup.sh ]; then
+    # This file was downloaded on its own. It cannot start a server that isn't here,
+    # and saying "run ./setup.sh" would name a file they do not have.
+    say "This launcher is on its own — there is no Aavaran project folder around it."
+    say "It needs the server, which ships in Aavaran-v0.2.3-full.zip on the release page."
+    say "Unzip that, and run the copy of this file from inside the unzipped folder."
+  else
+    say "No Python environment yet. Run ./setup.sh once, then run this again."
+  fi
   say "Press return to close this window."; read -r _; exit 1
 fi
 

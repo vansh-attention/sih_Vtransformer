@@ -90,7 +90,15 @@ REM setup.sh builds this venv. Without it there is nothing to run, and saying so
 REM a Python traceback.
 if not exist "server\.venv\Scripts\uvicorn.exe" (
   echo.
-  echo   No Python environment yet. Run setup once, then run this again.
+  REM If setup.sh is missing too, this file was downloaded on its own. Telling someone
+  REM to "run setup" would name a file they do not have.
+  if not exist "setup.sh" (
+    echo   This launcher is on its own - there is no Aavaran project folder around it.
+    echo   It needs the server, which ships in Aavaran-v0.2.3-full.zip on the release page.
+    echo   Unzip that, and run the copy of this file from inside the unzipped folder.
+  ) else (
+    echo   No Python environment yet. Run setup once, then run this again.
+  )
   echo.
   pause
   exit /b 1
