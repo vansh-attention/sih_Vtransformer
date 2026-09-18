@@ -114,6 +114,46 @@ falls back to system fonts and looks half-finished on her laptop.
 standalone renderer and it produces `bench/out/ledger.html` — **Figure 2 in the SPOC
 report**. Ask him whether it should be brought in line.
 
+### ⛔ `ensureOffscreen is not defined` — THE VISION PATH WAS DEAD. Fixed 18 Sep
+
+On a live page every turn reported **"Screenshot withheld — ensureOffscreen is not
+defined"**, so the agent had NO vision, saw 1 node, and looped `ALLOW wait / form
+loading` five times to the turn limit.
+
+`orchestrator.ts:145` called a bare `ensureOffscreen()` **it never imported**. There were
+**two private copies** — `background/index.ts` and `vision/bridge.ts` — and neither was
+visible to it. Now **one exported definition** in `bridge.ts`, imported by both.
+⚠ It also **no-ops when `chrome.offscreen` is absent**: the orchestrator called it
+unconditionally, so importing the other copy would have swapped a Chrome crash for a
+**Firefox** one.
+
+⇒ **NOTHING IN THIS PROJECT EVER TYPE-CHECKED.** esbuild strips types *without checking
+them*, so a plain ReferenceError shipped and 24 green checks said nothing about it.
+**`scripts/typecheck.sh` now gates on TS2304 and runs in the suite (18 checks).**
+Verified by restoring the bug and watching `tsc` name it:
+`orchestrator.ts(145,11): error TS2304: Cannot find name 'ensureOffscreen'`.
+⚠ **16 other type errors remain and are NOT fixed** — `unknown` not narrowed, a missing
+`@types/node`. `./scripts/typecheck.sh --all` prints them. Gating narrowly and always
+beats gating broadly and being switched off.
+
+### ⛔ A BLIND SCAN REPORTED "NOTHING PERSONAL FOUND" — fixed 18 Sep
+
+`financegpt.io/lander` (a GoDaddy parked domain) renders its whole body **inside a
+frame**. The content script runs in the top frame only, so the scan read **1 element**,
+found nothing, and issued a clean result.
+
+⇒ **For a privacy tool, a clean bill of health issued while blind is the most dangerous
+output there is.** The user reasonably concludes the page holds nothing sensitive.
+
+The extractor **already tracked** those frames in `unreadableRegions`; the background
+passed only `closedShadowHosts`, so they never reached the panel. Now surfaced, plus a
+**`blindRatio`** (share of viewport we could not see into). At `>0.4`, or `nodeCount<=2`,
+the panel says **"this page could not be read"** with a `page unreadable` chip, instead of
+claiming the page is clean. Fixture: `10-page-unreadable.png`.
+
+⚠ Measured, not assumed: the same page captured headless extracts **25** nodes — the
+variant matters, which is why the guard keys on *blindness*, not on a node-count guess.
+
 ### ⛔ THE "START THE SERVER" ADVICE WAS FICTION — fixed 18 Sep
 
 He said the server is *"almost always unreachable and there's no way someone can even
