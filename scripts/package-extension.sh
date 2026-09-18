@@ -49,6 +49,15 @@ mkdir -p "$STAGE/src/panel" "$STAGE/src/offscreen"
 cp extension/src/panel/index.html "$STAGE/src/panel/"
 cp extension/src/offscreen/index.html "$STAGE/src/offscreen/" 2>/dev/null || true
 
+# THE PANEL'S TYPEFACES.
+#
+# They are vendored rather than linked: a tool whose headline is that nothing leaves
+# your machine must not fetch fonts.googleapis.com on first paint. That means they have
+# to be IN the zip — omit them and the panel silently falls back to the system stack,
+# nothing errors, and the whole design reads as half-applied on somebody else's laptop.
+# The guard at the bottom of this script refuses to ship if any of them is missing.
+cp -R extension/fonts "$STAGE/fonts"
+
 cp extension/manifest.json "$STAGE/manifest.json"
 
 # SHIP why.html INSIDE THE ZIP.
@@ -117,7 +126,7 @@ TO USE IT
      that belongs to nobody.
 
   7. Click the extension's icon in the toolbar. A panel opens on the right.
-  8. Press "Scan this page (no model needed)".
+  8. Press "Scan this page". It needs no model and no server.
 
 
 WHAT YOU WILL SEE
@@ -164,6 +173,25 @@ if missing:
              + ', '.join(missing))
 print('  readme references check out: ' + ', '.join(sorted(
     f for f in set(re.findall(r'\b[\w.-]+\.(?:html|json|txt)\b', readme)))))
+
+# THE PANEL'S OWN ASSETS.
+#
+# Same failure shape as the readme naming a file it does not ship, but worse, because
+# a missing woff2 does not error anywhere: the panel just renders on the fallback
+# stack and looks subtly wrong on the one machine we are not watching. Resolve every
+# url() in the panel's stylesheet against its own location and demand it be present.
+import posixpath
+panel = 'privacy-agent-extension/src/panel/index.html'
+css = z.read(panel).decode()
+refs = re.findall(r"url\(['\"]([^'\"]+)['\"]\)", css)
+missing_assets = sorted(
+    r for r in set(refs)
+    if not r.startswith(('data:', 'http:', 'https:'))
+    and posixpath.normpath(posixpath.join(posixpath.dirname(panel), r)) not in z.namelist())
+if missing_assets:
+    sys.exit('  REFUSING to ship: the panel references assets not in the zip: '
+             + ', '.join(missing_assets))
+print(f'  panel assets check out: {len(set(refs))} url() reference(s) all present')
 # Gmail rejects attachments over 25 MB, which is how the 45 MB build was found.
 mb = sum(i.file_size for i in z.infolist()) / 1e6
 print(f'  unpacked size: {mb:.1f} MB')

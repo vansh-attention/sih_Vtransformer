@@ -8,9 +8,63 @@
  * what was destroyed, and the exact bytes transmitted, one click away.
  */
 
+import { animate, stagger, press, hover } from 'motion';
+import {
+  createIcons, Zap, Square, ScanEye, Settings2, ShieldCheck, Lightbulb, FileSearch,
+} from 'lucide';
+
 const $ = (id: string) => document.getElementById(id)!;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+
+/**
+ * Motion, bundled — never fetched.
+ *
+ * MV3 forbids remote code, so the library ships inside the extension like
+ * everything else. The springs here are the same oscillators the stylesheet's
+ * linear() curves were integrated from, so CSS-driven and JS-driven motion in
+ * this panel obey one physics rather than two sets of hand-picked numbers.
+ */
+const SPRING = { type: 'spring', stiffness: 520, damping: 30 } as const;
+const SPRING_SOFT = { type: 'spring', stiffness: 260, damping: 26 } as const;
+
+/** Someone who has asked the OS for less motion gets none of it. */
+const STILL = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Animate, or place instantly if the user opted out. */
+function enter(els: Element | Element[], opts: Record<string, unknown> = {}): void {
+  const list = Array.isArray(els) ? els : [els];
+  if (!list.length) return;
+  if (STILL) return;
+  void animate(
+    list,
+    { opacity: [0, 1], transform: ['translateY(6px)', 'translateY(0px)'] },
+    { ...SPRING, ...opts },
+  );
+}
+
+/**
+ * Count a number up rather than printing it.
+ *
+ * Not decoration: the totals are the claim this whole product makes, and a
+ * figure that lands by moving is a figure the eye follows to. "0 values leaked"
+ * counting to zero also reads, correctly, as a measurement rather than a label.
+ */
+function countUp(el: Element, to: number, suffix = ''): void {
+  if (STILL || to === 0) { el.textContent = `${to}${suffix}`; return; }
+  void animate(0, to, {
+    duration: 0.9,
+    ease: [0.16, 1, 0.3, 1],
+    onUpdate: (v: number) => {
+      el.textContent = suffix === 's' ? `${v.toFixed(1)}${suffix}` : `${Math.round(v)}${suffix}`;
+    },
+  });
+}
+
+createIcons({
+  icons: { Zap, Square, ScanEye, Settings2, ShieldCheck, Lightbulb, FileSearch },
+  attrs: { 'stroke-width': 2.1 },
+});
 
 interface Preview { token: string; kind: string; masked: string }
 
@@ -97,20 +151,40 @@ async function probe(url: string, ms = 1500): Promise<{ ok: boolean; model?: str
   }
 }
 
+/**
+ * Reflect the server in the header lamp as well as inside Settings.
+ *
+ * The state that decides whether "Run" can work at all was previously legible
+ * only after opening a collapsed <details>. A user whose server is down pressed
+ * the big button and read a failure, when the panel already knew.
+ */
+function setLamp(state: 'ok' | 'bad' | 'unknown', label: string): void {
+  const lamp = $('lamp');
+  lamp.className = `lamp${state === 'unknown' ? '' : ` ${state}`}`;
+  lamp.querySelector('span')!.textContent = label;
+  // When the model cannot be reached, Run is dead weight and Scan is the whole
+  // demo — so say so on the button rather than leaving the user to discover it.
+  $('scan').classList.toggle('promoted', state === 'bad');
+}
+
 async function checkServer(url: string): Promise<boolean> {
   const el = $('serverstatus');
   el.innerHTML = 'checking…';
+  setLamp('unknown', 'checking');
   const r = await probe(url, 4000);
   if (r.ok) {
     el.innerHTML = `<span class="allow">ready</span> · ${esc(r.model ?? '')}`;
     $('setsummary').innerHTML = '<span class="allow">· server ready</span>';
+    setLamp('ok', 'ready');
   } else if (r.detail) {
     el.innerHTML = `<span class="deny">not ready</span> · ${esc(r.detail)}`;
     $('setsummary').innerHTML = '<span class="deny">· server not ready</span>';
+    setLamp('bad', 'no model');
   } else {
     el.innerHTML = '<span class="deny">unreachable</span> · start it with: '
       + '<span class="mono">cd server &amp;&amp; .venv/bin/uvicorn main:app --port 8975</span>';
     $('setsummary').innerHTML = '<span class="deny">· server unreachable</span>';
+    setLamp('bad', 'offline');
   }
   return r.ok;
 }
@@ -172,13 +246,17 @@ async function showTarget(): Promise<void> {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const el = $('target');
-    if (!tab?.url) { el.textContent = 'no page selected'; return; }
+    // ONE flex child, always. The row is a flex container (dot + message), so
+    // loose text beside a <span> became a second column and the refusal wrapped
+    // into two narrow stacks instead of a sentence.
+    const say = (html: string) => { el.innerHTML = `<span class="tmsg">${html}</span>`; };
+    if (!tab?.url) { say('no page selected'); return; }
     if (/^(chrome|about|edge|moz-extension|chrome-extension):/.test(tab.url)) {
-      el.innerHTML = '<span class="deny">this page cannot be read</span> '
-        + '— browser-internal pages are off-limits to extensions';
+      say('<span class="deny">this page cannot be read</span> '
+        + '— browser-internal pages are off-limits to extensions');
       return;
     }
-    el.innerHTML = `will act on <b>${esc(new URL(tab.url).host)}</b>`;
+    say(`will act on <b>${esc(new URL(tab.url).host)}</b>`);
   } catch {
     $('target').textContent = '';
   }
@@ -283,15 +361,26 @@ $('run').addEventListener('click', async () => {
       const totalFaces = res.records.reduce((a: number, r: any) => a + (r.facesBlurred ?? 0), 0);
       const totalMasked = res.records.reduce((a: number, r: any) => a + (r.piiMasked ?? 0), 0);
       const totalMs = res.records.reduce((a: number, r: any) => a + r.timings.totalMs, 0);
-      const totals = `<div class="totals">
-        <div><div class="n">${totalWithheld}</div><div class="lbl">values withheld</div></div>
-        <div><div class="n">${totalFaces}</div><div class="lbl">faces blurred</div></div>
-        <div><div class="n">${totalMasked}</div><div class="lbl">struck out of image</div></div>
-        <div><div class="n">0</div><div class="lbl">values leaked</div></div>
-        <div><div class="n">${(totalMs / 1000).toFixed(1)}s</div><div class="lbl">total time</div></div>
-      </div>`;
+      // "values leaked" is marked hero: it is the one figure the product exists
+      // to be able to show, and it was previously the same weight as "total time".
+      const cells: Array<[number, string, string, boolean]> = [
+        [0, '', 'values leaked', true],
+        [totalWithheld, '', 'values withheld', false],
+        [totalFaces, '', 'faces blurred', false],
+        [totalMasked, '', 'struck out of image', false],
+        [totalMs / 1000, 's', 'total time', false],
+      ];
+      const totals = `<div class="totals">${cells.map(([, sfx, lbl, hero]) =>
+        `<div${hero ? ' class="hero"' : ''}><div class="n" data-sfx="${sfx}">0${sfx}</div>`
+        + `<div class="lbl">${lbl}</div></div>`).join('')}</div>`;
+
       $('ledger').innerHTML = totals
         + res.records.map((r: any) => renderTurn(r, previews)).join('');
+
+      const nums = Array.from($('ledger').querySelectorAll('.totals .n'));
+      nums.forEach((el, i) => countUp(el, cells[i][0], cells[i][1]));
+      enter(Array.from($('ledger').querySelectorAll('.totals > div')), { delay: stagger(0.035) });
+      enter(Array.from($('ledger').querySelectorAll('.turn')), { delay: stagger(0.06, { startDelay: 0.1 }) });
     }
   } catch (e) {
     $('phase').innerHTML = `<span class="deny">error:</span> ${esc(String(e))}`;
@@ -324,9 +413,13 @@ chrome.runtime.onMessage.addListener((msg) => {
  */
 $('scan').addEventListener('click', async () => {
   const btn = $('scan') as HTMLButtonElement;
+  // Write to the LABEL, not the button. Setting textContent on the button erased
+  // its icon and its sub-label permanently — the button came back from the first
+  // scan as a single run-on line of text and never recovered.
+  const label = $('scanlabel');
   btn.disabled = true;
-  const prev = btn.textContent;
-  btn.textContent = 'Reading this page…';
+  const prev = label.textContent;
+  label.textContent = 'Reading this page…';
   $('ledger').innerHTML = '';
   $('empty').hidden = true;
 
@@ -352,15 +445,20 @@ $('scan').addEventListener('click', async () => {
       `<b>${total}</b> value(s) would be withheld from <b>${esc(r.title ?? r.url ?? 'this page')}</b>`
       + `<span class="t">${r.nodeCount} elements read, ${r.bytes} bytes would be sent</span>`;
 
+    // These classes had NO rules in the stylesheet at all, so the scan result —
+    // the path a sceptic actually presses, on their own bank — rendered as an
+    // unstyled browser-default table. Styled now, and the inline style="" strings
+    // that were standing in for a stylesheet are gone.
     $('ledger').innerHTML =
-      `<div class="entry"><header><b>Scan only</b> <span class="t">nothing was transmitted</span></header>`
-      + `<div style="padding:10px 14px"><div class="t">Withheld: ${esc(kinds)}</div>`
+      `<div class="entry"><header><b>Scan only</b>`
+      + `<span class="t">nothing was transmitted</span></header>`
+      + `<div class="body"><div class="t">Withheld: ${esc(kinds)}</div>`
       + (r.previews?.length
-          ? `<table class="fields"><tr><th>On screen</th><th>Sent instead</th></tr>`
+          ? `<table class="fields"><thead><tr><th>On screen</th><th>Sent instead</th></tr></thead><tbody>`
             + r.previews.map((p: Preview) =>
                 `<tr><td class="mask">${esc(p.masked)}</td><td class="tok">${esc(p.token)}</td></tr>`).join('')
-            + `</table>`
-          : `<div class="t" style="margin-top:8px">`
+            + `</tbody></table>`
+          : `<div class="hint">`
             // The likeliest first experience is an empty result, because a page holds
             // no personal data until somebody types some. Saying only "none found"
             // reads as "it does not work", so say what to do next.
@@ -372,7 +470,7 @@ $('scan').addEventListener('click', async () => {
       // making here is the one the reader can check for herself in ten seconds, so make
       // it, and say where to go next rather than leaving the panel a dead end.
       + (r.previews?.length
-          ? `<div class="t" style="margin-top:12px"><b>Nothing left this machine.</b> `
+          ? `<div class="hint"><b>Nothing left this machine.</b> `
             + `Open DevTools, switch to the Network tab and press Scan again: no request `
             + `appears. The values on the left never leave the page; only the tags on the `
             + `right would be sent.<br><br>Next, open <span class="tok">why.html</span> in `
@@ -380,13 +478,64 @@ $('scan').addEventListener('click', async () => {
             + `side by side.</div>`
           : '')
       + (warn.length
-          ? `<div class="t" style="margin-top:10px;color:#f0883e">${warn.map(esc).join('<br>')}</div>`
+          ? `<div class="warnbox">${warn.map(esc).join('<br>')}</div>`
           : '')
       + `</div></div>`;
+
+    enter($('ledger').querySelectorAll('.entry')[0]!);
+    enter(Array.from($('ledger').querySelectorAll('.fields tbody tr')),
+      { delay: stagger(0.04, { startDelay: 0.12 }), ...SPRING_SOFT });
   } catch (e) {
     $('phase').innerHTML = `<span class="deny">cannot scan:</span> ${esc(String(e))}`;
   } finally {
     btn.disabled = false;
-    btn.textContent = prev;
+    label.textContent = prev;
   }
 });
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Interaction and mount.
+
+   Kept at the bottom, and entirely additive: every handler above works whether
+   or not any of this runs. If Motion were removed tomorrow the panel would lose
+   its polish and none of its function.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Press physics on the things you press.
+ *
+ * Motion's press() is used rather than :active because :active cannot spring
+ * back — it snaps, and a snap on a 12px-travel button is what makes a UI feel
+ * like a web page instead of an instrument. It also handles pointer, touch and
+ * keyboard activation as one gesture.
+ */
+if (!STILL) {
+  for (const sel of ['#run', '#scan', '#stop', '.ex', '#settings button']) {
+    for (const el of Array.from(document.querySelectorAll(sel))) {
+      press(el as HTMLElement, (target) => {
+        void animate(target, { scale: 0.972 }, { type: 'spring', stiffness: 900, damping: 42 });
+        return () => void animate(target, { scale: 1 }, SPRING);
+      });
+    }
+  }
+  // A 1px lift is enough to say "this is liftable". More reads as a toy.
+  for (const el of Array.from(document.querySelectorAll('#run, .ex'))) {
+    hover(el as HTMLElement, (target) => {
+      void animate(target, { y: -1 }, SPRING_SOFT);
+      return () => void animate(target, { y: 0 }, SPRING_SOFT);
+    });
+  }
+}
+
+/**
+ * Mount: the panel assembles rather than appearing.
+ *
+ * The stagger runs top-down in reading order, so the eye is walked from the
+ * mark, to which tab is targeted, to the thing it is being asked to do. ~260ms
+ * end to end — long enough to be felt, short enough that nobody waits for it.
+ */
+enter(
+  Array.from(document.querySelectorAll(
+    '.hdr, .target, .lbl-field, #goal, .btns, #scan, #settings, .phase, .empty, .note')),
+  { delay: stagger(0.028) },
+);

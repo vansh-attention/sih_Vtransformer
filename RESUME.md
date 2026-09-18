@@ -68,6 +68,51 @@ accepted and dropped, caught only by looking at the output file's mtime.
 tracked source. So `git status` can be clean while these are stale — check them by hand.
 **A re-export is still needed once the portal supplies the Team ID.**
 
+### 🎨 THE SIDE PANEL WAS REDESIGNED (18 Sep) — and it hid six real bugs
+
+He rated the old panel **5/10** and asked for 10/10, then lifted the resource constraint:
+*"I don't have to present to ISRO right now… we can build any type of heavy package."*
+**The audience is Dr. Sarkar, not ISRO** — so `panel.js` went **12.9 KB → 168 KB** on
+purpose. Re-tighten it only if we reach the finale.
+
+- `motion.dev/docs/ai-kit` is an **MCP server for coding agents**, not a shippable
+  library, and its CSS-spring generator needs Motion+. The **`motion` npm package** is
+  what got bundled. Lucide icons and **Inter + JetBrains Mono vendored locally** —
+  never linked: a tool claiming nothing leaves your machine must not fetch
+  fonts.googleapis.com on first paint.
+- Springs are integrated from a real damped oscillator, so the CSS `linear()` curves and
+  the JS springs are one physics. `prefers-reduced-motion` turns all of it off.
+
+⚠ **The restyle exposed six defects that had nothing to do with taste:**
+
+1. **`.entry` and `.fields` had NO rules at all** — the scan result, the path a sceptic
+   actually presses, rendered as an unstyled browser-default table.
+2. `btn.textContent = prev` in the scan handler **permanently erased** the button's icon
+   and sub-label after the first scan.
+3. `display:flex` **beat the `hidden` attribute** on `#stop` — Stop showed on an idle panel.
+4. The target line **truncated its own error** at "…off-l" (`nowrap` + ellipsis).
+5. The footer note and the target alert **rendered as columns** — loose inline text beside
+   a `<span>` each became a flex item. ⇒ *In a flex row, put the prose in ONE child.*
+6. The totals grid left an orphan fifth cell. Now hero-spans-top + 2×2.
+
+**Verified on pixels: `node scripts/panel-shot.mjs` → `/tmp/panel-shots/*.png`**, five
+states at 400px @2x, and it asserts both fonts actually loaded. ⚠ **Two harness bugs made
+it lie first, both producing plausible screenshots:** CDP nests results twice
+(`result.result.value`) and `setDeviceMetricsOverride` swallowed the resulting `NaN`; and
+`Page.addScriptToEvaluateOnNewDocument` **accumulates**, so every state after the first
+rendered with state 1's stub and the "server offline" shot showed a healthy server.
+
+⛔ **The zip is 1.67 MB now, not 1.4 MB.** `package-extension.sh` copies `extension/fonts/`
+and **refuses to ship if any `url()` in the panel's CSS is absent from the zip** —
+sabotage-verified. Without that guard a missing woff2 errors nowhere; the panel just
+falls back to system fonts and looks half-finished on her laptop.
+
+`extension/fonts/` is **gitignored** — `build.mjs` vendors it out of node_modules like `dist/`.
+
+⚠ **`extension/src/ledger/render.ts` did NOT get this redesign.** It is a separate
+standalone renderer and it produces `bench/out/ledger.html` — **Figure 2 in the SPOC
+report**. Ask him whether it should be brought in line.
+
 ### ⛔ THE THEME WAS NEVER UNKNOWN — corrected 18 Sep after he asked why I couldn't get it
 
 **It is `Smart Automation`.** It belongs to the **problem statement**, not to the team: it is
@@ -473,8 +518,9 @@ that stood since 12 Sep is gone: a clone today gives what the report describes.
 `extension/dist` was never cleared, and code-split chunks are content-hashed, so every
 change to the vision handlers left the old chunk behind forever. **Four handler chunks had
 accumulated, three of them dead, and all four were shipping in the zip.** `build.mjs` now
-clears the output directory first. The zip is **1.4 MB**; every document saying 1.6 MB has
-been corrected and rebuilt.
+clears the output directory first. The zip was **1.4 MB** from then until the 18 Sep panel
+redesign, which added Motion, Lucide and the vendored typefaces; **it is 1.67 MB now.**
+Both numbers are right for their date — check the zip, do not quote this line.
 
 Untracked as part of this: `.DS_Store` and `server/__pycache__/*.pyc` were committed and
 showed as a diff on every run. `probe*.ts` is now ignored.
@@ -488,7 +534,7 @@ showed as a diff on every run. `probe*.ts` is now ignored.
   `./test-all.sh`. Part 3 is `why.html` for anyone who will not install an extension.
 - `outreach/message-to-team.txt` — paste-ready Slack/WhatsApp messages. **Single**
   asterisks; Slack renders double ones literally and he has hit that before.
-- Send them the zip directly. 1.4 MB, so WhatsApp and Gmail both take it.
+- Send them the zip directly. 1.67 MB, so WhatsApp and Gmail both take it.
 
 **RENDERER BUG FOUND AND FIXED — it had already shipped.** `build-doc-pdf.py` had no
 fenced-code support, so every ``` block in SETUP-AND-DEMO collapsed into one wrapped
@@ -564,7 +610,7 @@ invited to clone is still at the 12 Sep commit.
   running the real pipeline with redaction off vs on. Best single artefact for Ma'am.
 - `demo/replay.html` ← `build-demo.mjs` — steps through a real recorded run
 - `demo/scenario.html` — realistic filled Indian tax refund form
-- `demo/privacy-agent-extension.zip` (1.4 MB, scan-only) ← `scripts/package-extension.sh` —
+- `demo/privacy-agent-extension.zip` (1.67 MB, scan-only) ← `scripts/package-extension.sh` —
   load-unpacked, **no Node/model/terminal needed**. Zip itself is verified working.
 - `scripts/retarget-repo.sh` — one command to move to a team org once named
 

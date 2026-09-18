@@ -60,6 +60,34 @@ await esbuild.build({
   outfile: 'extension/dist/panel.js',
 });
 
+/**
+ * Vendor the panel's typefaces into the extension.
+ *
+ * MV3 forbids remote code and a Google Fonts <link> is both a remote fetch and a
+ * privacy leak — on a tool whose entire claim is that nothing leaves the machine,
+ * the panel calling out to fonts.googleapis.com on open would be the single most
+ * embarrassing byte in the project. They ship locally or not at all.
+ *
+ * Inter is the variable file: one 48 KB woff2 covers every weight we use.
+ */
+{
+  const { cpSync, mkdirSync } = await import('node:fs');
+  const FONTS = 'extension/fonts';
+  mkdirSync(FONTS, { recursive: true });
+  const vendor = [
+    ['node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
+     `${FONTS}/inter-var.woff2`],
+    ['node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2',
+     `${FONTS}/jetbrains-mono-400.woff2`],
+    ['node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2',
+     `${FONTS}/jetbrains-mono-500.woff2`],
+    ['node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2',
+     `${FONTS}/jetbrains-mono-700.woff2`],
+  ];
+  for (const [from, to] of vendor) cpSync(from, to);
+  console.log(`vendored ${vendor.length} font files -> ${FONTS}/`);
+}
+
 // The Chrome and Firefox manifests differ only in host-specific keys. Anything else
 // diverging means one browser is quietly running a different extension.
 {

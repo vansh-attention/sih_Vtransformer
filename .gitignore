@@ -1,5 +1,8 @@
 node_modules/
 extension/dist/
+# Vendored out of node_modules by build.mjs, exactly like dist/. Committing them
+# would mean two sources of truth for the same bytes.
+extension/fonts/
 bench/out/
 spikes/**/result*.json
 /tmp/
