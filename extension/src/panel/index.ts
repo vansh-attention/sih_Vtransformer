@@ -157,8 +157,11 @@ function renderTurn(rec: any, previews: Map<string, Preview>): string {
     <div class="row">${chips}${faces}${struck}</div>
     ${masked}
     ${actions}
-    <details><summary>Raw bytes transmitted this turn — inspect it yourself</summary>
-      <pre>${esc(JSON.stringify(rec.transmitted ?? { note: 'payload omitted', bytes: rec.transmittedBytes }, null, 2))}</pre>
+    <details><summary>Exact bytes sent and received this turn — inspect it yourself</summary>
+      <div class="xchg"><span class="xlbl">Sent to the model</span>
+      <pre>${esc(JSON.stringify(rec.transmitted ?? { note: 'payload omitted', bytes: rec.transmittedBytes }, null, 2))}</pre></div>
+      <div class="xchg"><span class="xlbl">Returned by the model</span>
+      <pre>${esc(JSON.stringify(rec.received ?? { note: 'no reply recorded' }, null, 2))}</pre></div>
     </details>
     <div class="row t nums">
       extract <b>${ms(t.extractMs)}</b> &middot; sanitize <b>${ms(t.sanitizeMs)}</b> &middot;
@@ -715,8 +718,73 @@ $('run').addEventListener('click', async () => {
           + `</div>`;
       }
 
-      $('ledger').innerHTML = answerHtml + totals
+      /**
+       * THE PROOF, IN THE PANEL — not a file on disk.
+       *
+       * Everything sent and everything received, concatenated and searched for every
+       * value the vault holds. The content script runs it because it is the only place
+       * that has both the secrets and the transcript; the verdict it returns names no
+       * value, so it is safe to show, screenshot or hand to a stranger.
+       *
+       * This is the difference between a log and a proof. A dump says "here is what we
+       * sent". This says "here is what we sent, and here is the check that none of your
+       * data is in it, run against your actual data."
+       */
+      const transcript = JSON.stringify(res.records.map((r: any) => ({
+        turn: r.turn, sent: r.transmitted, received: r.received,
+      })));
+      let proofHtml = '';
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) {
+          const v = await chrome.tabs.sendMessage(tab.id,
+            { target: 'content', type: 'audit-transcript', transcript });
+          if (v) {
+            const clean = v.clean === true;
+            proofHtml = `<div class="proof ${clean ? 'ok' : 'bad'}">`
+              + `<h2>${clean ? 'Verified clean' : 'LEAK DETECTED'}</h2>`
+              + `<p><b>${num(v.checkedValues ?? 0)}</b> of your values were checked against `
+              + `<b>${num(v.bytesScanned ?? 0)}</b> bytes — every byte sent to the model and `
+              + `every byte it returned.</p>`
+              + (clean
+                  ? `<p class="t">None of them appears, in any form: literal, JSON-escaped, `
+                    + `or with spaces and hyphens stripped. Open any turn below to read the `
+                    + `bytes yourself.</p>`
+                  : `<p class="t">` + (v.leaks ?? []).map((l: { kind: string; how: string }) =>
+                      `${esc(l.kind)} found (${esc(l.how)})`).join('<br>') + `</p>`)
+              /**
+               * The TRANSCRIPT is collapsed; the VERDICT is not.
+               *
+               * His note: the panel should not look cluttered. The verdict is one line
+               * and is the whole point, so it stays. The 90 KB of JSON behind it is
+               * evidence — it has to be present and reachable, and it does not have to
+               * be in the way.
+               */
+              + `<details class="tx"><summary>Show the exact transcript`
+              + ` (${num(v.bytesScanned ?? 0)} bytes)</summary>`
+              + `<pre>${esc(JSON.stringify(JSON.parse(transcript), null, 2).slice(0, 60000))}</pre>`
+              + `</details>`
+              + `<button type="button" id="savetranscript" class="copy">Save as a file</button>`
+              + `</div>`;
+          }
+        }
+      } catch {
+        // The tab may have navigated away; the turns below are still inspectable.
+      }
+
+      $('ledger').innerHTML = proofHtml + answerHtml + totals
         + res.records.map((r: any) => renderTurn(r, previews)).join('');
+
+      // Optional, not automatic — he was right that files should not pile up by default.
+      $('ledger').querySelector('#savetranscript')?.addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify(JSON.parse(transcript), null, 2)],
+          { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `aavaran-transcript-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
 
       const nums = Array.from($('ledger').querySelectorAll('.totals .n'));
       nums.forEach((el, i) => countUp(el, cells[i][0], cells[i][1]));

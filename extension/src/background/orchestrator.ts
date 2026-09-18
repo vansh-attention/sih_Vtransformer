@@ -104,6 +104,14 @@ export interface TurnRecord {
    * the thing the leak test asserts contains no real value.
    */
   transmitted: SanitizedPayload;
+  /**
+   * The model's exact reply, so a transcript shows BOTH halves of the exchange.
+   *
+   * Recording only what we sent proves we withheld the values. It does not prove the
+   * model came back clean — and "the answer contained no real value" is a separate
+   * claim that a reader is entitled to check for themselves rather than take on trust.
+   */
+  received?: Record<string, unknown>;
   nodeCount: number;
 }
 
@@ -514,6 +522,7 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
       },
       transmittedBytes: transmitted.length,
       transmitted: payload,
+      received: reply,
       nodeCount: obs.nodeCount,
       previews: obs.previews ?? [],
       navigated,

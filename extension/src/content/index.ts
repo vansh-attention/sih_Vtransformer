@@ -282,6 +282,46 @@ function handleOther(msg: { type?: string; [k: string]: unknown },
    * extension, neither of which talks to the network. The background service worker
    * still never holds a real value, which is the property the whole design rests on.
    */
+  /**
+   * AUDIT A TRANSCRIPT AGAINST THE VAULT.
+   *
+   * This is the only place in the extension that can perform this check, because it is
+   * the only place that holds both halves: the real values, and nothing else does.
+   *
+   * The transcript arrives as a string — every byte sent to the model and every byte it
+   * returned. Each vault value is searched for literally, and in the two forms that
+   * would otherwise slip past a naive scan: JSON-escaped, and with separators stripped,
+   * since "4540 2012 2334" and "454020122334" are the same secret.
+   *
+   * ⛔ The verdict names NO value. It reports counts and token kinds, so the audit file
+   * can be handed to a stranger. A proof of privacy that leaks the data it is proving
+   * about would be a very funny bug to ship.
+   */
+  if (msg.type === 'audit-transcript') {
+    const blob = typeof msg.transcript === 'string' ? msg.transcript : '';
+    const bare = blob.replace(/[\s-]/g, '');
+    const findings: Array<{ token: string; kind: string; how: string }> = [];
+    for (const token of vault.tokens()) {
+      const value = vault.resolve(token);
+      if (!value || value.length < 3) continue;
+      const kind = token.match(/^<PII_(.+)_\d+>$/)?.[1] ?? 'UNKNOWN';
+      if (blob.includes(value)) findings.push({ token, kind, how: 'literal' });
+      else if (blob.includes(JSON.stringify(value).slice(1, -1))) {
+        findings.push({ token, kind, how: 'json-escaped' });
+      } else if (value.replace(/[\s-]/g, '').length >= 6
+                 && bare.includes(value.replace(/[\s-]/g, ''))) {
+        findings.push({ token, kind, how: 'separators-stripped' });
+      }
+    }
+    sendResponse({
+      checkedValues: vault.tokens().length,
+      bytesScanned: blob.length,
+      leaks: findings,
+      clean: findings.length === 0,
+    });
+    return true;
+  }
+
   if (msg.type === 'resolve-text') {
     const text = typeof msg.text === 'string' ? msg.text : '';
     sendResponse({

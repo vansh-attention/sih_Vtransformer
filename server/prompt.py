@@ -62,22 +62,6 @@ real waiting time for the user.
   gated on that field stays disabled and the task cannot finish.
 - Never target a disabled or invisible element, and never type into a "password" field.
 
-IF THE GOAL IS A QUESTION, ANSWER IT — do not act on the page.
-  "What do I need to complete here?", "Find the contact details", "Is this form valid?"
-  are questions. Reply with ONE action:
-      {"kind":"answer","text":"...","reasoning":"..."}
-  Put the answer in "text", in plain prose, and stop. Do not click anything.
-
-  ⭐ REFER TO REDACTED VALUES BY THEIR TOKEN. You cannot see them and you do not need
-  to: write the token exactly as it appears and the client will substitute the real
-  value for the user's eyes only. So
-      "The mobile number on this page is <PII_PHONE_1>."
-  is CORRECT and useful.
-  ⛔ Copy the token EXACTLY, angle brackets and all: <PII_PHONE_1>. Do NOT write the
-  kind on its own — "the details are NAME and PHONE" is useless to the reader. Never
-  write "[redacted]", never say you are unable to see it, and never invent a value.
-  A token is an answer; an apology is not.
-
 BEFORE ANYTHING ELSE, check whether you are done: a confirmation message, a button now
 disabled with a changed label, the history already covering the goal, or the fields
 already holding the requested values. If so return one "done" action — repeating a
@@ -160,6 +144,48 @@ def _describe(node: dict[str, Any], depth: int = 0, lines: list[str] | None = No
     return lines
 
 
+
+def _is_question(goal: str) -> bool:
+    """
+    Is this goal asking for an ANSWER rather than an action?
+
+    ⛔ Why this exists. The answer instruction was originally unconditional, and a 7B
+    model given both "you may answer questions" and "fill in this form" chose to answer
+    the form: Spike E failed three times in a row with stopReason 'answered', having
+    done nothing to the page. The capability cannibalised the one that already worked.
+
+    So an action goal now gets the ORIGINAL prompt, byte for byte, and the answer
+    section is added only when the goal is actually a question. Conservative on purpose
+    — a question misread as an action still works, it just acts instead of answering,
+    while the reverse breaks the product's main path.
+    """
+    g = goal.strip().lower()
+    if g.endswith("?"):
+        return True
+    return g.startswith((
+        "what", "which", "who", "whose", "where", "when", "why", "how",
+        "is ", "are ", "was ", "were ", "do ", "does ", "did ", "can ", "could ",
+        "find ", "list ", "tell ", "summarise", "summarize", "explain",
+    ))
+
+
+ANSWER_SECTION = """IF THE GOAL IS A QUESTION, ANSWER IT — do not act on the page.
+  "What do I need to complete here?", "Find the contact details", "Is this form valid?"
+  are questions. Reply with ONE action:
+      {"kind":"answer","text":"...","reasoning":"..."}
+  Put the answer in "text", in plain prose, and stop. Do not click anything.
+
+  ⭐ REFER TO REDACTED VALUES BY THEIR TOKEN. You cannot see them and you do not need
+  to: write the token exactly as it appears and the client will substitute the real
+  value for the user's eyes only. So
+      "The mobile number on this page is <PII_PHONE_1>."
+  is CORRECT and useful.
+  ⛔ Copy the token EXACTLY, angle brackets and all: <PII_PHONE_1>. Do NOT write the
+  kind on its own — "the details are NAME and PHONE" is useless to the reader. Never
+  write "[redacted]", never say you are unable to see it, and never invent a value.
+  A token is an answer; an apology is not.
+"""
+
 def build_messages(payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Build the chat messages for one turn."""
     tree = "\n".join(_describe(payload["root"]))
@@ -169,22 +195,19 @@ def build_messages(payload: dict[str, Any]) -> list[dict[str, Any]]:
         kinds: dict[str, int] = {}
         for p in held:
             kinds[p["kind"]] = kinds.get(p["kind"], 0) + 1
-        # NAME THE TOKENS, not just the counts.
+        # ⛔ REVERTED to plain counts, 18 Sep.
         #
-        # This line used to read "Withheld on this page: 1x NAME, 1x PHONE", which never
-        # connected those kinds to the tokens standing in the element tree. Asked "find
-        # the contact details", the model answered "the contact details are not visible"
-        # in four runs out of four — it could see <PII_PHONE_1> in the tree and did not
-        # recognise it as the thing being asked for. Listing the tokens next to their
-        # kinds closes that gap, and costs a handful of prompt tokens.
-        by_kind: dict[str, list[str]] = {}
-        for p_ in held:
-            by_kind.setdefault(p_["kind"], []).append(p_["token"])
-        # ⚠ TOKEN FIRST, kind in parentheses. Written as "NAME = <PII_NAME_1>" the model
-        # answered "the contact details are NAME and PHONE" — it copied the left-hand
-        # side. Whatever leads this line is what comes back.
-        withheld_line = "Values on this page, each replaced by the token you must quote: " + ", ".join(
-            f"{t} (a {k})" for k, ts in sorted(by_kind.items()) for t in ts
+        # This briefly read "Values on this page, each replaced by the token you must
+        # quote: <PII_NAME_1> (a NAME), ..." to try to make the model quote tokens when
+        # answering a question. Measured: it did NOT (0/4 runs before, 0/4 after). It
+        # DID change the prompt on every ACTION turn too, and Spike E — the form-filling
+        # task — started failing.
+        #
+        # A change that does not fix what it was for, and destabilises something that
+        # worked, is not a trade worth keeping. The tokens are already visible in the
+        # element tree; the instruction to quote them lives in the system prompt.
+        withheld_line = "Withheld on this page: " + ", ".join(
+            f"{n}x {k}" for k, n in sorted(kinds.items())
         )
     else:
         withheld_line = "Nothing was withheld on this page."
@@ -214,7 +237,11 @@ Visible elements:
 What should the agent do next?"""
 
     messages: list[dict[str, Any]] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        # The answer capability is ADDITIVE and only for questions. An action goal gets
+        # the original prompt unchanged, which is the configuration Spike E passes on.
+        {"role": "system", "content": SYSTEM_PROMPT + (
+            "\n\n" + ANSWER_SECTION if _is_question(payload.get("goal", "")) else ""
+        )},
     ]
 
     user_msg: dict[str, Any] = {"role": "user", "content": user_text}

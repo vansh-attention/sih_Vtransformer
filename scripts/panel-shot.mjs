@@ -114,7 +114,14 @@ function stub({ tabUrl, health, scan, run, buildInfo }) {
   return `
   globalThis.chrome = {
     storage: { local: { get: async () => ({}), set: async () => {} } },
-    tabs: { query: async () => [{ url: ${JSON.stringify(tabUrl)} }],
+    tabs: { query: async () => [{ id: 1, url: ${JSON.stringify(tabUrl)} }],
+            // The panel asks the CONTENT script to audit the transcript and to
+            // rehydrate an answer, because only it holds the vault.
+            sendMessage: async (_id, m) => m.type === 'audit-transcript'
+              ? { checkedValues: 3, bytesScanned: 94208, leaks: [], clean: true }
+              : m.type === 'resolve-text'
+                ? { text: String(m.text ?? '').replace('<PII_PHONE_1>', '99•••••41') }
+                : {},
             onActivated: { addListener(){} }, onUpdated: { addListener(){} } },
     runtime: { onMessage: { addListener(){} },
       getURL: (p) => 'stub://' + p,
@@ -209,6 +216,8 @@ const RUN = {
                   reasoning: 'Following the help link.' } }],
     transmitted: { goal: 'Fill in the form and submit it',
                    nodes: [{ role: 'textbox', label: 'PAN', value: '<PII_PAN_1>' }] },
+    received: { actions: [{ kind: 'type', target: '#pan', value: '<PII_PAN_1>',
+                            reasoning: 'The PAN field is empty.' }] },
   }],
 };
 
