@@ -104,7 +104,26 @@ with nothing installed but the extension.
 
 ### Running it for real
 
-Three terminals:
+**The easy way — double-click `Start Aavaran.command`** (macOS) or **`Start Aavaran.bat`**
+(Windows), in the repository root.
+
+It starts ollama if it is not already running, starts the reasoning server, and holds the
+window open while they run. Close the window to stop.
+
+⚠ **First run on macOS: right-click → Open, not double-click.** Anything extracted from a
+downloaded zip carries a quarantine flag — verified, it propagates from the zip to the
+extracted file — and right-click → Open is macOS's consent step for that. After once,
+double-click works. Windows shows a SmartScreen notice the first time; "More info" then
+"Run anyway".
+
+⛔ **It starts things; it never installs anything.** If ollama is missing it stops and
+opens the download page rather than installing a background daemon on your machine
+uninvited — which is exactly the behaviour this project tells people to be suspicious of.
+Both launchers are deliberately short enough to read before you trust them.
+
+<details><summary>Or do it by hand, in three terminals</summary>
+
+
 
 ```bash
 # 1. the local AI
@@ -116,6 +135,8 @@ cd server && .venv/bin/uvicorn main:app --port 8975
 # 3. a page to test against
 python3 -m http.server 8080 --directory bench/pages
 ```
+
+</details>
 
 Then load the extension:
 

@@ -18,6 +18,12 @@ look like.
 
 ## Quick start
 
+**After `./setup.sh`, double-click `Start Aavaran.command`** (macOS) or
+**`Start Aavaran.bat`** (Windows) to bring up ollama and the reasoning server. First run on
+macOS needs right-click → Open, because anything out of a downloaded zip is quarantined.
+The launchers start things and never install anything, and are short enough to read first.
+
+
 ```bash
 git clone https://github.com/AavaranAI/Aavaran.git
 cd Aavaran
