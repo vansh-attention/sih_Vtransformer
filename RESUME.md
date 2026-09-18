@@ -114,7 +114,46 @@ falls back to system fonts and looks half-finished on her laptop.
 standalone renderer and it produces `bench/out/ledger.html` — **Figure 2 in the SPOC
 report**. Ask him whether it should be brought in line.
 
-### 🖤 THE METAMASK PASS — the panel's CURRENT look (18 Sep, third pass)
+### 🎬 THE PANEL'S CURRENT LOOK — rebuilt from a RECORDING of MetaMask in use (18 Sep, 4th pass)
+
+He recorded MetaMask being used (`~/screen-captures/Recordings/Screen Recording 2026-09-18
+at 11.04.48␣AM.mov`, 70s — ⚠ **that space is U+202F, always glob, never paste the path**)
+and said our panel *"still looks very much like AI"*. **He rated it 5/10 before pass 3.**
+My own honest read of pass 3 was **looks 6.5/10, AI-smell 7/10.** The decisive realisation:
+**passes 2–3 were designed against MetaMask's UNLOCK screen, which is not its product.**
+The working panel is a completely different thing.
+
+**THE THREE HABITS THAT MADE IT READ AS MACHINE-MADE** — banned in the stylesheet header:
+
+1. **Tiny wide-tracked UPPERCASE micro-labels** (`TRY ONE OF THESE` at 9px/.14em).
+   MetaMask has **zero** anywhere. Sentence case, 12.5–13.5px, no tracking. ⇒ **This is
+   the single loudest tell.**
+2. **A bordered rounded card around every item.** The row idiom is **full-bleed, no border,
+   no divider**, separated by spacing with a hover wash. Cards are for distinct objects only.
+3. **A permanent hero.** 42px of wordmark on every view forever. MetaMask shows the mark
+   **once** and hands over.
+
+Also fixed: four accents on screen at once → **two** (totals figures are now WHITE, mint
+only for "0 values leaked"); the **emoji** `🛡` removed; centred marketing microcopy under
+the button removed; uniform 18–22px rhythm → tight-within-group, 30px between;
+**skeleton shimmer** while work is in flight; `Settings`' status chip removed as it
+duplicated the lamp; the empty circles before each example row removed (MetaMask's hold a
+token icon — ours held nothing, decoration imitating information); the **idle status card**
+removed entirely, since a large card saying nothing has happened yet is a dead block.
+
+**✅ HIS ASK: LOGO SCREEN → MAIN SCREEN.** `#splash` holds the wordmark, the redaction bar
+sweeps, and it hands over at 1.05s. ⛔ **Dismissed by CSS, not JS** — a splash that stays
+because a module threw during import hides the entire product, and MV3's CSP allows no
+inline-script escape hatch. The panel renders behind it from frame one, so the fade *is*
+the reveal (and the old whole-panel mount stagger was deleted: two effects doing one job).
+⚠ `prefers-reduced-motion` needed **`animation-delay:0s`** too — zeroing duration alone
+left the splash sitting for its full 1.05s.
+
+⚠ The shot harness waited 1400ms, which landed **exactly on the handover**, so a frame
+could catch the splash half-faded and look like a rendering fault. Now 2100ms, plus a
+dedicated `0-launch-screen.png` captured at 520ms mid-sweep.
+
+### 🖤 The third pass — superseded by the above, kept for the reasoning
 
 He showed the MetaMask popup as the target and said the UI *"will be the most important
 thing of our project"*. The previous pass was indigo-tinted, dense and card-heavy — the

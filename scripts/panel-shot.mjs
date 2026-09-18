@@ -160,6 +160,10 @@ const RUN = {
 };
 
 const STATES = [
+  // Captured mid-sweep on purpose: the launch screen is the one moment that a
+  // still cannot otherwise show, and it is the first thing anyone sees.
+  { name: '0-launch-screen', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
+    health: HEALTH_OK, scan: SCAN, run: RUN, after: null, splash: true },
   { name: '1-idle-server-ready', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_OK, scan: SCAN, run: RUN, after: null },
   { name: '2-server-offline', tabUrl: 'chrome://extensions/',
@@ -188,7 +192,15 @@ for (const s of STATES) {
   await send('Emulation.setDeviceMetricsOverride', {
     width: WIDTH, height: 1500, deviceScaleFactor: 2, mobile: false });
   await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/src/panel/index.html` });
-  await new Promise((r) => setTimeout(r, 1400));   // fonts + mount animation settle
+
+  // The launch screen is dismissed by CSS at 1.05s + 0.34s fade. The old 1400ms
+  // wait landed exactly on that boundary, so a shot could catch the splash
+  // half-faded over the panel and look like a rendering fault.
+  if (s.splash) {
+    await new Promise((r) => setTimeout(r, 520));  // mid-sweep, bar partly across
+  } else {
+    await new Promise((r) => setTimeout(r, 2100)); // splash fully gone, fonts settled
+  }
   if (s.after) {
     await send('Runtime.evaluate', { expression: s.after, awaitPromise: false });
     await new Promise((r) => setTimeout(r, 1600)); // let count-up + stagger finish
@@ -198,6 +210,18 @@ for (const s of STATES) {
   // CDP nests twice: { id, result: { result: { value } } }. Reading one level of
   // it gave NaN, and setDeviceMetricsOverride accepted the NaN silently — the
   // screenshots came out at the previous height and looked plausible.
+  // The splash is position:fixed, so it fills the VIEWPORT, not the content box.
+  // Sizing that shot to content height would centre the wordmark in whatever the
+  // panel happens to be tall — shoot it at a realistic side-panel height instead.
+  if (s.splash) {
+    await send('Emulation.setDeviceMetricsOverride', {
+      width: WIDTH, height: 820, deviceScaleFactor: 2, mobile: false });
+    const shot = await send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(`${OUT}/${s.name}.png`, Buffer.from(shot.result.data, 'base64'));
+    console.log(`${s.name}.png  ${WIDTH}x820  (mid-sweep)`);
+    continue;
+  }
+
   const evaluated = await send('Runtime.evaluate', {
     // scrollHeight floors at the viewport, so every state measured 1508 and the
     // shots were mostly empty background. The panel's own box is the real height.

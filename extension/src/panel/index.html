@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Aavaran</title>
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#0a0a0a">
 <link rel="preload" href="../../fonts/archivo-black.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../../fonts/geist-var.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -16,52 +16,50 @@
   /* ════════════════════════════════════════════════════════════════════════
      AAVARAN — side panel
 
-     THE SUBJECT. Aavaran (आवरण) means veil, covering. The product's mechanism is
-     a SOLID redaction bar: sanitize() fills each PII box solid rather than
-     blurring it, on purpose — text survives a blur, a bar destroys it. So the
-     censor's bar is this interface's one visual idea, and it is used exactly
-     twice: the wordmark redacts itself on load, and masked values in the
-     evidence table are real struck bars rather than bullet dots.
+     Rebuilt against a recording of the MetaMask panel IN USE, not its unlock
+     screen. Three habits were doing most of the damage and are now banned here:
 
-     COLOUR. True black, neutral greys (not blue-tinted — that mismatch was most
-     of why this did not read like a serious wallet-grade extension), and a
-     single amber taken from the shield's iris. The primary button is WHITE, not
-     amber: amber has to mean "something was withheld", which is the product's
-     actual output, and spending it on a button would make the evidence
-     ambiguous. Mint and coral survive only as ALLOW/DENY indicators.
+       1. NO tiny wide-tracked uppercase micro-labels. The panel was full of
+          9px/.14em `TRY ONE OF THESE`. MetaMask has none anywhere — it uses
+          sentence case at a readable size. This is the single loudest tell that
+          an interface was generated rather than designed.
+       2. NO card around every item. A list is FULL-BLEED ROWS separated by
+          space, with a hover wash. Borders are for genuinely distinct objects.
+       3. NO permanent hero. The wordmark is a LAUNCH screen that hands over to
+          a compact sticky bar, which is what MetaMask does and what leaves the
+          panel's height to content.
 
-     TYPE. Three roles. Archivo Black sets the wordmark and headline figures —
-     heavy, square, the register of a stamp on a government form. Geist carries
-     UI text, Geist Mono carries tokens and byte counts.
+     Also: at most two accents on screen at once. The working panel is white on
+     near-black; amber appears only where something was WITHHELD, which is the
+     product's output, and mint only on the one claim the product exists to make.
+
+     THE SIGNATURE is the censor's bar — what sanitize() actually paints over a
+     value. It sweeps the wordmark on launch, and masked values are drawn as
+     bars rather than bullet dots.
      ════════════════════════════════════════════════════════════════════════ */
   :root{
     color-scheme:dark;
 
-    --void:#000;              /* the page. true black, per the brief */
-    --pit:#0a0a0a;            /* recessed fields */
-    --card:#111;              /* raised surfaces */
-    --card-2:#171717;
-    --edge:#222;              /* hairlines */
-    --edge-2:#333;            /* hairlines that must be seen */
-    --edge-3:#555;            /* thick borders on controls */
+    --void:#0a0a0a;           /* the panel. matched to the recording, not pure #000 */
+    --pit:#050505;            /* recessed: inputs, code */
+    --row:#141414;            /* row hover wash */
+    --card:#161616;           /* a real object */
+    --card-2:#1c1c1c;
+    --edge:#232323;           /* hairline */
+    --edge-2:#333;            /* a border meant to be seen */
+    --edge-3:#4a4a4a;
 
-    --ink:#fff;               /* primary text AND the primary button */
-    --ash:#8f8f8f;            /* secondary text — neutral, never blue */
-    --ash-2:#606060;          /* tertiary */
+    --ink:#fff;
+    --ash:#9b9b9b;            /* secondary — neutral, never blue */
+    --ash-2:#6a6a6a;
 
-    --amber:#ffb224;          /* THE accent. means: withheld / redacted */
-    --amber-dim:rgba(255,178,36,.12);
-    --mint:#4ade80;           /* allowed / safe — indicator only */
-    --coral:#ff6b6b;          /* refused / unreachable — indicator only */
+    --amber:#ffb224;   --amber-dim:rgba(255,178,36,.11);
+    --mint:#4ade80;
+    --coral:#ff6b6b;
 
-    --bar:#000;               /* the redaction bar's fill */
+    --r-pill:999px; --r-lg:16px; --r-md:11px;
 
-    /* Pill by default. The brief asks for pill controls with thick borders. */
-    --r-pill:999px;
-    --r-lg:18px;
-    --r-md:12px;
-
-    /* stiffness 520, damping 30 -> zeta 0.658, settles ~461ms */
+    /* stiffness 520, damping 30 -> zeta 0.658 */
     --spring:linear(0,.068,.2243,.413,.5972,.7558,.8795,.9672,1.0229,1.0528,
                     1.0637,1.0622,1.0536,1.0418,1.0297,1.0188,1.0101,1.0037,
                     .9995,.9971,.996,.9959,.9963,.9971,.9978,.9986,.9992);
@@ -75,196 +73,191 @@
 
   body{
     margin:0;padding:0;background:var(--void);color:var(--ink);
-    font:13px/1.55 'Geist',-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
-    font-feature-settings:"tnum" 1;
-    -webkit-font-smoothing:antialiased;
+    font:13.5px/1.5 'Geist',-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    font-feature-settings:"tnum" 1;-webkit-font-smoothing:antialiased;
   }
   code,pre,.mono,.tok,.num{font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
   input,button,select{font:inherit;color:inherit}
   .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
       clip-path:inset(50%);white-space:nowrap;border:0}
-  .ic{width:15px;height:15px;flex:0 0 auto;stroke-width:2;color:currentColor}
-
-  /* The panel scrolls; the hero is allowed to be tall because a side panel is
-     ~1400px and the old design was cramped AND empty at the same time. */
-  .app{padding:0 20px 28px}
+  .ic{width:16px;height:16px;flex:0 0 auto;stroke-width:1.9;color:currentColor}
 
   /* ───────────────────────────────────────────────────────────────────────
-     STATUS BAR — one line, top right, nothing else competing
+     LAUNCH SCREEN — the wordmark, once, then it hands over
      ─────────────────────────────────────────────────────────────────────── */
-  .statusbar{display:flex;align-items:center;justify-content:flex-end;
-             padding:14px 0 0;min-height:34px}
-  .lamp{display:flex;align-items:center;gap:7px;
-        font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
-        color:var(--ash-2);font-weight:600}
-  .lamp .dot{width:5px;height:5px;border-radius:50%;background:var(--ash-2);flex:0 0 auto;
-             transition:background .3s,box-shadow .3s}
-  .lamp.ok{color:var(--mint)}
-  .lamp.ok .dot{background:var(--mint);box-shadow:0 0 8px 1px rgba(74,222,128,.6)}
-  .lamp.bad{color:var(--coral)}
-  .lamp.bad .dot{background:var(--coral);box-shadow:0 0 8px 1px rgba(255,107,107,.5)}
-
-  /* ───────────────────────────────────────────────────────────────────────
-     HERO — the thesis. The wordmark redacts itself.
-     ─────────────────────────────────────────────────────────────────────── */
-  .hero{padding:30px 0 34px}
-  .mark{position:relative;display:inline-block;
-        font-family:'Archivo Black',system-ui,sans-serif;
-        font-size:42px;line-height:.92;letter-spacing:-.045em;
-        text-transform:uppercase;color:var(--ink);
-        /* the glyphs must not be selectable around the bar */
-        -webkit-user-select:none;user-select:none}
-  /* THE SIGNATURE. A solid bar, not a blur — the same decision the redactor makes
-     on a real screenshot, for the same reason.
-
-     Two corrections worth keeping: the bar is INK, not black. A black bar on a
-     black page is invisible, and outlining it to compensate made it read as an
-     empty input box rather than a censor stroke. On a dark surface the covering
-     mark has to be the light one — which is also exactly how .mask .blk draws a
-     redacted value further down, so the two uses agree.
-
-     And it wraps real glyphs rather than sitting at a hand-measured em offset,
-     so it covers precisely the letters it claims to and cannot drift when the
-     face or size changes. */
+  /* His note on the recording: MetaMask shows the logo, then moves to the main
+     screen. That is also the fix for the permanent-hero problem — the branding
+     gets a moment of its own instead of a permanent tax on every view. */
+  /* DISMISSED BY CSS, not by script. A splash that stays because a module threw
+     during import is worse than no splash: it hides the whole product and there
+     is no inline-script escape hatch under MV3's CSP. The panel is fully
+     rendered behind this from the first frame, so the fade IS the handover. */
+  #splash{position:fixed;inset:0;z-index:20;background:var(--void);
+          display:flex;align-items:center;justify-content:center;
+          animation:splash-out .34s var(--ease) 1.05s forwards}
+  @keyframes splash-out{to{opacity:0;visibility:hidden;transform:scale(1.03)}}
+  #splash.gone{display:none}
+  .mark{margin:0;font-family:'Archivo Black',system-ui,sans-serif;
+        font-size:40px;line-height:1;letter-spacing:-.045em;text-transform:uppercase;
+        color:var(--ink);-webkit-user-select:none;user-select:none}
   .mark .redact{position:relative;display:inline-block}
-  /* Not inset:0 — an inline-block's box is the LINE box, which includes leading, so
-     a full-bleed bar stood 41px tall against 30px letters and hung below the
-     baseline. These two values are Archivo Black's cap height (.714em) plus a 2px
-     bleed top and bottom, measured off the rendered pixels rather than guessed. */
+  /* Not inset:0 — an inline-block's box is the LINE box including leading, which
+     stood the bar 41px tall against 30px letters. Cap height + a 2px bleed,
+     measured off the render. The keyline stops the white bar fusing with the
+     V and the N at this tracking. Starts retracted so it sweeps rather than
+     snapping; if the script never runs the name simply reads AAVARAN. */
   .mark .blk{position:absolute;left:-.04em;right:-.04em;top:.08em;height:.81em;
              background:var(--ink);border-radius:2px;transform-origin:left center;
-             /* Starts retracted, or the bar paints covered for the 220ms before the
-                sweep begins and then snaps open — covered, uncovered, covered again.
-                If panel.js never runs, the name simply reads AAVARAN, which is the
-                right way for this to degrade. */
-             transform:scaleX(0);
-             /* a black keyline, because the tracking is tight enough that a white
-                bar butted against the V and the N read as a font rendering fault
-                rather than as something deliberately laid over the letters */
-             box-shadow:0 0 0 2.5px var(--void)}
-  .tagline{margin:16px 0 0;font-size:14px;line-height:1.45;color:var(--ash);
-           max-width:20ch;font-weight:400;text-wrap:balance}
-  .tagline b{color:var(--ink);font-weight:600}
+             box-shadow:0 0 0 2.5px var(--void);transform:scaleX(0)}
 
   /* ───────────────────────────────────────────────────────────────────────
-     CONSOLE — pill controls, thick borders, one primary
+     STICKY TOP BAR — identity stays, and costs 48px instead of 300
      ─────────────────────────────────────────────────────────────────────── */
-  .lbl-field{display:block;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
-             color:var(--ash-2);font-weight:600;margin:0 0 9px 16px;width:fit-content}
-  #goal{width:100%;padding:15px 20px;background:var(--pit);
-        border:1.5px solid var(--edge-2);border-radius:var(--r-pill);
+  .topbar{position:sticky;top:0;z-index:10;background:var(--void);
+          display:flex;align-items:center;gap:10px;
+          padding:13px 18px;border-bottom:1px solid var(--edge)}
+  .topbar .sigil{width:22px;height:22px;flex:0 0 auto}
+  .topbar .name{font-size:14px;font-weight:600;letter-spacing:-.01em}
+  .lamp{margin-left:auto;display:flex;align-items:center;gap:7px;
+        font-size:11.5px;color:var(--ash-2);font-weight:500}
+  .lamp .dot{width:6px;height:6px;border-radius:50%;background:var(--ash-2);flex:0 0 auto;
+             transition:background .3s,box-shadow .3s}
+  .lamp.ok{color:var(--ash)}
+  .lamp.ok .dot{background:var(--mint);box-shadow:0 0 7px 1px rgba(74,222,128,.55)}
+  .lamp.bad{color:var(--coral)}
+  .lamp.bad .dot{background:var(--coral);box-shadow:0 0 7px 1px rgba(255,107,107,.5)}
+
+  .app{padding-bottom:26px}
+  /* One horizontal inset for everything that is not a full-bleed row. */
+  .pad{padding:0 18px}
+
+  /* ───────────────────────────────────────────────────────────────────────
+     ASK — sentence-case label, pill field, one white primary
+     ─────────────────────────────────────────────────────────────────────── */
+  .ask{padding:22px 18px 0}
+  /* Sentence case, 12.5px, NO tracking. The uppercase 9px version of this was
+     tell number one. */
+  .lbl-field{display:block;font-size:12.5px;color:var(--ash);font-weight:400;
+             margin:0 0 8px 2px;width:fit-content}
+  #goal{width:100%;padding:14px 18px;background:var(--pit);
+        border:1px solid var(--edge-2);border-radius:var(--r-pill);
         color:var(--ink);font-size:13.5px;
-        transition:border-color .18s var(--ease),background .18s var(--ease)}
+        transition:border-color .18s var(--ease)}
   #goal::placeholder{color:var(--ash-2)}
   #goal:hover{border-color:var(--edge-3)}
-  #goal:focus-visible{outline:none;background:var(--void);border-color:var(--ink)}
+  #goal:focus-visible{outline:none;border-color:var(--ink)}
 
-  button{cursor:pointer;font-weight:600;font-family:inherit;
+  button{cursor:pointer;font-weight:500;font-family:inherit;
          transition:background .16s var(--ease),border-color .16s var(--ease),
                     color .16s var(--ease),opacity .16s var(--ease)}
   button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 
-  .btns{display:flex;gap:9px;margin-top:11px}
-  /* Primary is WHITE — MetaMask's Unlock is a light pill, and it keeps amber
-     free to mean "withheld". */
-  #run{flex:1;padding:15px 20px;border:0;border-radius:var(--r-pill);
-       background:var(--ink);color:var(--void);font-size:13.5px;font-weight:650;
+  .btns{display:flex;gap:9px;margin-top:10px}
+  #run{flex:1;padding:14px 18px;border:0;border-radius:var(--r-pill);
+       background:var(--ink);color:#000;font-size:13.5px;font-weight:600;
        display:flex;align-items:center;justify-content:center;gap:8px}
-  #run:hover:not(:disabled){background:#e4e4e4}
+  #run:hover:not(:disabled){background:#e6e6e6}
   #run:disabled{background:var(--card-2);color:var(--ash-2);cursor:default}
-  #stop{flex:0 0 auto;padding:15px 19px;border-radius:var(--r-pill);
-        background:transparent;border:1.5px solid var(--coral);color:var(--coral);
-        display:flex;align-items:center;gap:7px;font-size:13px}
+  #run.demoted{background:transparent;border:1px solid var(--edge-2);color:var(--ash-2)}
+  #run.demoted:hover:not(:disabled){background:transparent;border-color:var(--edge-3);color:var(--ash)}
+  #stop{flex:0 0 auto;padding:14px 18px;border-radius:var(--r-pill);
+        background:transparent;border:1px solid var(--coral);color:var(--coral);
+        display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500}
   #stop:hover{background:rgba(255,107,107,.1)}
 
-  /* Scan is the button to press first but must not outrank Run visually, so it
-     is a quiet full-width ghost — a text link would be too weak for a control
-     that is the whole no-install demonstration. */
-  #scan{width:100%;margin-top:9px;padding:14px 20px;border-radius:var(--r-pill);
-        background:transparent;border:1.5px solid var(--edge-2);color:var(--ash);
-        display:flex;align-items:center;justify-content:center;gap:9px;font-size:12.5px}
+  #scan{width:100%;margin-top:9px;padding:13px 18px;border-radius:var(--r-pill);
+        background:transparent;border:1px solid var(--edge-2);color:var(--ash);
+        display:flex;align-items:center;justify-content:center;gap:9px;font-size:13px}
   #scan:hover:not(:disabled){border-color:var(--ink);color:var(--ink)}
   #scan:disabled{opacity:.5;cursor:default}
-  #scan small{display:none}            /* the qualifier moved to .subnote */
-  /* With no reasoning server, Run cannot work and Scan IS the demonstration — so the
-     two SWAP roles rather than Scan merely turning a warning colour. Amber was the
-     first attempt and was wrong for the same reason green was: amber has to keep
-     meaning "withheld" in the evidence, and a button is not evidence. Making the
-     working action the white one states the hierarchy instead of hinting at it. */
-  #scan.promoted{background:var(--ink);color:var(--void);border-color:var(--ink);
-                 font-weight:650}
-  #scan.promoted:hover{background:#e4e4e4}
-  #run.demoted{background:transparent;border:1.5px solid var(--edge-2);color:var(--ash-2)}
-  #run.demoted:hover:not(:disabled){background:transparent;border-color:var(--edge-3);
-                                    color:var(--ash)}
-
-  .subnote{margin:11px 0 0;text-align:center;font-size:10.5px;color:var(--ash-2);
-           line-height:1.5}
+  #scan small{display:none}
+  #scan.promoted{background:var(--ink);color:#000;border-color:var(--ink);font-weight:600}
+  #scan.promoted:hover{background:#e6e6e6}
 
   /* ───────────────────────────────────────────────────────────────────────
-     TARGET + SETTINGS — quiet, below the fold of attention
+     SECTIONS — sentence-case headings, generous gaps BETWEEN, tight within
      ─────────────────────────────────────────────────────────────────────── */
-  .target{margin-top:26px;padding-top:18px;border-top:1px solid var(--edge);
-          font-size:11.5px;color:var(--ash-2);display:flex;gap:9px;
+  .sec{margin-top:30px}
+  .sec > h2{margin:0 18px 12px;font-size:13.5px;font-weight:600;color:var(--ink);
+            letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+  .sec > h2 .ic{color:var(--ash-2);width:15px;height:15px}
+  .sec > p{margin:0 18px 0;font-size:13px;line-height:1.6;color:var(--ash)}
+
+  /* THE ROW IDIOM. Full bleed, no border, no divider — separation is the hover
+     wash and the spacing, exactly as in the recording. This replaced a stack of
+     individually bordered rounded cards, which is tell number two. */
+  .examples{display:flex;flex-direction:column}
+  .ex{text-align:left;width:100%;background:transparent;border:0;
+      padding:14px 18px;color:var(--ink);font-size:13.5px;font-weight:400;
+      display:flex;align-items:center;gap:12px;border-radius:0}
+  /* No leading circle. MetaMask's rows have a circle because a TOKEN ICON goes in
+     it; ours would have held nothing. An empty avatar is decoration imitating
+     information, and the chevron already carries the affordance. */
+  .ex::after{content:'';flex:0 0 auto;margin-left:auto;width:6px;height:6px;
+             border-right:1.5px solid var(--ash-2);border-top:1.5px solid var(--ash-2);
+             transform:rotate(45deg);opacity:.6;transition:opacity .16s,border-color .16s}
+  .ex:hover{background:var(--row)}
+  .ex:hover::after{opacity:1;border-color:var(--ink)}
+
+  /* ───────────────────────────────────────────────────────────────────────
+     TARGET + SETTINGS
+     ─────────────────────────────────────────────────────────────────────── */
+  .target{margin:26px 18px 0;padding-top:16px;border-top:1px solid var(--edge);
+          font-size:12.5px;color:var(--ash-2);display:flex;gap:9px;
           align-items:flex-start;line-height:1.5}
   .target::before{content:'';flex:0 0 auto;width:5px;height:5px;border-radius:50%;
                   margin-top:6px;background:var(--ash-2)}
-  .target b{color:var(--ink);font-weight:600;font-family:'Geist Mono',monospace;font-size:11px}
+  .target b{color:var(--ash);font-weight:400;font-family:'Geist Mono',monospace;font-size:12px}
   .tmsg{flex:1;min-width:0}
-  .target:has(.deny){border-top-color:var(--coral);color:var(--ash)}
+  .target:has(.deny){border-top-color:rgba(255,107,107,.5);color:var(--ash)}
   .target:has(.deny)::before{background:var(--coral)}
-  .target .deny{display:block;color:var(--coral);font-weight:600;margin-bottom:2px}
+  .target .deny{display:block;color:var(--coral);font-weight:500;margin-bottom:2px}
 
-  #settings{margin-top:14px;border-top:1px solid var(--edge)}
-  summary{cursor:pointer;color:var(--ash-2);font-size:11px;padding:13px 0;
-          list-style:none;display:flex;align-items:center;gap:8px;font-weight:600;
-          letter-spacing:.06em;text-transform:uppercase;transition:color .16s}
+  /* No second hairline. The target row above already draws one, and two rules
+     10px apart read as an accidental sandwich rather than as structure. */
+  #settings{margin:4px 18px 0}
+  summary{cursor:pointer;color:var(--ash);font-size:12.5px;padding:14px 0;
+          list-style:none;display:flex;align-items:center;gap:9px;font-weight:400;
+          transition:color .16s}
   summary::-webkit-details-marker{display:none}
   summary:hover{color:var(--ink)}
   summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-  #setsummary{margin-left:auto;font-size:9.5px;letter-spacing:.1em}
-  #settings label{display:block;padding:0 0 8px;font-size:9.5px;
-                  letter-spacing:.14em;text-transform:uppercase;
-                  color:var(--ash-2);font-weight:600}
-  #settings input{width:100%;padding:12px 16px;background:var(--pit);
-                  border:1.5px solid var(--edge-2);border-radius:var(--r-pill);
-                  color:var(--ink);font-size:11.5px;
+  summary .ic{color:var(--ash-2)}
+  #setsummary{margin-left:auto;font-size:11.5px}
+  #settings label{display:block;padding:0 0 8px;font-size:12px;
+                  color:var(--ash-2);font-weight:400}
+  #settings input{width:100%;padding:11px 15px;background:var(--pit);
+                  border:1px solid var(--edge-2);border-radius:var(--r-pill);
+                  color:var(--ink);font-size:12px;
                   font-family:'Geist Mono',monospace;transition:border-color .16s}
   #settings input:focus-visible{outline:none;border-color:var(--ink)}
   .srvrow{display:flex;gap:8px;margin-bottom:10px}
   .srvrow input{flex:1}
   .setrow{display:flex;gap:8px;padding-bottom:16px}
-  #settings button{padding:11px 16px;background:transparent;
-                   border:1.5px solid var(--edge-2);border-radius:var(--r-pill);
-                   color:var(--ash);font-size:11px}
+  #settings button{padding:10px 15px;background:transparent;
+                   border:1px solid var(--edge-2);border-radius:var(--r-pill);
+                   color:var(--ash);font-size:12px}
   #settings button:hover{border-color:var(--ink);color:var(--ink)}
-  #serverstatus{padding:0 0 12px;font-size:10.5px;color:var(--ash-2)}
-  #serverstatus .mono{font-size:10px;color:var(--ash)}
+  #serverstatus{padding:0 0 12px;font-size:11.5px;color:var(--ash-2)}
+  #serverstatus .mono{font-size:11px;color:var(--ash)}
 
   /* ───────────────────────────────────────────────────────────────────────
      STATUS / STEPPER
      ─────────────────────────────────────────────────────────────────────── */
-  .phase{margin-top:18px;padding:15px 18px;background:var(--card);
-         border:1px solid var(--edge);border-radius:var(--r-lg);
-         font-size:12px;color:var(--ash);transition:border-color .3s}
-  .phase.working{border-color:var(--edge-3)}
-  /* Archivo Black is for FIGURES. It was applied to every <b> in here, which put an
-     arbitrary page title into a heavy display face and made it shout and wrap. */
-  /* the display face has tight side bearings, so at 21px beside 12px body text the
-     figure butted straight into the next word */
-  .phase .fig{color:var(--ink);font-family:'Archivo Black',sans-serif;font-size:21px;
-              letter-spacing:-.02em;font-variant-numeric:tabular-nums;
-              margin-right:.14em}
-  .phase .src{color:var(--ink);font-weight:600}
-  .phase > b{color:var(--ink);font-weight:600}
+  .phase{margin:20px 18px 0;padding:14px 16px;background:var(--card);
+         border-radius:var(--r-lg);font-size:12.5px;color:var(--ash)}
+  .phase.working{background:var(--card-2)}
+  .phase .fig{color:var(--ink);font-family:'Archivo Black',sans-serif;font-size:20px;
+              letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-right:.14em}
+  .phase .src{color:var(--ink);font-weight:500}
+  .phase > b{color:var(--ink);font-weight:500}
   .phase .t{display:block;margin-top:5px}
   .phase > .t:only-child{margin-top:0}
 
   .steps{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
   .sep{display:none}
-  .step{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;position:relative;
-         flex:1;text-align:center;padding-top:15px;color:var(--ash-2);
-         transition:color .3s var(--ease)}
+  .step{font-size:10px;position:relative;flex:1;text-align:center;padding-top:15px;
+        color:var(--ash-2);transition:color .3s var(--ease)}
   .step::before{content:'';position:absolute;top:4px;left:-50%;width:100%;height:1.5px;
                 background:var(--edge-2)}
   .step:first-child::before{display:none}
@@ -276,7 +269,7 @@
   .step.done{color:var(--ash)}
   .step.done::before{background:var(--ink)}
   .step.done::after{background:var(--ink);border-color:var(--ink)}
-  .step.now{color:var(--ink);font-weight:700}
+  .step.now{color:var(--ink);font-weight:600}
   .step.now::after{background:var(--amber);border-color:var(--amber);transform:scale(1.4);
                    animation:node-pulse 1.4s var(--ease) infinite}
   @keyframes node-pulse{
@@ -284,180 +277,157 @@
     70%    {box-shadow:0 0 0 7px rgba(255,178,36,0)}
   }
 
-  /* ───────────────────────────────────────────────────────────────────────
-     EMPTY STATE
-     ─────────────────────────────────────────────────────────────────────── */
-  .empty{margin-top:18px}
-  .empty h2{color:var(--ash-2);display:flex;align-items:center;gap:8px;margin:0 0 10px;
-            font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
-  .empty h2 .ic{width:13px;height:13px}
-  .empty p{margin:0 0 22px;font-size:12.5px;line-height:1.6;color:var(--ash)}
-  .examples{display:flex;flex-direction:column;gap:8px}
-  .ex{text-align:left;padding:14px 18px;background:var(--card);
-      border:1px solid var(--edge);border-radius:var(--r-md);
-      color:var(--ash);font-size:12.5px;font-weight:500;
-      display:flex;align-items:center;gap:10px}
-  .ex::after{content:'→';margin-left:auto;color:var(--ash-2);font-size:13px;
-             opacity:0;transform:translateX(-5px);
-             transition:opacity .18s var(--ease),transform .3s var(--spring)}
-  .ex:hover{background:var(--card-2);border-color:var(--edge-3);color:var(--ink)}
-  .ex:hover::after{opacity:1;transform:translateX(0);color:var(--ink)}
+  /* Skeletons, because the recording has them and because a panel that simply
+     freezes for three seconds reads as broken. */
+  .skel{padding:6px 18px 0}
+  .skel i{display:block;height:13px;border-radius:5px;margin-bottom:9px;
+          background:linear-gradient(90deg,var(--card) 0%,var(--card-2) 50%,var(--card) 100%);
+          background-size:220% 100%;animation:shimmer 1.25s linear infinite}
+  .skel i:nth-child(1){width:64%}
+  .skel i:nth-child(2){width:88%}
+  .skel i:nth-child(3){width:44%}
+  @keyframes shimmer{from{background-position:120% 0}to{background-position:-120% 0}}
 
   /* ───────────────────────────────────────────────────────────────────────
-     TOTALS — Archivo Black figures, hero claim spanning the top
+     TOTALS — one accent, not four. White figures; mint only for the claim.
      ─────────────────────────────────────────────────────────────────────── */
   .totals{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;
-          background:var(--edge);border:1px solid var(--edge);
-          border-radius:var(--r-lg);margin-top:18px;overflow:hidden}
-  .totals > div{background:var(--card);padding:15px 17px}
-  .totals .n{font-family:'Archivo Black',sans-serif;font-size:23px;color:var(--amber);
+          background:var(--edge);border-radius:var(--r-lg);
+          margin:20px 18px 0;overflow:hidden}
+  .totals > div{background:var(--card);padding:14px 16px}
+  .totals .n{font-family:'Archivo Black',sans-serif;font-size:21px;color:var(--ink);
              line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-  .totals .lbl{color:var(--ash-2);font-size:9.5px;margin-top:6px;line-height:1.35;
-               letter-spacing:.06em;text-transform:uppercase}
+  .totals .lbl{color:var(--ash-2);font-size:12px;margin-top:6px;line-height:1.35}
   .totals > div.hero{grid-column:1/-1;display:flex;align-items:baseline;gap:12px;
-                     background:var(--card-2);padding:18px}
-  .totals > div.hero .n{color:var(--mint);font-size:34px}
-  .totals > div.hero .lbl{color:var(--mint);margin-top:0;font-size:11px;
-                          letter-spacing:.08em;opacity:.9}
+                     background:var(--card-2);padding:17px 16px}
+  .totals > div.hero .n{color:var(--mint);font-size:32px}
+  .totals > div.hero .lbl{color:var(--mint);margin-top:0;font-size:13px;opacity:.9}
 
   /* ───────────────────────────────────────────────────────────────────────
      A TURN
      ─────────────────────────────────────────────────────────────────────── */
-  .turn{border:1px solid var(--edge);border-radius:var(--r-lg);margin-top:10px;
-        overflow:hidden;background:var(--card)}
-  .turn h2{font-size:9.5px;margin:0;padding:13px 17px;background:var(--card-2);
-           border-bottom:1px solid var(--edge);font-weight:600;line-height:1.4;
-           letter-spacing:.12em;text-transform:uppercase;color:var(--ash-2);
-           text-wrap:balance}
-  .row{padding:12px 17px;border-bottom:1px solid var(--edge);font-size:12px}
-  .row:last-child{border-bottom:0}
+  .turn{border-radius:var(--r-lg);margin:10px 18px 0;overflow:hidden;background:var(--card)}
+  .turn h2{font-size:12.5px;margin:0;padding:13px 16px;background:var(--card-2);
+           font-weight:500;line-height:1.4;color:var(--ash);text-wrap:balance}
+  .row{padding:12px 16px;font-size:12.5px}
+  .row + .row{border-top:1px solid var(--edge)}
 
   .chip{display:inline-flex;align-items:center;gap:6px;background:var(--amber-dim);
-        border:1px solid rgba(255,178,36,.3);border-radius:var(--r-pill);
-        padding:5px 12px;font-size:10px;margin:3px 5px 3px 0;
-        font-weight:600;color:var(--amber);letter-spacing:.03em}
-  .chip b{color:var(--amber);font-weight:700;font-variant-numeric:tabular-nums}
+        border-radius:var(--r-pill);padding:5px 11px;font-size:11.5px;
+        margin:3px 5px 3px 0;font-weight:500;color:var(--amber)}
+  .chip b{color:var(--amber);font-weight:600;font-variant-numeric:tabular-nums}
 
-  .allow{color:var(--mint);font-weight:700;letter-spacing:.06em;font-size:10px}
-  .deny{color:var(--coral);font-weight:700;letter-spacing:.06em}
-  .tok{color:var(--mint);font-size:11px}
-  .t{color:var(--ash-2);font-size:11px;line-height:1.5}
+  .allow{color:var(--mint);font-weight:600;font-size:11.5px}
+  .deny{color:var(--coral);font-weight:600}
+  .tok{color:var(--ash);font-size:12px}
+  .t{color:var(--ash-2);font-size:12px;line-height:1.5}
   .t b{color:var(--ash)}
   .nums{font-variant-numeric:tabular-nums}
 
-  /* THE SIGNATURE, SECOND USE. A masked value is drawn as the bar that
-     actually covers it in the transmitted image, not as bullet dots. The
-     visible characters stay readable so the reader can see WHICH value it was
-     without the value being recoverable. */
-  .mask{font-family:'Geist Mono',monospace;color:var(--ink);font-size:11px;
-        white-space:nowrap}
+  /* THE SIGNATURE, SECOND USE. The bar that actually covers the value, not dots. */
+  .mask{font-family:'Geist Mono',monospace;color:var(--ink);font-size:12px;white-space:nowrap}
   .mask .blk{display:inline-block;vertical-align:-.14em;height:1.02em;
              background:var(--ink);border-radius:1.5px;margin:0 1px}
 
-  .withheld-note{margin:0;padding:12px 17px;background:var(--amber-dim);
-                 border-bottom:1px solid rgba(255,178,36,.25);
-                 font-size:11px;color:var(--amber);font-weight:500}
+  .withheld-note{margin:0;padding:12px 16px;background:var(--amber-dim);
+                 font-size:12px;color:var(--amber);font-weight:500}
 
   /* ───────────────────────────────────────────────────────────────────────
      SCAN RESULT
      ─────────────────────────────────────────────────────────────────────── */
-  .entry{border:1px solid var(--edge);border-radius:var(--r-lg);
-         overflow:hidden;background:var(--card);margin-top:14px}
-  .entry > header{font-size:9.5px;padding:13px 17px;background:var(--card-2);
-                  border-bottom:1px solid var(--edge);font-weight:600;
-                  letter-spacing:.12em;text-transform:uppercase;color:var(--ash-2);
-                  display:flex;align-items:center;gap:9px}
-  .entry > header b{color:var(--ink)}
-  .entry > header .t{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:400}
-  .entry .body{padding:16px 17px}
+  .entry{border-radius:var(--r-lg);overflow:hidden;background:var(--card);margin:14px 18px 0}
+  .entry > header{font-size:12.5px;padding:13px 16px;background:var(--card-2);
+                  font-weight:500;color:var(--ash);display:flex;align-items:center;gap:9px}
+  .entry > header b{color:var(--ink);font-weight:600}
+  .entry > header .t{margin-left:auto;font-weight:400}
+  .entry .body{padding:15px 16px}
 
-  .fields{width:100%;border-collapse:separate;border-spacing:0;margin:14px 0 0;
-          font-size:11px;border:1px solid var(--edge);border-radius:var(--r-md);
-          overflow:hidden}
-  .fields th{text-align:left;padding:10px 13px;background:var(--card-2);
-             color:var(--ash-2);font-size:8.5px;letter-spacing:.14em;
-             text-transform:uppercase;font-weight:600;border-bottom:1px solid var(--edge)}
+  /* A table of evidence IS a distinct object, so this one keeps its frame. */
+  .fields{width:100%;border-collapse:separate;border-spacing:0;margin:13px 0 0;
+          font-size:12px;background:var(--pit);border-radius:var(--r-md);overflow:hidden}
+  .fields th{text-align:left;padding:10px 13px;color:var(--ash-2);font-size:12px;
+             font-weight:400;border-bottom:1px solid var(--edge)}
   .fields th:first-child,.fields td:first-child{width:50%}
-  .fields td{padding:11px 13px;border-bottom:1px solid var(--edge);
-             vertical-align:middle;font-family:'Geist Mono',monospace;font-size:10.5px}
-  .fields tr:last-child td{border-bottom:0}
-  .fields tr:hover td{background:var(--card-2)}
+  .fields td{padding:11px 13px;vertical-align:middle;
+             font-family:'Geist Mono',monospace;font-size:11.5px}
+  .fields tr + tr td{border-top:1px solid var(--edge)}
+  .fields tbody tr:hover td{background:var(--row)}
 
-  .hint{margin-top:16px;padding:14px 16px;border-radius:var(--r-md);
-        background:var(--card-2);border:1px solid var(--edge);
-        font-size:11px;color:var(--ash);line-height:1.65}
-  .hint b{color:var(--ink)}
-  .warnbox{margin-top:12px;padding:12px 16px;border-radius:var(--r-md);
-           background:var(--amber-dim);border:1px solid rgba(255,178,36,.3);
-           font-size:11px;color:var(--amber);line-height:1.6}
+  .hint{margin-top:15px;padding:13px 15px;border-radius:var(--r-md);
+        background:var(--card-2);font-size:12px;color:var(--ash);line-height:1.65}
+  .hint b{color:var(--ink);font-weight:600}
+  .warnbox{margin-top:12px;padding:12px 15px;border-radius:var(--r-md);
+           background:var(--amber-dim);font-size:12px;color:var(--amber);line-height:1.6}
 
-  .turn details summary,.entry details summary{color:var(--ash);font-size:10px;
-        padding:13px 17px;letter-spacing:.08em}
+  .turn details summary,.entry details summary{color:var(--ash);font-size:12px;
+        padding:13px 16px;border-top:1px solid var(--edge)}
   .turn details summary:hover,.entry details summary:hover{color:var(--ink)}
-  pre{margin:0 17px 14px;padding:13px;background:var(--void);
-      border:1px solid var(--edge);border-radius:var(--r-md);
-      font-size:10px;color:var(--ash);max-height:220px;overflow:auto;
-      white-space:pre-wrap;overscroll-behavior:contain}
+  pre{margin:0 16px 14px;padding:13px;background:var(--pit);
+      border-radius:var(--r-md);font-size:11px;color:var(--ash);max-height:220px;
+      overflow:auto;white-space:pre-wrap;overscroll-behavior:contain}
 
-  /* ───────────────────────────────────────────────────────────────────────
-     FOOTER CLAIM
-     ─────────────────────────────────────────────────────────────────────── */
-  .note{margin-top:22px;padding-top:18px;border-top:1px solid var(--edge);
-        font-size:10.5px;color:var(--ash-2);line-height:1.7;
+  .note{margin:26px 18px 0;padding-top:17px;border-top:1px solid var(--edge);
+        font-size:12px;color:var(--ash-2);line-height:1.65;
         display:flex;gap:11px;align-items:flex-start}
-  .note b{color:var(--ash)}
-  .note .ic{color:var(--amber);margin-top:2px}
+  .note b{color:var(--ash);font-weight:500}
+  .note .ic{color:var(--ash-2);margin-top:2px}
 
   @media (prefers-reduced-motion:reduce){
     *,*::before,*::after{animation-duration:.001ms !important;
-      animation-iteration-count:1 !important;transition-duration:.001ms !important}
+      animation-iteration-count:1 !important;transition-duration:.001ms !important;
+      /* the delay is NOT covered by zeroing duration — without this the splash
+         still sat there for its full 1.05s before vanishing instantly */
+      animation-delay:0s !important}
+    /* nothing to sweep, so show the bar in place rather than retracted */
+    .mark .blk{transform:scaleX(1)}
   }
 </style></head>
 <body>
- <div class="app">
 
-  <div class="statusbar">
+ <!-- Shown once per open, then handed over to the panel. aria-hidden because the
+      app behind it carries the real accessible name. -->
+ <div id="splash" aria-hidden="true">
+   <h1 class="mark"><span>AAV</span><span class="redact">ARA<i class="blk" id="markbar"></i></span><span>N</span></h1>
+ </div>
+
+ <div class="app" id="app">
+
+  <header class="topbar">
+    <svg class="sigil" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2 L21 5 v6 c0 5-4 8.5-9 11 -5-2.5-9-6-9-11 V5 Z" fill="#2b3a8f"/>
+      <ellipse cx="12" cy="10.5" rx="5.2" ry="3" fill="#fff"/>
+      <circle cx="12" cy="10.5" r="1.9" fill="#d9970f"/>
+      <rect x="6.4" y="9.9" width="11.2" height="1.2" fill="#1a235c"/>
+    </svg>
+    <span class="name">Aavaran</span>
     <div class="lamp" id="lamp" role="status" aria-live="polite">
       <span class="dot" aria-hidden="true"></span>
       <span class="sr">Reasoning server:</span>
       <span id="lamptext">checking…</span>
     </div>
-  </div>
-
-  <!-- THE HERO. The wordmark censors itself: a solid bar covers VAR, exactly the
-       way sanitize() covers a PAN in the transmitted screenshot. The <span>s
-       keep the full name in the accessible tree and in copy-paste, so the
-       redaction is a visual argument and not a loss of information. -->
-  <header class="hero">
-    <!-- aria-label carries the real name, and the glyphs stay in the markup under
-         the bar, so the redaction is a visual argument rather than lost text. -->
-    <h1 class="mark" aria-label="Aavaran"><span
-      aria-hidden="true">AAV</span><span class="redact"
-      aria-hidden="true">ARA<i class="blk" id="markbar"></i></span><span
-      aria-hidden="true">N</span></h1>
-    <!-- nbsp: the emphasised phrase is one idea and was splitting across lines -->
-    <p class="tagline">Nothing personal <b>ever&nbsp;leaves</b> this machine.</p>
   </header>
 
-  <label class="lbl-field" for="goal">What should it do?</label>
-  <input id="goal" name="goal" type="text" autocomplete="off" spellcheck="false"
-         enterkeyhint="go" placeholder="e.g. Fill in the form and submit it">
-  <div class="btns">
-    <button id="run"><i data-lucide="zap" class="ic"></i><span>Run on this tab</span></button>
-    <button id="stop" hidden><i data-lucide="square" class="ic"></i>Stop</button>
+  <div class="ask">
+    <label class="lbl-field" for="goal">What should it do?</label>
+    <input id="goal" name="goal" type="text" autocomplete="off" spellcheck="false"
+           enterkeyhint="go" placeholder="e.g. Fill in the form and submit it">
+    <div class="btns">
+      <button id="run"><i data-lucide="zap" class="ic"></i><span>Run on this tab</span></button>
+      <button id="stop" hidden><i data-lucide="square" class="ic"></i>Stop</button>
+    </div>
+    <button id="scan" title="Read this page and show what would be sent. No model needed.">
+      <i data-lucide="scan-eye" class="ic"></i>
+      <span id="scanlabel">Scan this page</span>
+    </button>
   </div>
-  <button id="scan" title="Read this page and show what would be sent. No model needed.">
-    <i data-lucide="scan-eye" class="ic"></i>
-    <span id="scanlabel">Scan this page</span>
-  </button>
-  <p class="subnote">Scanning needs no model and no server.<br>Nothing is transmitted.</p>
 
   <div class="target" id="target" role="status" aria-live="polite">
     <span class="tmsg">checking this tab…</span></div>
 
   <details id="settings">
-    <summary><i data-lucide="settings-2" class="ic"></i>Settings
-      <span id="setsummary" class="t"></span></summary>
+    <!-- No status chip here. The top bar's lamp already states the server's
+         condition, and saying it twice ten pixels apart is noise, not emphasis. -->
+    <summary><i data-lucide="settings-2" class="ic"></i>Settings</summary>
     <label for="server">Reasoning server</label>
     <div class="srvrow">
       <input id="server" name="server" type="url" inputmode="url" spellcheck="false"
@@ -471,18 +441,24 @@
     </div>
   </details>
 
-  <div class="phase" id="phase" role="status" aria-live="polite">
-    <span class="t">Idle — nothing has been transmitted</span></div>
+  <!-- Starts hidden and empty. It held "Idle — nothing has been transmitted",
+       which was a large card saying that nothing had happened yet — the reader
+       can already see that. It appears the moment there IS something to report. -->
+  <div class="phase" id="phase" role="status" aria-live="polite" hidden></div>
 
-  <div id="empty" class="empty">
-    <h2><i data-lucide="shield-check" class="ic"></i>What this does</h2>
-    <p>Reads the page, strips every PAN, Aadhaar, card, password and face on your
-       machine, then asks an AI what to do. Only the censored version is ever sent.</p>
-    <h2><i data-lucide="lightbulb" class="ic"></i>Try one of these</h2>
-    <div class="examples">
-      <button class="ex">Fill in this form and submit it</button>
-      <button class="ex">Find the contact details on this page</button>
-      <button class="ex">What do I need to complete here?</button>
+  <div id="empty">
+    <div class="sec">
+      <h2><i data-lucide="shield-check" class="ic"></i>What this does</h2>
+      <p>Reads the page, strips every PAN, Aadhaar, card, password and face on your
+         machine, then asks an AI what to do. Only the censored version is ever sent.</p>
+    </div>
+    <div class="sec">
+      <h2><i data-lucide="lightbulb" class="ic"></i>Try one of these</h2>
+      <div class="examples">
+        <button class="ex">Fill in this form and submit it</button>
+        <button class="ex">Find the contact details on this page</button>
+        <button class="ex">What do I need to complete here?</button>
+      </div>
     </div>
   </div>
 

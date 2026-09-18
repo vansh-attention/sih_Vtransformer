@@ -112,6 +112,9 @@ function maskHtml(masked: string): string {
     (run) => `<span class="blk" style="width:${run.length}ch"></span>`);
 }
 
+/** Shimmering placeholders for the shape of the result that is coming. */
+const SKELETON = '<div class="skel"><i></i><i></i><i></i></div>';
+
 interface Preview { token: string; kind: string; masked: string }
 
 function renderTurn(rec: any, previews: Map<string, Preview>): string {
@@ -145,7 +148,7 @@ function renderTurn(rec: any, previews: Map<string, Preview>): string {
   // A withheld screenshot is a PROTECTION FIRING, not an error. It was recorded and
   // never shown, so the user saw "vision 0ms" and no explanation at all.
   const withheldShot = rec.visionError
-    ? `<div class="withheld-note">🛡 screenshot withheld — ${esc(String(rec.visionError))}</div>`
+    ? `<div class="withheld-note">Screenshot withheld — ${esc(String(rec.visionError))}</div>`
     : '';
 
   return `<div class="turn">
@@ -204,6 +207,9 @@ async function probe(url: string, ms = 1500): Promise<{ ok: boolean; model?: str
  * only after opening a collapsed <details>. A user whose server is down pressed
  * the big button and read a failure, when the panel already knew.
  */
+/** Reveal the status card — it starts hidden so the idle panel has no dead block. */
+function showPhase(): void { $('phase').hidden = false; }
+
 function setLamp(state: 'ok' | 'bad' | 'unknown', label: string): void {
   const lamp = $('lamp');
   lamp.className = `lamp${state === 'unknown' ? '' : ` ${state}`}`;
@@ -230,16 +236,13 @@ async function checkServer(url: string): Promise<boolean> {
   const r = await probe(url, 4000);
   if (r.ok) {
     el.innerHTML = `<span class="allow">ready</span> · ${esc(r.model ?? '')}`;
-    $('setsummary').innerHTML = '<span class="allow">· server ready</span>';
     setLamp('ok', 'ready');
   } else if (r.detail) {
     el.innerHTML = `<span class="deny">not ready</span> · ${esc(r.detail)}`;
-    $('setsummary').innerHTML = '<span class="deny">· server not ready</span>';
     setLamp('bad', 'no model');
   } else {
     el.innerHTML = '<span class="deny">unreachable</span> · start it with: '
       + '<span class="mono">cd server &amp;&amp; .venv/bin/uvicorn main:app --port 8975</span>';
-    $('setsummary').innerHTML = '<span class="deny">· server unreachable</span>';
     setLamp('bad', 'offline');
   }
   return r.ok;
@@ -339,6 +342,7 @@ function renderProgress(turn: number, phase: string): void {
     return `<span class="step ${cls}" title="${s}">${s}</span>`;
   }).join('<span class="sep">›</span>');
   const secs = ((Date.now() - runStart) / 1000).toFixed(1);
+  $('phase').hidden = false;
   $('phase').className = 'phase working';
   $('phase').innerHTML =
     `<div class="steps">${dots}</div><div class="t">turn ${turn} · ${secs}s elapsed</div>`;
@@ -368,8 +372,9 @@ $('run').addEventListener('click', async () => {
   btn.disabled = true;
   stopBtn.hidden = false;
   stopBtn.disabled = false;
-  $('ledger').innerHTML = '';
+  $('ledger').innerHTML = SKELETON;
   $('empty').hidden = true;
+  showPhase();
   runStart = Date.now();
   renderProgress(1, 'observing');
   clearInterval(elapsedTimer);
@@ -476,8 +481,9 @@ $('scan').addEventListener('click', async () => {
   btn.disabled = true;
   const prev = label.textContent;
   label.textContent = 'Reading this page…';
-  $('ledger').innerHTML = '';
+  $('ledger').innerHTML = SKELETON;
   $('empty').hidden = true;
+  showPhase();
 
   try {
     const r = await chrome.runtime.sendMessage({ target: 'background', type: 'scan-page' });
@@ -578,7 +584,7 @@ if (!STILL) {
     }
   }
   // A 1px lift is enough to say "this is liftable". More reads as a toy.
-  for (const el of Array.from(document.querySelectorAll('#run, .ex'))) {
+  for (const el of Array.from(document.querySelectorAll('#run'))) {
     hover(el as HTMLElement, (target) => {
       void animate(target, { y: -1 }, SPRING_SOFT);
       return () => void animate(target, { y: 0 }, SPRING_SOFT);
@@ -587,38 +593,29 @@ if (!STILL) {
 }
 
 /**
- * THE ONE ORCHESTRATED MOMENT: the wordmark redacts itself.
+ * THE ONE ORCHESTRATED MOMENT: on the launch screen, the wordmark redacts itself.
  *
- * The bar wipes left-to-right across AAVARAN, which is the product performing
- * its own mechanism on its own name — the name means "veil", and a privacy tool
- * whose logotype demonstrates the covering is self-evidencing to a reader who
- * arrived sceptical. It is also literally the same operation the redactor runs
- * on a screenshot: a solid fill, swept over a region, before anything is sent.
+ * The bar wipes left-to-right across AAVARAN — the product performing its own
+ * mechanism on its own name. Aavaran means "veil", and it is literally the
+ * operation the redactor runs on a screenshot: a solid fill, swept over a
+ * region, before anything is sent.
  *
- * scaleX from a left origin, so it composites and never triggers layout. One
- * moment, deliberately — everything else on this panel stays quiet.
+ * The SPLASH ITSELF is dismissed by CSS (see #splash's animation). This only
+ * adds the sweep, so if Motion never loads the launch screen still hands over.
+ *
+ * scaleX from a left origin, so it composites and never triggers layout.
+ *
+ * There is deliberately no second mount animation. The whole panel is rendered
+ * behind the splash from the first frame, so the fade is the reveal — staggering
+ * the sections in on top of that was two effects doing one job, which is how an
+ * interface starts to look busy for its own sake.
  */
 function sweepRedaction(): void {
   const bar = document.getElementById('markbar');
-  if (!bar) return;
-  if (STILL) { bar.style.transform = 'scaleX(1)'; return; }
+  if (!bar || STILL) return;   // CSS holds it at scaleX(1) under reduced motion
   bar.style.transformOrigin = 'left center';
   void animate(bar,
     { transform: ['scaleX(0)', 'scaleX(1)'] },
-    { duration: 0.52, ease: [0.22, 1, 0.36, 1], delay: 0.22 });
+    { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.18 });
 }
 sweepRedaction();
-
-/**
- * Mount: the panel assembles rather than appearing.
- *
- * Reading order, top-down, so the eye is walked from the mark to the tagline to
- * the thing it is being asked to do. The hero is excluded — it has the sweep, and
- * two animations on one element is how a page starts to look busy.
- */
-enter(
-  Array.from(document.querySelectorAll(
-    '.statusbar, .tagline, .lbl-field, #goal, .btns, #scan, .subnote, '
-    + '.target, #settings, .phase, .empty, .note')),
-  { delay: stagger(0.026) },
-);
