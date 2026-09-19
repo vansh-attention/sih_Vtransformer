@@ -7,6 +7,28 @@
 **Tree CLEAN, both remotes PUSHED, `./test-all.sh` = 22 passed 0 skipped, `tsc` gate
 green.** 28 commits today. Everything below the 18 Sep sections is still true.
 
+### 📦 RELEASED v0.3.0 — `github.com/AavaranAI/Aavaran/releases/tag/v0.3.0`
+
+**7 assets**, and it is the repo's *latest* release: `Aavaran-v0.3.0-chrome.zip` (1.57 MB,
+scan-only, Load unpacked), `Aavaran-v0.3.0-full.zip` (9.68 MB, source + server), both
+`Start Aavaran` launchers, **both `Update Aavaran` launchers** (new since 0.2.3), and
+`INSTALL-OLLAMA.txt`. Both zips are under Gmail's 25 MB, which is the real route to Ma'am.
+
+⛔ **A STALE ZIP NEARLY SHIPPED AS v0.3.0.** `demo/privacy-agent-extension.zip` was
+**committed to git**. Packaging from a fresh clone failed — the name gazetteer is fetched
+by `setup.mjs` and is not in git — so `package-extension.sh` aborted and left *the
+previous day's committed zip* on disk, looking exactly like a fresh build. Caught only by
+reading the version inside it.
+⇒ The zip is now **untracked and gitignored**, and `package-extension.sh` **fails loudly**
+when the gazetteer is absent — sabotage-verified. That failure mattered twice over: the
+content script gates **all** person-name detection on that file loading, so a zip built
+without it withholds no names at all and reports every page clean.
+⇒ **A build artefact in git is a stale build waiting to be mistaken for a current one.**
+
+⚠ The full zip is built with `git archive` of the tag, not from the working tree: the tree
+carries 97 MB of onnxruntime and 28 MB of ONNX models that `setup.mjs` fetches, and a
+straight rsync produced a **215 MB** archive.
+
 ### ⏭ THE FIRST THING TO DO NEXT SESSION
 
 **Re-run the pizza form end to end in the browser** — `httpbin.org/forms/post`, goal
