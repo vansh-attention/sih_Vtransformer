@@ -26,7 +26,7 @@ He picked 15 of 17 offered. **Not chosen: the demo video, and integrating the re
 | C3 | Indic names in prose | ✅ **DONE** — Devanagari; Bengali/Tamil knowingly left |
 | C4 | adversarial injection suite | ✅ **DONE** — found a 6th leak and a real boundary |
 | D2 | dropdown handling | ✅ **RE-MEASURED** — the claim was stale; no code change needed |
-| D4 | run history in the ledger | ⛔ **NEEDS HIS DECISION** — it writes browsing history to disk |
+| D4 | run history / threads | ✅ **DONE** — per-site threads, local only (his call) |
 | S1 | Chrome Web Store, Unlisted | open — needs HIS Google account |
 | S2 | Firefox signed unlisted XPI | open — needs HIS AMO account |
 
@@ -138,6 +138,56 @@ read at server start, and ollama loads a model on its first REQUEST. The 7B row 
 carried a number because that model happened to be resident already. Fixed to read after
 the first run. **A measurement that silently returns empty for the case you are studying
 is worse than no measurement.**
+
+### ✅ THREADS — A CONVERSATION PER SITE (his ask, 19 Sep)
+
+⛔ **HE FOUND A SHIPPED BUG FIRST, AND THERE WERE TWO.** The panel said *"the agent needs
+one value from you · 2 turns"* and rendered **no question and no input**.
+
+1. `run-agent` returns an **explicit** object and `question`/`questionTarget` were never
+   added to it, so the panel read `undefined`. ⇒ **That list is where features go to die
+   silently.** `panel-contract.test.ts` now reads both files as text and fails when they
+   drift.
+2. The fill message was `{ target: 'content', …, target, value }` — the **shorthand
+   overwrote the routing field**, so `msg.target !== 'content'` dropped it and
+   *"Fill and continue"* could never have worked. `tsc` knew (**TS1117**); nothing asked
+   tsc. `scripts/typecheck.sh` now gates a SET of runtime-breaking codes, chosen on the
+   rule that each must have **zero** instances in the backlog — a gate that starts red is
+   one somebody disables.
+
+⚠ Both were invisible to the screenshot harness **because it stubs the run result and
+never crosses that boundary**. Pixels right, product broken — the `getManifest` shape again.
+
+**The feature.** `decide()` in `panel/threads.ts` is the whole origin-change behaviour as
+one pure function, so it is testable without a browser:
+
+| current tab vs active thread | panel |
+|---|---|
+| same site | *"Continuing: <title>"* |
+| different site, **has history** | *"Continue where you left off"* / **New thread** |
+| different site, **no history** | *"Start a thread"* ← the refusal he objected to |
+| `chrome://`, `file://` | still a refusal, **correctly** — it cannot work there |
+
+⛔ **Two constraints that shape everything, both in the file header:**
+- **No values, no resolvable tokens.** The vault is minted per session; `<PII_PAN_1>`
+  means nothing tomorrow, or worse resolves to a **different** value. A thread is safe to
+  hand to a stranger.
+- **No element ids.** `el_49` is per-extraction. A pending question stores the field's
+  **LABEL**; the id is re-derived from the live page.
+⇒ Resume = restore the goal and the story, then **re-observe from scratch** — right
+anyway, because the page has changed.
+
+**Local only** (`chrome.storage.local`), his call, so *"the only outbound request goes to
+127.0.0.1"* stays true. 50 threads, oldest-by-last-use evicted. Settings has a live count
+and **Delete all conversations**, and `outreach/PRIVACY-POLICY.md` was updated to match —
+**a policy that stops being true is worse than no feature.**
+
+⚠ **Firebase was offered and deferred, not refused.** The UX he described needs no cloud
+at all; sync is the only thing it buys, and it would falsify the deck, the store listing
+and the policy. If he wants it, the honest version is **client-side encryption so Firebase
+holds ciphertext** — Phase 2.
+
+⚠ Panel states are now **17**; the designers' canvas has 13.
 
 ### ⛔ B3 — OVERLAPPING VISION WITH THE MODEL: NOT POSSIBLE, AND NOT WORTH IT
 
