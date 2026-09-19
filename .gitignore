@@ -39,4 +39,11 @@ probe*.ts
 
 # The unpacked build Chrome loads via "Load unpacked" - a build output, never delete it
 demo/privacy-agent-extension/
+# ⛔ The BUILT ZIP, which used to be committed.
+#
+# It nearly shipped as v0.3.0. Packaging from a fresh clone failed — the name gazetteer is
+# fetched by setup.mjs and is not in git — so package-extension.sh aborted and left the
+# committed zip from the day before sitting in place, looking exactly like a fresh build.
+# A build artefact in git is a stale build waiting to be mistaken for a current one.
+demo/privacy-agent-extension.zip
 extension/build-info.json

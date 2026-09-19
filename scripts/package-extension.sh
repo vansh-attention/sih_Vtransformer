@@ -20,6 +20,22 @@ STAGE="$(mktemp -d)/privacy-agent-extension"
 echo "building first, so the zip cannot contain a stale bundle"
 node build.mjs >/dev/null
 
+# ⛔ AND THE NAME LIST, WITHOUT WHICH LAYER 3 IS SILENTLY DEAD.
+#
+# `extension/models/name-gazetteer.json` is fetched by setup.mjs and is not in git, so a
+# fresh clone does not have it. The copy below then failed, this script aborted, and the
+# zip left on disk was the previous one — which looked exactly like a fresh build and was
+# nearly released as v0.3.0.
+#
+# Worse than a stale bundle: the content script gates ALL person-name detection on that
+# file loading, so a zip built without it withholds no names at all and reports the page
+# clean. Fail loudly here instead.
+if [ ! -f extension/models/name-gazetteer.json ]; then
+  echo "✘ extension/models/name-gazetteer.json is missing — run: node setup.mjs" >&2
+  echo "  Without it layer 3 is dead and the build would withhold no names at all." >&2
+  exit 1
+fi
+
 mkdir -p "$STAGE"
 # Only what the browser actually loads. The source tree, tests and fixtures stay out:
 # they are on GitHub for anyone who wants them and they triple the download.
