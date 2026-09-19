@@ -19,7 +19,7 @@ He picked 15 of 17 offered. **Not chosen: the demo video, and integrating the re
 | D3 | resume after `ask_user` | ✅ **DONE** — same piece of work as D1 |
 | B1 | 3B-vs-7B tradeoff study | ⏳ next — both models now pulled |
 | B2 | batch fields per turn | ⛔ **TRIED AND REJECTED — it costs the task, see below** |
-| B3 | overlap vision with the model call | open |
+| B3 | overlap vision with the model call | ⛔ **CLOSED — not possible, and nothing to win** |
 | B4 | memory / heap profile | ✅ **DONE** — found a real leak, **50.1 MB → 16.7 MB** |
 | C1 | grow the real-page corpus | 🟡 **TOOL BUILT**, 11→14 pages; hand the list to the team |
 | C2 | read inside iframes | open — needs a design, not a flag |
@@ -138,6 +138,33 @@ read at server start, and ollama loads a model on its first REQUEST. The 7B row 
 carried a number because that model happened to be resident already. Fixed to read after
 the first run. **A measurement that silently returns empty for the case you are studying
 is worse than no measurement.**
+
+### ⛔ B3 — OVERLAPPING VISION WITH THE MODEL: NOT POSSIBLE, AND NOT WORTH IT
+
+Closed on two independent grounds, neither of which needed code written.
+
+**1. It is a data dependency, not a scheduling choice.** `annotateWithVision` writes its
+descriptions INTO the payload the model then receives. The model call cannot begin before
+vision finishes without changing what the model sees, which is the opposite of an
+optimisation.
+
+**2. There is almost nothing there to win.** Measured over a 6-turn task:
+
+| stage | total | share of turn time |
+|---|---|---|
+| extract | 7 ms | 0.0% |
+| sanitize | 7 ms | 0.0% |
+| vision | 0 ms | 0.0% |
+| **model** | **28,846 ms** | **95.9%** |
+
+**96% of the task is the model generating tokens at ~11/s, and that was already proven to
+be the hardware** — constrained decoding, context size and model choice were each measured
+and ruled out, and the 3B study today showed the cheaper model buys speed by not finishing
+the task. The only parallelisable pair left is the screenshot capture against extraction,
+and extraction is **7 ms across six turns**.
+
+⇒ **Latency is 15% of the rubric and it is bounded by tokens per second on this machine.
+Stop optimising around it and say so on the slide.**
 
 ### ✅ D2 — THE DROPDOWN CLAIM WAS STALE. NO CODE CHANGE NEEDED
 
