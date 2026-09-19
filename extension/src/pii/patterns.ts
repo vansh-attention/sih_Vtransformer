@@ -161,8 +161,83 @@ function insideDecimal(text: string, start: number, end: number): boolean {
  */
 const NUMERIC_KINDS = new Set<PiiKind>(['CARD', 'AADHAAR', 'PHONE']);
 
-/** Emit every candidate each rule proposes, checksum-gated. */
-function collect(text: string): Array<Detection & { priority: number }> {
+/* ══════════════════════════════════════════════════════════════════════════════
+   CHARACTERS THAT ARE INVISIBLE, OR THAT ARE NOT THE LETTER THEY LOOK LIKE
+
+   The sixth instance of this project's recurring leak class: content that is legible
+   ON THE SCREEN and invisible TO THE REDACTOR, while the payload carries it in full.
+
+   Two shapes, both found by pointing the injection drill at them:
+
+     ABCPE<U+200B>1234F   renders as a PAN. `[A-Z]{5}\d{4}[A-Z]` does not match it.
+     АBCPE1234F           first letter is CYRILLIC А (U+0410), not Latin A.
+
+   Neither is exotic. A zero-width space survives copy-paste out of a PDF, and mixed
+   Cyrillic is what the entire homoglyph phishing industry is built on. Either one walks
+   a PAN, an Aadhaar or a card number straight past every pattern in this file, and the
+   checksum never gets a chance to object because the regex never matched.
+
+   Detection therefore runs over a FOLDED copy, and the offsets are mapped back so the
+   redaction replaces exactly the characters that are on the user's screen.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/** Zero-width and formatting characters that occupy no visual space. */
+const INVISIBLE = /[­​-‏⁠⁦-⁩﻿]/;
+
+/**
+ * Letters from other scripts that are visually identical to Latin ones.
+ *
+ * Only the confusions that matter for the kinds here: PAN, IFSC and GSTIN are Latin
+ * letters and digits, so Cyrillic and Greek capitals are the whole attack surface.
+ * Deliberately not a general confusables table — that is a large file, and every entry
+ * that is NOT a real confusion is a way to corrupt an honest value.
+ */
+const HOMOGLYPHS = new Map<string, string>(Object.entries({
+  // Cyrillic capitals that are drawn identically to Latin ones
+  'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M', 'Н': 'H', 'О': 'O',
+  'Р': 'P', 'С': 'C', 'Т': 'T', 'У': 'Y', 'Х': 'X', 'Ѕ': 'S', 'І': 'I', 'Ј': 'J',
+  // Greek capitals, same problem
+  'Α': 'A', 'Β': 'B', 'Ε': 'E', 'Ζ': 'Z', 'Η': 'H', 'Ι': 'I', 'Κ': 'K', 'Μ': 'M',
+  'Ν': 'N', 'Ο': 'O', 'Ρ': 'P', 'Τ': 'T', 'Υ': 'Y', 'Χ': 'X',
+  // Fullwidth digits, which render as digits and are not \d
+  '０': '0', '１': '1', '２': '2', '３': '3', '４': '4',
+  '５': '5', '６': '6', '７': '7', '８': '8', '９': '9',
+}));
+
+/**
+ * A copy of the text with invisibles dropped and homoglyphs folded to Latin, plus a map
+ * from every folded index back to the original one.
+ *
+ * The map is what makes this safe. Dropping a character shortens the string, so a span
+ * found at folded offset 7 may sit at original offset 9 — and redacting the wrong range
+ * would leave part of the real value on screen while destroying a neighbouring character,
+ * which looks like a working redaction and is not one.
+ */
+function fold(text: string): { folded: string; map: number[] } {
+  const out: string[] = [];
+  const map: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (INVISIBLE.test(ch)) continue;
+    out.push(HOMOGLYPHS.get(ch) ?? ch);
+    map.push(i);
+  }
+  // Sentinel, so an END offset one past the last character maps to the end of the
+  // original string rather than off the end of the array.
+  map.push(text.length);
+  return { folded: out.join(''), map };
+}
+
+/**
+ * Emit every candidate each rule proposes, checksum-gated.
+ *
+ * Matching happens on the FOLDED text; `start` and `end` are mapped back to the original
+ * so the caller redacts exactly what is on screen. `raw` stays FOLDED, deliberately: it
+ * is what the checksums, the printed-format bonus and `reconcile` reason about, and a
+ * Verhoeff check over a string containing a zero-width space fails for the wrong reason.
+ */
+function collect(original: string): Array<Detection & { priority: number }> {
+  const { folded: text, map } = fold(original);
   const out: Array<Detection & { priority: number }> = [];
   for (const rule of RULES) {
     rule.re.lastIndex = 0;
@@ -181,8 +256,8 @@ function collect(text: string): Array<Detection & { priority: number }> {
       const verified = verify(rule.kind, raw);
       out.push({
         kind: rule.kind,
-        start: m.index,
-        end: m.index + raw.length,
+        start: map[m.index]!,
+        end: map[m.index + raw.length]!,
         raw,
         verified,
         confidence: verified

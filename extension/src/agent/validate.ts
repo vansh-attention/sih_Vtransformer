@@ -387,8 +387,23 @@ export function validateAction(
       // in. That was a working exfiltration path, found by bench/injection-test.ts.
       //
       // A token may only be resolved into a field layer 1 classified as the same kind.
-      // The page cannot forge that: `fieldKind` comes from our own classifier, not from
-      // anything the page asserts.
+      //
+      // ⛔ THIS COMMENT USED TO SAY "the page cannot forge that: `fieldKind` comes from
+      // our own classifier, not from anything the page asserts". THAT IS NOT TRUE, and
+      // it matters. The classifier is ours, but everything it READS — the label, the
+      // name attribute, the placeholder, the autocomplete hint — is written by the page.
+      // A hostile page that labels its harvesting box "Income Tax PAN" gets
+      // `fieldKind: 'PAN'` from us, kind agreement then passes, and the client resolves
+      // the real PAN into the attacker's form. Demonstrated in bench/injection-test.ts,
+      // which reports it rather than asserting a defence that does not exist.
+      //
+      // What this check DOES stop is the mismatched-field attack: a token aimed at a
+      // coupon box, a feedback field, a search input. That was a working exfiltration
+      // path and it is closed. What it cannot stop is a page that asks for the right
+      // thing in the right words, which is phishing, and which a human fills in too.
+      // The honest boundary is worth stating rather than papering over: the defence
+      // that would close it is refusing to resolve a token into a form whose action is
+      // cross-origin, and that is not built.
       // ⚠ `[A-Z_]+`, NOT `[A-Z]+`. A multiword kind — `<PII_BANK_ACCOUNT_1>` —
       // left this undefined, so the kind-agreement check below silently did
       // nothing and the injection path it exists to close was open for every
