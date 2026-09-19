@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Aavaran: Privacy-Preserving Browser Agent",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "On-device visual perception with client-side PII redaction before any network request.",
   "permissions": [
     "activeTab",
