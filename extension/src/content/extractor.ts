@@ -452,6 +452,10 @@ export function signalsFor(el: Element, knownContext?: string): FieldSignals {
     label: borrowedName(el),
     placeholder: el.getAttribute('placeholder') ?? undefined,
     ariaLabel: el.getAttribute('aria-label') ?? undefined,
+    // `mailto:` corroborates that an address is a published contact point rather than
+    // somebody's data. Corroboration only — `isOrgContact` does not require it, because
+    // most portals print the address as plain text in the footer.
+    linkHref: el.closest?.('a[href]')?.getAttribute('href') ?? undefined,
   };
 }
 

@@ -109,11 +109,30 @@ rm -f "$FAULT_FILE"
 
 # Some drills need a live model behind the server. A machine without Ollama should
 # still get a clean run of everything else rather than one red line it cannot fix.
+#
+# ⚠ THE GUARD MUST CHECK THE MODEL, NOT THE DAEMON.
+#
+# It used to ask only whether ollama answered /api/tags. That leaves a hole exactly
+# where every new user sits: ollama INSTALLED and running, model NOT pulled yet. In
+# that state the guard said "we have a model", the drill ran, and ollama returned 404
+# from /api/chat — two red lines on a machine whose setup was proceeding normally.
+#
+# Found 18 Sep by starting ollama mid-session: the same suite that had just gone green
+# twice went red without a line of product code changing.
+# ⇒ A skip guard has to test the thing the test actually needs.
+AGENT_MODEL_NAME="${AGENT_MODEL:-$(sed -n 's/^MODEL = os.environ.get("AGENT_MODEL", "\(.*\)")/\1/p' \
+  "$(dirname "$0")/../server/main.py")}"
 OLLAMA_UP=0
-curl -s --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && OLLAMA_UP=1
-[ "$OLLAMA_UP" -eq 0 ] && echo "  (ollama not reachable — model-dependent drills will be skipped)" && echo
+if TAGS=$(curl -s --max-time 3 http://127.0.0.1:11434/api/tags 2>/dev/null); then
+  case "$TAGS" in
+    *"$AGENT_MODEL_NAME"*) OLLAMA_UP=1 ;;
+    *) echo "  (ollama is running but $AGENT_MODEL_NAME is not pulled — model drills skipped)" && echo ;;
+  esac
+else
+  echo "  (ollama not reachable — model-dependent drills will be skipped)" && echo
+fi
 
-skip_drill() { echo "  ${DIM:-}– $1 (needs ollama)${OFF:-}"; SKIP=$((SKIP+1)); }
+skip_drill() { echo "  ${DIM:-}– $1 (needs $AGENT_MODEL_NAME)${OFF:-}"; SKIP=$((SKIP+1)); }
 SKIP=0
 
 drill() {   # $1 = name, $2 = expected substring, $3 = actual output
@@ -172,9 +191,18 @@ OUT=$(curl -s -X POST "http://127.0.0.1:$PORT/act" -H 'content-type: application
 drill "non-JSON 200 is served (client must cope)" "not JSON" "$OUT"
 
 # 4. Model returns no actions — a real outcome when it sees nothing to do.
-start_server "empty"
-OUT=$(AGENT_SERVER="http://127.0.0.1:$PORT" node --experimental-strip-types bench/agent-loop.ts "test" 2>&1 || true)
-drill "empty action list is handled, not crashed on" "FAIL\|action" "$OUT"
+#
+# Guarded for the same reason as drill 6: this drives the WHOLE agent loop, and the
+# loop checks the server's readiness before it does anything. With ollama up but the
+# model unpulled it stops at "server up but not ready" and prints neither word this
+# assertion looks for — a red line describing the machine, not the code.
+if [ "$OLLAMA_UP" -eq 1 ]; then
+  start_server "empty"
+  OUT=$(AGENT_SERVER="http://127.0.0.1:$PORT" node --experimental-strip-types bench/agent-loop.ts "test" 2>&1 || true)
+  drill "empty action list is handled, not crashed on" "FAIL\|action" "$OUT"
+else
+  skip_drill "empty action list is handled, not crashed on"
+fi
 
 # 5. The server's own tripwire refuses un-redacted PII.
 start_server ""

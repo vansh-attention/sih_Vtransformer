@@ -28,6 +28,7 @@ import json
 import os
 import re
 import time
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -108,7 +109,7 @@ def detect_inbound_leak(payload: dict[str, Any]) -> list[dict[str, str]]:
     found: list[dict[str, str]] = []
     for node_id, text in _node_texts(payload["root"]):
         # Tokens are the expected, correct form; strip them so they cannot self-trigger.
-        clean = re.sub(r"<PII_[A-Z]+_\d+>", "", text)
+        clean = re.sub(r"<PII_[A-Z_]+_\d+>", "", text)
         for kind, pattern in _LEAK_PATTERNS:
             if pattern.search(clean) and (node_id, kind) not in acknowledged:
                 found.append({"id": node_id, "kind": kind})
@@ -212,6 +213,25 @@ async def warm_model() -> None:
     asyncio.create_task(_warm())
 
 
+def _server_version() -> str | None:
+    """
+    The version this server was shipped alongside, read from the extension manifest.
+
+    ONE SOURCE OF TRUTH. A separate version constant here is a number that drifts the
+    first time somebody bumps the manifest and not this file, and a version handshake
+    that lies is worse than none.
+
+    Returns None when the manifest is not beside us — a server started from somewhere
+    else genuinely does not know, and the panel must then say nothing rather than
+    accuse a healthy setup of being stale.
+    """
+    try:
+        manifest = Path(__file__).resolve().parent.parent / "extension" / "manifest.json"
+        return str(json.loads(manifest.read_text())["version"])
+    except Exception:
+        return None
+
+
 @app.get("/health")
 async def health() -> dict[str, Any]:
     """Reports whether the backend is reachable AND the model is actually present."""
@@ -227,6 +247,7 @@ async def health() -> dict[str, Any]:
             "modelPresent": MODEL in names,
             "available": names,
             "backend": OLLAMA_URL,
+            "version": _server_version(),
         }
     except Exception as e:
         # `fault` MUST appear here too.
@@ -245,6 +266,7 @@ async def health() -> dict[str, Any]:
             "model": MODEL,
             "fault": current_fault() or None,
             "keepAlive": os.environ.get("AGENT_KEEP_ALIVE", "30m"),
+            "version": _server_version(),
         }
 
 

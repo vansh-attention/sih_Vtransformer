@@ -254,15 +254,22 @@ async function loadServer(): Promise<string> {
 }
 
 /** Probe one URL. Short timeout: a wrong port should fail fast, not hang. */
-async function probe(url: string, ms = 1500): Promise<{ ok: boolean; model?: string; detail?: string }> {
+async function probe(
+  url: string, ms = 1500,
+): Promise<{ ok: boolean; model?: string; detail?: string; version?: string }> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
   try {
     const r = await fetch(`${url}/health`, { signal: ctl.signal }).then((x) => x.json());
-    if (r.ok) return { ok: true, model: r.model };
+    // Read on BOTH branches, because /health reports it on both. A server that is
+    // stale AND missing its model is the most likely state after an update, and
+    // learning only one of those facts sends the reader down the wrong path.
+    const version = typeof r.version === 'string' ? r.version : undefined;
+    if (r.ok) return { ok: true, model: r.model, version };
     return {
       ok: false,
       model: r.available?.length ? r.model : undefined,
+      version,
       detail: r.available?.length
         ? `model ${r.model} is not installed`
         : String(r.error ?? 'not ready'),
@@ -306,14 +313,48 @@ function setLamp(state: 'ok' | 'bad' | 'unknown', label: string): void {
   $('run').classList.toggle('demoted', down);
 }
 
+/**
+ * THE EXTENSION AND THE SERVER ARE TWO HALVES THAT UPDATE SEPARATELY.
+ *
+ * The extension can be reloaded in seconds; the Python server is a process somebody
+ * started in a terminal and may not have restarted for days. Every mismatch this
+ * project has been bitten by has been silent, and this one would be too: the panel
+ * would look healthy and the answers would be subtly wrong.
+ *
+ * ⚠ Reported, never enforced. A stale server still works for almost everything, and
+ * refusing to run would turn a warning into an outage. And an unknown version says
+ * NOTHING — a server started from outside the project folder genuinely cannot know
+ * which build it belongs to, and accusing a healthy setup of being stale is the same
+ * class of mistake as a refusal reason nobody verified.
+ */
+function versionNote(serverVersion?: string): string {
+  // Never let this throw. It runs inside checkServer, and an exception here left the
+  // lamp reading "checking" forever — the whole status readout lost to a comparison
+  // that is only ever advisory. Caught on pixels, not in review.
+  let mine: string | undefined;
+  try { mine = chrome.runtime?.getManifest?.().version; } catch { mine = undefined; }
+  if (!mine || !serverVersion || serverVersion === mine) return '';
+  return `<div class="advice-note"><b>The reasoning server is version `
+    + `${esc(serverVersion)}; this extension is ${esc(mine)}.</b> `
+    + `Restart the server so both halves match — <b>Update Aavaran</b> does it for you.`
+    + `</div>`;
+}
+
 async function checkServer(url: string): Promise<boolean> {
   const el = $('serverstatus');
   el.innerHTML = 'checking…';
   setLamp('unknown', 'checking');
   const r = await probe(url, 4000);
+  const stale = versionNote(r.version);
+  if (stale) {
+    const box = $('serveradvice');
+    box.innerHTML = stale;
+    box.hidden = false;
+  }
   if (r.ok) {
-    el.innerHTML = `<span class="allow">ready</span> · ${esc(r.model ?? '')}`;
-    setLamp('ok', 'ready');
+    el.innerHTML = `<span class="allow">ready</span> · ${esc(r.model ?? '')}`
+      + (stale ? ` · <span class="deny">v${esc(r.version ?? '')}</span>` : '');
+    setLamp('ok', stale ? 'server old' : 'ready');
   } else if (r.detail) {
     el.innerHTML = `<span class="deny">not ready</span> · ${esc(r.detail)}`;
     setLamp('bad', 'no model');
@@ -331,7 +372,10 @@ async function checkServer(url: string): Promise<boolean> {
         + `Install ${esc(r.model)}</button>`
         + `<div class="bar" id="pullbar" hidden><i></i></div>`
         + `<div class="t" id="pulltext"></div>`
-        + `<div class="advice-note"><b>Scan this page</b> needs none of this.</div>`;
+        + `<div class="advice-note"><b>Scan this page</b> needs none of this.</div>`
+        // This branch REPLACES the box, so the staleness note has to be carried
+        // through it or the more urgent of the two facts is the one that vanishes.
+        + stale;
       box.hidden = false;
       $('pullmodel').addEventListener('click', () => void pullModel(url));
     }
@@ -864,6 +908,9 @@ $('scan').addEventListener('click', async () => {
     const total = (r.withheld ?? []).reduce((n: number, w: { count: number }) => n + w.count, 0);
     const kinds = (r.withheld ?? []).map((w: { kind: string; count: number }) =>
       `${w.count} ${w.kind}`).join(', ') || 'nothing personal found';
+    // Counted apart from `total`: withheld, but published by the site about itself.
+    const orgContacts: number = r.orgContacts ?? 0;
+    const orgOnly = orgContacts > 0 && total === 0;
 
     /**
      * A SCAN THAT COULD NOT READ THE PAGE MUST NOT REPORT IT CLEAN.
@@ -886,6 +933,9 @@ $('scan').addEventListener('click', async () => {
 
     $('phase').innerHTML = blind
       ? `<b class="fig">—</b> this page could not be read`
+      : orgOnly
+        ? `<b class="fig">${num(orgContacts)}</b> site contact `
+          + `${orgContacts === 1 ? 'address' : 'addresses'} withheld, no personal data`
       : `<b class="fig">${num(total)}</b> ${total === 1 ? 'value' : 'values'} would be withheld`
       + ` from <span class="src">${esc(r.title ?? r.url ?? 'this page')}</span>`
       + `<span class="t nums">${num(r.nodeCount)} elements read, `
@@ -903,9 +953,23 @@ $('scan').addEventListener('click', async () => {
       + `<div class="body">${(r.withheld ?? []).length
           ? (r.withheld as Array<{ kind: string; count: number }>)
               .map((w) => `<span class="chip"><b>${w.count}</b> ${esc(w.kind)}</span>`).join('')
-          : blind
-            ? '<span class="chip">page unreadable</span>'
-            : '<span class="chip">nothing personal found</span>'}`
+          : orgOnly || blind ? '' : '<span class="chip">nothing personal found</span>'}`
+      /**
+       * The site's own contact address is STILL WITHHELD, so saying nothing about it
+       * would mean silently destroying a value the user can see on their screen. It
+       * just is not a person's, so it does not join the count above.
+       *
+       * Reported against pmvidyalaxmi.co.in: the portal's published helpline address
+       * was counted beside the student's own, and "2 values withheld" on a page
+       * holding one personal value reads as a tool crying wolf.
+       */
+      + (orgContacts
+          ? `<span class="chip">${orgContacts} site contact</span>`
+            + `<div class="hint">${plural(orgContacts, 'address', 'addresses')} published by this `
+            + `site itself — withheld all the same, but <b>not a person's data</b>.</div>`
+          : '')
+      + (blind && !(r.withheld ?? []).length
+          ? '<span class="chip">page unreadable</span>' : '')
       + (r.previews?.length
           ? `<table class="fields"><thead><tr><th scope="col">On screen</th><th scope="col">Sent instead</th></tr></thead><tbody>`
             + r.previews.map((p: Preview) =>

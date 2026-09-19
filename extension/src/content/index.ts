@@ -154,7 +154,7 @@ function observe(msg: { goal?: string; history?: unknown[] }, sendResponse: (r: 
     const extractMs = performance.now() - t0;
 
     const t1 = performance.now();
-    const { payload, withheld, piiBoxes } = sanitize(result.structure, {
+    const { payload, withheld, orgContacts, piiBoxes } = sanitize(result.structure, {
       goal: msg.goal ?? '',
       vault,
       history: msg.history ?? [],
@@ -184,6 +184,8 @@ function observe(msg: { goal?: string; history?: unknown[] }, sendResponse: (r: 
       stable,
       payload,
       withheld,
+      // Withheld too, but the site's own contact point rather than a person's.
+      orgContacts,
       // On-screen positions of everything redacted out of the payload, so the caller can
       // strike them out of the screenshot too. Boxes only — never the values.
       //

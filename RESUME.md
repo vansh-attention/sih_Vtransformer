@@ -2,21 +2,55 @@
 
 **READ THIS FIRST.**
 
-## ⭐ PICK UP HERE — close of 18 Sep 2026
+## ⭐ PICK UP HERE — close of 18 Sep 2026 (evening session)
 
-**The repo is healthy.** `./test-all.sh` = **19 passed, 0 skipped**. Tree clean, both
-remotes 0/0, everything pushed.
+**`./test-all.sh` = 19 passed, 0 skipped.** ⛔ **BUT THE TREE IS DIRTY AND NOTHING IS
+PUSHED** — 15 modified files, 2 new launchers, and an untracked `design/`. That is
+deliberate: he was never asked for a commit. **First action next session: `git status`,
+then commit and push both remotes** (identity `harsh.bajpai2615@gmail.com`, no AI
+attribution). Nothing is lost meanwhile — it is all on disk.
 
-⚠ **ollama and `qwen2.5vl:7b` are deliberately NOT installed.** He wiped them so he could
-test today's onboarding from scratch. **Scan works; the agent does not until ollama is
-back.** `setup.sh` reports this correctly rather than failing obscurely — verified.
+**What changed this session, all verified, none released:**
+1. **`Update Aavaran.command` / `.bat`** — the team stops downloading zips. Clone once,
+   double-click to update.
+2. **`/health` reports `version`**, the panel compares it and says *"server old"*.
+3. **Org contact addresses** (`support@<the site's own domain>`) are still redacted but no
+   longer counted as personal — Manas's first report.
+4. **Two live instances of the underscore regex** fixed, one of them a **dead security
+   check** in `agent/validate.ts`.
+5. **The failure drills' skip guard** now checks the model, not just the daemon.
 
-**His test, not yet run:**
+**⚠ v0.2.3 on GitHub HAS NONE OF THIS.** Anyone holding a zip has the old behaviour. Decide
+whether to cut v0.2.4 or just tell the team to clone.
+
+**Three things waiting on other people:**
+- **Jinshri and Vansh are redesigning the UI from scratch** — send them
+  `design/Aavaran-Canva-Template.pptx` and `design/message-to-designers.txt`.
+- **Manas's second report is diagnosed but NOT fixed** — the `<PII_PAN_1>` hallucination on
+  mca.gov.in. See its section below; the fix needs his call on the behaviour.
+- **Chrome Web Store, Unlisted** is the only auto-update route for Ma'am and the judges.
+  Not started; his call, and the review is not same-day with **30 Sep** approaching.
+
+**Machine state right now:** ollama is **stopped** and **`qwen2.5vl:7b` is still not
+pulled**, so Scan works and the agent does not. `dist/` and `dist-firefox/` are freshly
+built from the current source. A test server on :8975 was started and stopped again.
+
+⚠ **His onboarding test from the morning was never run** — the 4 steps are below, still open.
+
+---
+
+## Earlier — close of 18 Sep, first session
+
+⚠ **ollama and `qwen2.5vl:7b` were deliberately NOT installed.** He wiped them so he could
+test that day's onboarding from scratch. `setup.sh` reports this correctly rather than
+failing obscurely — verified.
+
+**His test, still not run:**
 1. `./"Start Aavaran.command"` → consent screen, **~6.5 GB stated**, default **No**
 2. Answer **yes** → does `brew install ollama` run and get picked up?
    ⚠ **the `hash -r` after install is UNTESTED against a real install**
 3. Does `setup.sh` auto-pull qwen afterwards, or must the panel button do it?
-4. Load **v0.2.3** and confirm **Run** enables once a server answers
+4. Load the extension and confirm **Run** enables once a server answers
 
 **Current release: v0.2.3** — `github.com/AavaranAI/Aavaran/releases/tag/v0.2.3`
 
@@ -49,6 +83,179 @@ from GitHub. Nothing was lost and `setup.sh` restored it, but the action was wro
 
 **Full narrative, all twelve defects found today:**
 `~/Documents/_SESSION-2026-09-18-aavaran-panel-release-cleanwipe.md`
+
+### ✅ NOBODY DOWNLOADS A ZIP AGAIN — `Update Aavaran` (18 Sep eve)
+
+The team was re-downloading the release after every fix. They are all in the org, so the
+private repo is a **clone** for them — that restriction only ever applied to Ma'am.
+
+**`Update Aavaran.command` / `.bat`** (repo root): `git pull --ff-only` → `node build.mjs`
+→ refresh the venv's packages → restart the reasoning server. Chrome still needs the ⟳
+on `chrome://extensions`, or a restart; that one step cannot be automated.
+- **Refuses to run on an unzipped copy** (no `.git`) and prints the clone command instead
+  — telling someone with no repository to `git pull` is defect #7's shape again.
+- **Refuses to pull over uncommitted changes**; prints `git status` and stops.
+- **Rebuilds every time, not only when the pull moved** — a `dist/` older than its source
+  is this project's most repeated bug.
+- ⚠ **Both branches were exercised for real**, not assumed: the no-`.git` path from a
+  copy in /tmp, and the dirty-tree refusal in this very repo (HEAD did not move).
+
+⛔ **Chrome cannot self-host auto-update.** `update_url` is honoured for off-store
+extensions only on **managed machines via enterprise policy**; an ordinary Mac/Windows
+profile blocks off-store installs outright. So the tidy answer — a CRX beside the release
+that updates itself — does not exist for us. **Real auto-update for anyone WITHOUT repo
+access (Ma'am, judges) means the Chrome Web Store, Unlisted** ($5 once, link-only, Chrome
+polls every few hours). First review is not same-day and `<all_urls>` on a privacy tool
+gets read carefully, so submit early if we want it for the finale. ⚠ A Web Store install
+can only ever auto-update the **scan** half — an extension cannot install a native daemon.
+(Firefox is the opposite: a signed unlisted XPI self-hosts and auto-updates fine.)
+
+### ✅ `/health` NOW REPORTS A VERSION, AND THE PANEL COMPARES IT
+
+The two halves update on different clocks: Chrome reloads the extension in seconds, the
+server is a process somebody started days ago and goes on serving old code **with nothing
+on screen to say so.** `/health` now carries `version`, read from `extension/manifest.json`
+— **one source of truth**, because a second version constant is one somebody forgets to
+bump. Present on **both** branches of the endpoint, since its own comment records that a
+diagnostic which changes shape on the error path produces confident wrong answers.
+Verified live on both: ollama down (error branch) and ollama up (ok branch).
+
+The panel shows *"the reasoning server is version X; this extension is Y"* and the lamp
+reads **server old**. ⚠ **Reported, never enforced** — a stale server still works for
+almost everything, and an **unknown** version says nothing at all, because a server
+started outside the project folder genuinely cannot know which build it belongs to.
+
+⚠⚠ **It rendered NOTHING the first time and the lamp stuck on "checking".**
+`chrome.runtime.getManifest()` is absent from the screenshot harness's stub, so the
+comparison threw and took the whole status readout with it — the `#splash` failure shape
+again. Guarded now, and the harness has `getManifest` reading the real manifest.
+⇒ **Caught only by looking at the pixels.** New panel state `13-server-version-stale`.
+
+### ⛔ THE FAILURE DRILLS HAD A HOLE EXACTLY WHERE NEW USERS SIT
+
+Starting ollama mid-session turned a suite that had just gone green **twice** red, with no
+product code changed. The skip guard asked only whether **ollama answered** — so in the
+state every new user passes through (**ollama installed, model not pulled yet**) it
+claimed a model was available, ran two drills, and collected 404s from `/api/chat`.
+
+Fixed: the guard now checks that **the model itself** is in `/api/tags`, with the name read
+from `server/main.py` so it cannot drift. Drill 4 was guarded too — it drives the whole
+agent loop, which stops at "server up but not ready" long before it prints anything the
+assertion looks for. **All three states now verified by hand:** ollama down (2 skipped),
+ollama up without the model (2 skipped), full suite **19 passed**.
+⇒ **A skip guard has to test the thing the test actually needs.**
+
+### ✅ ORG CONTACT ADDRESSES ARE NO LONGER COUNTED AS PERSONAL (18 Sep eve)
+
+Manas reported `support@pmvidyalaxmi.co.in` — the portal's own published helpline
+address — counted beside a student's real address, so the panel claimed **2 values
+withheld** on a page holding one personal value.
+
+⛔ **It was NOT a false positive against our spec.** `bench/pages/checkout.truth.json`
+already defines a support email in a footer as `redact: true`, and the scorer counts it
+as a true positive. This was a disagreement with a deliberate decision.
+
+⛔ **The proposed fix — "exclude emails already public in the page content" — was
+REJECTED, and the reason is worth keeping.** Everything a content script sees is
+rendered page content. Measured on our own corpus: **5 of 9 ground-truth EMAIL elements
+are page text rather than form fields, and 4 of those 5 are personal.** That rule would
+have dropped email recall from 100% to ~55% to remove one support address — and on the
+reported portal it fails worst, because after login `bvmanas@gmail.com` is *rendered as
+text*, not typed into a field.
+
+**Shipped instead — `isOrgContact()` in `pii/dom.ts`, three conditions, all required:**
+role local-part · the page's own registrable domain · not inside a form control.
+⚠ A fourth (require a `mailto:` or a `<footer>` landmark) was **considered and dropped**:
+portals mark footers up as plain `<div class="footer">`, so it would have silently failed
+to fire on the very page reported. `linkHref` is collected as corroboration only.
+
+**The value is still redacted** — still vaulted, still a token. Only the *label* changed,
+so `withheld` excludes it and `SanitizeResult.orgContacts` counts it separately.
+⇒ **Scores are unchanged and were re-run to prove it**: 100/100/100, redaction precision
+98.0%, 0 leaks, same single accepted shortfall. The scorer keys on whether the text was
+tokenised, which is why this was the safe option.
+⛔ **A flag, never a new `PiiKind`** — `<PII_ORG_CONTACT_1>` would be the underscore bug
+for the eleventh time.
+
+⚠ **SABOTAGE FOUND A HOLE IN MY OWN TESTS.** Removing the form-control check left every
+case green — the login case was already excluded by the other two conditions, so that
+guard was untested. Fixed by adding the case that isolates it: **staff signing in to
+their own portal with `admin@<their own domain>`**, where the first two conditions both
+pass. All three conditions are now sabotage-verified individually.
+
+### ⛔ THE UNDERSCORE REGEX WAS STILL LIVE IN TWO PLACES (18 Sep eve)
+
+Found while diagnosing Manas's second report. `/<PII_[A-Z]+_\d+>/` **cannot match an
+underscore**, and two copies survived the 18 Sep sweep:
+
+1. **`agent/validate.ts` — the kind-agreement check**, which is the guard that closes the
+   exfiltration path `bench/injection-test.ts` exists for. `TOKEN_RE` was widened when
+   `BANK_ACCOUNT` landed; **this copy was missed**, so `tokenKind` came back `undefined`
+   and the check was **silently skipped for every multiword kind**. A
+   `<PII_BANK_ACCOUNT_1>` aimed at a coupon box was ALLOWED. Sabotage-verified: narrowing
+   it back turns that case green→red.
+2. **`server/main.py:111`** — the token stripper left `<PII_BANK_ACCOUNT_1>` in the text.
+
+⇒ **A widening sweep is not done until something FAILS for the case you widened it for.**
+`BANK_ACCOUNT` shipped with no test that placed a multiword token anywhere.
+
+### 🔎 MANAS'S PAN REPORT — DIAGNOSED, NOT A DETECTION BUG, NOT YET FIXED
+
+`DENY type el_49 <PII_PAN_1>` / *"unknown placeholder token"* on
+`mca.gov.in/.../fo-user-registration.html`. **Confirmed from his recording**, frame by
+frame: the "Income Tax PAN" box is **empty** ("Enter PAN"), every turn correctly reports
+**nothing withheld**, and the model still emits `<PII_PAN_1>`.
+
+⇒ **The model INVENTED the token.** Nothing was redacted because there was nothing on the
+page to redact. PAN detection is fine and the DENY is correct — typing an unresolvable
+token is nonsense, and resolving it would be worse.
+
+**The real defect is that the agent cannot say "I do not have your PAN".** It burns turn
+after turn re-proposing the same invalid action, and the refusal text tells the model
+nothing it can act on — the same shape as the no-op-rule defect above.
+**Fix not yet written.** Recommended: forbid inventing tokens in `ANSWER_SECTION`/the
+action prompt (only tokens present in the payload may be used), and make the refusal
+actionable — *"that value is not on this page; ask the user for it or skip the field"*.
+
+### 🎨 THE UI IS BEING REDESIGNED FROM SCRATCH BY JINSHRI AND VANSH (18 Sep eve)
+
+**His call: the whole look goes — colour scheme, mood board, everything.** So the existing
+palette, type scale and component idioms below are **history, not a brief.** Do not hand
+them the old rules.
+
+**The deliverable is a blank canvas, nothing else:**
+
+| file | |
+|---|---|
+| **`design/Aavaran-Canva-Template.pptx`** | **the one to send** — 16 pages, **800 × 1800 px**, blank |
+| `design/Aavaran-Canva-Template.pdf` | 96 KB, phone-readable |
+| `design/build-canvas-template.py` | regenerates it — never hand-edit |
+| `design/reference/*.png` | the 13 **current** states at 2×, from `panel-shot.mjs` — for reference only |
+| `design/message-to-designers.txt` | what to send with it |
+
+**800 × 1800 px is the panel at 2× (400 × 900 CSS).** That is the only number that must be
+right: at 2× their measurements halve cleanly into CSS, so the rebuild reads values off the
+design instead of guessing. The only instruction that carries weight is **use even
+numbers**. Page 1 lists the 13 screens; pages 2–14 are one blank canvas each with the
+current inset shown as a **deletable dashed guide**, plus 2 spares.
+
+⚠ **I first built a 24-page kit** (`Aavaran-UI-Kit.pptx`, palette + type scale + banned
+patterns + component sheet) and he did not want it — *"just give the template… they'll also
+change the colour schema, mood board and everything."* Still on disk, superseded.
+⇒ **A handoff for a from-scratch redesign is a canvas, not a style guide.**
+
+⚠ **Canva has no Geist**, and Geist/Archivo Black are not installed on this Mac either.
+Whatever type they choose must be **vendored into `extension/fonts/`, never linked** — the
+product's headline is that nothing leaves your machine, so it must not fetch a Google font
+on first paint.
+
+⛔ **Found while measuring: `.answer h2` is still the banned pattern.** Line 384 of
+`extension/src/panel/index.html` — `font-size:9.5px; letter-spacing:.14em;
+text-transform:uppercase` renders the word *Answer* as `A N S W E R`, which is tell #1,
+inside the one feature the session notes call the best demo in the product. It is the
+**only** surviving instance (two `text-transform:uppercase` in the file; the other is the
+40 px wordmark, which is correct). Fix is one line — **not applied**, because it changes
+shipped pixels and the redesign lands on that block anyway.
 
 ---
 

@@ -12,6 +12,11 @@ const payload: SanitizedPayload = {
   placeholders: [
     { token: '<PII_PAN_1>', kind: 'PAN', source: 'pattern', confidence: 0.99, verified: true },
     { token: '<PII_EMAIL_1>', kind: 'EMAIL', source: 'pattern', confidence: 0.95, verified: true },
+    // A MULTIWORD kind. `<PII_BANK_ACCOUNT_1>` cleared TOKEN_RE but the inline
+    // kind regex used `[A-Z]+`, so tokenKind came back undefined and the
+    // kind-agreement check — the one that closes the exfiltration path — was
+    // skipped entirely for it.
+    { token: '<PII_BANK_ACCOUNT_1>', kind: 'BANK_ACCOUNT', source: 'dom', confidence: 0.9, verified: false },
   ],
   root: {
     id: 'el_1', role: 'form', box, visible: true, enabled: true,
@@ -22,6 +27,7 @@ const payload: SanitizedPayload = {
       { id: 'el_5', role: 'textbox',  label: 'PAN',     box, visible: true,  enabled: true, value: '<PII_PAN_1>', fieldKind: 'PAN' },
       { id: 'el_6', role: 'textbox',  label: 'Coupon',  box, visible: true,  enabled: true },
       { id: 'el_8', role: 'textbox',  label: 'PAN (empty)', box, visible: true, enabled: true, fieldKind: 'PAN' },
+      { id: 'el_9', role: 'textbox',  label: 'Account number', box, visible: true, enabled: true, fieldKind: 'BANK_ACCOUNT' },
       { id: 'el_7', role: 'button',   label: 'Hidden',  box, visible: false, enabled: true },
     ],
   },
@@ -44,6 +50,9 @@ const cases: Array<[string, AgentAction, boolean]> = [
   ['type into a PASSWORD field',             A({ kind: 'type', target: 'el_4', value: 'hunter2' }), false],
   ['type a known token into a PAN field',    A({ kind: 'type', target: 'el_8', value: '<PII_PAN_1>' }), true],
   ['token into a MISMATCHED field (exfil)',   A({ kind: 'type', target: 'el_6', value: '<PII_PAN_1>' }), false],
+  ['multiword token into its OWN field',      A({ kind: 'type', target: 'el_9', value: '<PII_BANK_ACCOUNT_1>' }), true],
+  // ⛔ The case that was passing silently: a BANK_ACCOUNT token aimed at a coupon box.
+  ['multiword token into a MISMATCHED field', A({ kind: 'type', target: 'el_6', value: '<PII_BANK_ACCOUNT_1>' }), false],
   ['type an UNKNOWN token',                  A({ kind: 'type', target: 'el_5', value: '<PII_PAN_9>' }), false],
   ['overwrite a redacted value with text',   A({ kind: 'type', target: 'el_5', value: 'ABCPE1234F' }), false],
   ['type plain text into an empty field',    A({ kind: 'type', target: 'el_6', value: 'SAVE10' }), true],

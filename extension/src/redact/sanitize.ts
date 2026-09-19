@@ -15,7 +15,9 @@ import type {
   Acknowledgement, AgentAction, ElementId, ElementNode, PageStructure, PiiKind,
   Placeholder, SanitizedNode, SanitizedPayload,
 } from '../contracts.ts';
-import { classifyField, reconcile, canBe, REDACT_THRESHOLD, type FieldSignals } from '../pii/dom.ts';
+import {
+  classifyField, reconcile, canBe, isOrgContact, REDACT_THRESHOLD, type FieldSignals,
+} from '../pii/dom.ts';
 import { scanText } from '../pii/patterns.ts';
 import { detectNames, gazetteerLoaded } from '../pii/names.ts';
 import { applyRedactions, Vault } from './vault.ts';
@@ -35,8 +37,23 @@ export interface SanitizeOptions {
 
 export interface SanitizeResult {
   payload: SanitizedPayload;
-  /** Counts per kind, for the Privacy Ledger. Never the values themselves. */
+  /**
+   * Counts per kind, for the Privacy Ledger. Never the values themselves.
+   *
+   * EXCLUDES the site's own published contact addresses, which are counted separately
+   * below. They are still redacted and still leave as tokens — they are just not
+   * somebody's personal data, and counting them here made the panel claim two personal
+   * values on a page that held one.
+   */
   withheld: Array<{ kind: PiiKind; count: number }>;
+  /**
+   * The site's own contact addresses, withheld but not personal.
+   *
+   * A separate number rather than a separate kind, so no token changes shape. See
+   * `isOrgContact` in `pii/dom.ts` for the three conditions and for the far more
+   * dangerous rule that was rejected.
+   */
+  orgContacts: number;
   /**
    * Viewport boxes (CSS px) of every VISIBLE node something was redacted out of.
    *
@@ -60,6 +77,9 @@ function redactValue(
   signals: FieldSignals | undefined,
   vault: Vault,
   kept?: Array<{ kind: PiiKind; reason: string }>,
+  /** Host of the page being sanitized. Absent means no address can be judged the
+   *  site's own, so everything stays a personal finding — the safe direction. */
+  pageHost?: string,
 ): { text: string; placeholders: Placeholder[] } {
   const hint = signals ? classifyField(signals) : null;
   const placeholders: Placeholder[] = [];
@@ -160,6 +180,9 @@ function redactValue(
       source: det.verified ? 'pattern' : 'dom',
       confidence: resolved.confidence,
       verified: resolved.verified,
+      // Still redacted, still tokenised — this only decides what it is CALLED.
+      ...(resolved.kind === 'EMAIL' && isOrgContact(det.raw, signals, pageHost)
+        ? { orgContact: true } : {}),
     });
   }
 
@@ -248,6 +271,7 @@ function redactLabel(
   signals: FieldSignals | undefined,
   vault: Vault,
   kept?: Array<{ kind: PiiKind; reason: string }>,
+  pageHost?: string,
 ): { text: string; placeholders: Placeholder[] } {
   // Demotion-only use of the hint. A commercial-context hint may SUPPRESS a match
   // (the "Order Total 999999999999" case), but a positive hint may never promote or
@@ -270,6 +294,10 @@ function redactLabel(
     placeholders.push({
       token: '', kind: resolved.kind, source: 'pattern',
       confidence: resolved.confidence, verified: resolved.verified,
+      // The footer address in the original report arrives here, not through
+      // redactValue — it is page text, and nobody typed it.
+      ...(resolved.kind === 'EMAIL' && isOrgContact(det.raw, signals, pageHost)
+        ? { orgContact: true } : {}),
     });
   }
 
@@ -327,6 +355,14 @@ function sweepVaultLeaks(
 
 export function sanitize(structure: PageStructure, opts: SanitizeOptions): SanitizeResult {
   const { vault, signals } = opts;
+  /**
+   * Taken from the structure rather than added as an option, so every existing caller
+   * — the content script, all five bench drills, the tests — gets it for free. An
+   * unparseable URL yields undefined, and undefined means no address can be judged the
+   * site's own: the rule simply never fires and everything stays as it was.
+   */
+  let pageHost: string | undefined;
+  try { pageHost = new URL(structure.url).hostname || undefined; } catch { pageHost = undefined; }
   const allPlaceholders: Placeholder[] = [];
   const acknowledged: Acknowledgement[] = [];
   const piiBoxes: Array<{ x: number; y: number; w: number; h: number }> = [];
@@ -352,14 +388,14 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
 
     let value = node.value;
     if (value) {
-      const r = redactValue(value, sig, vault, kept);
+      const r = redactValue(value, sig, vault, kept, pageHost);
       value = r.text;
       allPlaceholders.push(...r.placeholders);
     }
 
     let label = node.label;
     if (label) {
-      const r = redactLabel(label, sig, vault, kept);
+      const r = redactLabel(label, sig, vault, kept, pageHost);
       label = r.text;
       allPlaceholders.push(...r.placeholders);
     }
@@ -367,7 +403,7 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
     // Neighbouring text is still text on the user's screen and can carry PII.
     let contextLabel = node.contextLabel;
     if (contextLabel) {
-      const r = redactLabel(contextLabel, undefined, vault, kept);
+      const r = redactLabel(contextLabel, undefined, vault, kept, pageHost);
       contextLabel = r.text;
       /**
        * CONTEXT THAT IS ITSELF REDACTED IS NOT CONTEXT.
@@ -461,7 +497,11 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
   }
 
   const counts = new Map<PiiKind, number>();
-  for (const p of allPlaceholders) counts.set(p.kind, (counts.get(p.kind) ?? 0) + 1);
+  let orgContacts = 0;
+  for (const p of allPlaceholders) {
+    if (p.orgContact) { orgContacts++; continue; }
+    counts.set(p.kind, (counts.get(p.kind) ?? 0) + 1);
+  }
 
   return {
     payload: {
@@ -477,6 +517,7 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
       history: opts.history ?? [],
     },
     withheld: [...counts].map(([kind, count]) => ({ kind, count })),
+    orgContacts,
     // De-duplicated: a node redacted in both passes would otherwise be masked twice.
     piiBoxes: [...new Map(piiBoxes.map((b) => [`${b.x},${b.y},${b.w},${b.h}`, b])).values()],
   };

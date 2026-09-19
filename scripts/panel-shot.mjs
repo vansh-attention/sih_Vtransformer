@@ -15,7 +15,7 @@
  *   node scripts/panel-shot.mjs [--width 400] [--out /tmp/panel]
  */
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -125,6 +125,8 @@ function stub({ tabUrl, health, scan, run, buildInfo }) {
             onActivated: { addListener(){} }, onUpdated: { addListener(){} } },
     runtime: { onMessage: { addListener(){} },
       getURL: (p) => 'stub://' + p,
+      // Read from the real manifest so the stub cannot drift from the build.
+      getManifest: () => ({ version: ${JSON.stringify(MANIFEST_VERSION)} }),
       sendMessage: async (m) => m.type === 'scan-page' ? ${JSON.stringify(scan)}
                              : m.type === 'run-agent'  ? ${JSON.stringify(run)} : {} },
   };
@@ -166,10 +168,21 @@ const SCAN_BLIND = {
   unreadable: [{ x: 0, y: 0, w: 1200, h: 900 }], blindRatio: 0.94, truncated: false,
 };
 
+const MANIFEST_VERSION = JSON.parse(
+  readFileSync(new URL('../extension/manifest.json', import.meta.url), 'utf8')).version;
 const HEALTH_OK = { ok: true, model: 'qwen2.5vl:7b' };
 const HEALTH_DOWN = { ok: false, error: 'not ready' };
 /** null = the fetch itself rejects, which is what "unreachable" actually looks like. */
 const HEALTH_UNREACHABLE = null;
+/**
+ * Healthy server running an OLDER build than the extension.
+ *
+ * The two halves update separately: Chrome reloads the extension in seconds, while the
+ * server is a process somebody started days ago and which goes on serving old code with
+ * nothing on screen to say so. Every mismatch this project has been bitten by has been
+ * silent, so this state exists to prove the panel is loud about this one.
+ */
+const HEALTH_STALE = { ok: true, model: 'qwen2.5vl:7b', version: '0.1.9' };
 /** Server up, model absent — a different screen and a different command. */
 const HEALTH_NO_MODEL = { ok: false, model: 'qwen2.5vl:7b', available: ['llama3.1:8b'] };
 
@@ -228,6 +241,8 @@ const STATES = [
     health: HEALTH_OK, scan: SCAN, run: RUN, after: null, splash: true },
   { name: '1-idle-server-ready', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_OK, scan: SCAN, run: RUN, after: null },
+  { name: '13-server-version-stale', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
+    health: HEALTH_STALE, scan: SCAN, run: RUN, after: null },
   { name: '2-server-offline', tabUrl: 'chrome://extensions/',
     health: HEALTH_DOWN, scan: SCAN, run: RUN, after: null },
   { name: '3-scan-result', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',

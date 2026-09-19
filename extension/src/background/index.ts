@@ -728,6 +728,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         nodeCount: obs.nodeCount,
         truncated: obs.truncated,
         withheld: obs.withheld ?? [],
+        orgContacts: obs.orgContacts ?? 0,
         previews: previews?.previews ?? [],
         payload: obs.payload,
         bytes: JSON.stringify(obs.payload ?? {}).length,

@@ -273,7 +273,12 @@ export function validateAction(
       // A token may only be resolved into a field layer 1 classified as the same kind.
       // The page cannot forge that: `fieldKind` comes from our own classifier, not from
       // anything the page asserts.
-      const tokenKind = action.value.match(/^<PII_([A-Z]+)_\d+>$/)?.[1];
+      // ⚠ `[A-Z_]+`, NOT `[A-Z]+`. A multiword kind — `<PII_BANK_ACCOUNT_1>` —
+      // left this undefined, so the kind-agreement check below silently did
+      // nothing and the injection path it exists to close was open for every
+      // multiword kind. TOKEN_RE above was widened when BANK_ACCOUNT landed;
+      // this copy was missed. Tenth instance of the same regex.
+      const tokenKind = action.value.match(/^<PII_([A-Z_]+)_\d+>$/)?.[1];
       if (tokenKind && node.fieldKind !== tokenKind) {
         return deny(
           `refusing to place a ${tokenKind} value into a field classified as ` +

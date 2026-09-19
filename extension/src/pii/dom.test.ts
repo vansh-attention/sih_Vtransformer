@@ -1,4 +1,6 @@
-import { classifyField, reconcile, type FieldSignals } from './dom.ts';
+import {
+  classifyField, reconcile, isOrgContact, registrableDomain, type FieldSignals,
+} from './dom.ts';
 import { scanText } from './patterns.ts';
 
 function firstDetection(text: string) { return scanText(text)[0] ?? null; }
@@ -93,5 +95,92 @@ const uidHint = classifyField({ tag: 'input', id: 'uid' } as never);
 const uidOk = uidHint?.kind !== 'AADHAAR';
 if (!uidOk) fail++;
 console.log(`${uidOk?'ok  ':'FAIL'}  ${'id="uid" is not an Aadhaar field'.padEnd(42)} got=${JSON.stringify(uidHint)}`);
+
+// ---------------------------------------------------------------------------
+// Organisation contact addresses — the pmvidyalaxmi.co.in report, 18 Sep
+// ---------------------------------------------------------------------------
+//
+// The whole value of this rule is in what it REFUSES. The proposed version keyed on
+// "the address is already public on the page", which describes every value we protect;
+// these cases are the four personal addresses from our own corpus that such a rule
+// would have stopped protecting, pinned so that can never be reintroduced quietly.
+
+const PMV = 'www.pmvidyalaxmi.co.in';
+const orgCases: Array<{ name: string; raw: string; sig: FieldSignals | undefined;
+                        host?: string; want: boolean }> = [
+  // The reported case: role account, site's own domain, page text.
+  { name: 'support@ in the portal footer', raw: 'support@pmvidyalaxmi.co.in',
+    sig: { tag: 'p' }, host: PMV, want: true },
+  { name: 'same address inside a mailto link', raw: 'support@pmvidyalaxmi.co.in',
+    sig: { tag: 'span', linkHref: 'mailto:support@pmvidyalaxmi.co.in' }, host: PMV, want: true },
+  { name: 'grievance@ on a .gov.in host', raw: 'grievance@mygov.gov.in',
+    sig: { tag: 'td' }, host: 'services.mygov.gov.in', want: true },
+
+  // ⛔ The student's own address, on the very same page. Typed into the login box.
+  { name: 'user address in the login field', raw: 'bvmanas@gmail.com',
+    sig: { tag: 'input', name: 'username' }, host: PMV, want: false },
+  /**
+   * ⛔ THE CASE THAT ISOLATES THE "NOBODY TYPED IT" CONDITION.
+   *
+   * Staff signing in to their own organisation's portal: a role local-part, on the
+   * site's own domain, in a login box. The first two conditions both PASS here, so
+   * this is the only case in which the form-control check decides the answer — and
+   * it must decide it, because a credential somebody typed is theirs.
+   *
+   * Added because sabotage found nothing: deleting the form-control check left every
+   * other case green. A guard no test can fail is not a guard.
+   */
+  { name: 'staff signs in with the org role account', raw: 'admin@pmvidyalaxmi.co.in',
+    sig: { tag: 'input', name: 'username' }, host: PMV, want: false },
+  { name: 'same address in a textarea', raw: 'support@pmvidyalaxmi.co.in',
+    sig: { tag: 'textarea', name: 'message' }, host: PMV, want: false },
+  // ⛔ ...and the same address once the portal RENDERS it back after login. This is
+  //    the case the rejected rule got wrong: nobody typed it, it is page text, and it
+  //    is still entirely personal.
+  { name: 'user address rendered as page text', raw: 'bvmanas@gmail.com',
+    sig: { tag: 'span' }, host: PMV, want: false },
+
+  // ⛔ The four personal prose addresses from bench/. Every one of them is "public
+  //    content outside a form field" and every one of them must stay protected.
+  { name: 'corpus: priya.r@ in a profile bio', raw: 'priya.r@example.org',
+    sig: { tag: 'p' }, host: 'example.org', want: false },
+  { name: 'corpus: rajesh.sharma@ in prose', raw: 'rajesh.sharma@example.in',
+    sig: { tag: 'p' }, host: 'example.in', want: false },
+  { name: 'corpus: s.chatterjee@ in a <dd>', raw: 's.chatterjee@example.com',
+    sig: { tag: 'dd' }, host: 'example.com', want: false },
+  { name: 'corpus: contact in shadow DOM text', raw: 'ravi.k@example.org',
+    sig: { tag: 'span' }, host: 'example.org', want: false },
+
+  // ⛔ A role account belonging to somebody ELSE's domain is not ours to excuse.
+  { name: 'support@ from a different domain', raw: 'support@othersite.co.in',
+    sig: { tag: 'p' }, host: PMV, want: false },
+  // ⛔ A lookalike domain must not pass as the site's own.
+  { name: 'support@ on a lookalike domain', raw: 'support@evil-pmvidyalaxmi.co.in',
+    sig: { tag: 'p' }, host: PMV, want: false },
+  // ⛔ Unknown host means unknown provenance: stay personal.
+  { name: 'no page host available', raw: 'support@pmvidyalaxmi.co.in',
+    sig: { tag: 'p' }, host: undefined, want: false },
+  { name: 'no signals available', raw: 'support@pmvidyalaxmi.co.in',
+    sig: undefined, host: PMV, want: false },
+];
+
+for (const c of orgCases) {
+  const got = isOrgContact(c.raw, c.sig, c.host);
+  const ok = got === c.want;
+  if (!ok) fail++;
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${c.name.padEnd(42)} orgContact=${String(got).padEnd(5)} ${c.raw}`);
+}
+
+// A subdomain is still the same site; a neighbouring registrable domain is not.
+for (const [host, want] of [['pmvidyalaxmi.co.in', 'pmvidyalaxmi.co.in'],
+                            ['www.pmvidyalaxmi.co.in', 'pmvidyalaxmi.co.in'],
+                            ['mail.services.pmvidyalaxmi.co.in', 'pmvidyalaxmi.co.in'],
+                            ['example.com', 'example.com'],
+                            ['a.b.example.co.uk', 'example.co.uk']] as const) {
+  const got = registrableDomain(host);
+  const ok = got === want;
+  if (!ok) fail++;
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${`registrable(${host})`.padEnd(42)} ${got}`);
+}
 
 console.log(fail ? `\n${fail} FAILURES` : '\nall reconciliation cases pass');

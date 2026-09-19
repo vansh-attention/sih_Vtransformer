@@ -38,6 +38,8 @@ export interface FieldSignals {
    * so it stays within the no-site-specific-logic rule.
    */
   contextLabel?: string;
+  /** `href` of the nearest enclosing anchor, when there is one. Carries `mailto:`. */
+  linkHref?: string;
 }
 
 export interface FieldHint {
@@ -301,6 +303,117 @@ const SHAPE: Partial<Record<PiiKind, (raw: string) => boolean>> = {
 export function canBe(kind: PiiKind, raw: string): boolean {
   const shape = SHAPE[kind];
   return shape ? shape(raw) : true;
+}
+
+// ---------------------------------------------------------------------------
+// Organisation contact addresses — still withheld, but not a personal finding
+// ---------------------------------------------------------------------------
+
+/**
+ * A page's own published support address is not personal data.
+ *
+ * Reported 18 Sep against pmvidyalaxmi.co.in: the panel counted
+ * `support@pmvidyalaxmi.co.in` — the helpline address printed in the portal's own
+ * footer — alongside the student's real address in the login box. Both are emails and
+ * both were withheld, so the count read "2 values withheld" when only one of them
+ * belonged to a person. A finding that cries wolf costs more credibility than the
+ * redaction earns.
+ *
+ * ⛔ THE SIGNAL IS NOT "IT IS PUBLIC ON THE PAGE". That was the proposed fix and it
+ * would have been a serious regression: everything a content script sees is rendered
+ * page content, including a logged-in user's own name and address. Measured against our
+ * own corpus, keying on "not typed into a field" turns four PERSONAL prose emails into
+ * misses to remove one support address — `priya.r@example.org` in a profile bio,
+ * `rajesh.sharma@example.in` in Devanagari prose, `s.chatterjee@example.com` in a
+ * definition list. Email recall would fall from 100% to about 55%.
+ *
+ * What actually separates them is THREE conditions, all required:
+ *
+ *   1. the local part is a role account, not a person
+ *   2. the domain is the page's own registrable domain — the site is publishing its
+ *      own address, not holding somebody else's
+ *   3. it is not inside a form control, so nobody typed it
+ *
+ * ⚠ A fourth was considered and DROPPED: requiring a `mailto:` link or a `<footer>` /
+ * `[role=contentinfo]` landmark. Government portals routinely mark their footer up as a
+ * plain `<div class="footer">`, so requiring the landmark would have quietly failed to
+ * fire on the very page that was reported — a guard that does nothing is worse than no
+ * guard, because it reads as covered. `linkHref` is still collected and a `mailto:`
+ * still counts as corroboration; it is simply not a precondition.
+ *
+ * ⚠ This never changes whether a value is redacted. Everything here is still minted
+ * into the vault and still leaves as a token, so the leak invariant and every score in
+ * `bench/` are untouched — the scorer keys on whether the text was tokenised. It
+ * changes only what the value is CALLED.
+ */
+const ROLE_LOCAL_PARTS = new Set([
+  'support', 'help', 'helpdesk', 'info', 'contact', 'contactus', 'enquiry', 'enquiries',
+  'inquiry', 'query', 'queries', 'care', 'customercare', 'service', 'services',
+  'admin', 'administrator', 'webmaster', 'postmaster', 'hostmaster', 'abuse',
+  'noreply', 'no-reply', 'donotreply', 'do-not-reply', 'mailer-daemon',
+  'sales', 'billing', 'accounts', 'office', 'reception', 'feedback', 'complaints',
+  // Indian government portals publish these two constantly.
+  'grievance', 'grievances', 'nodal', 'pio', 'rti',
+]);
+
+/**
+ * Multi-label public suffixes, so `pmvidyalaxmi.co.in` is one registrable domain and
+ * not "co.in". Not the full Public Suffix List — that is a 15,000-line file this
+ * extension has no business shipping — but the Indian second-level domains a portal in
+ * this market actually uses, plus the handful of foreign ones that turn up.
+ *
+ * A suffix missing from here makes the comparison STRICTER, never looser: two hosts
+ * under different suffixes simply fail to match and the address stays a personal
+ * finding. Failing safe was the requirement.
+ */
+const MULTI_LABEL_SUFFIXES = [
+  'co.in', 'net.in', 'org.in', 'gen.in', 'firm.in', 'ind.in',
+  'gov.in', 'nic.in', 'ac.in', 'edu.in', 'res.in', 'mil.in',
+  'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'com.au', 'co.nz', 'com.br', 'co.jp',
+];
+
+/** `www.pmvidyalaxmi.co.in` -> `pmvidyalaxmi.co.in`. Lowercased, port stripped. */
+export function registrableDomain(host: string): string {
+  const h = host.toLowerCase().replace(/:\d+$/, '').replace(/\.$/, '');
+  const labels = h.split('.');
+  if (labels.length <= 2) return h;
+  const suffix = MULTI_LABEL_SUFFIXES.find((s) => h.endsWith(`.${s}`));
+  const keep = suffix ? suffix.split('.').length + 1 : 2;
+  return labels.slice(-keep).join('.');
+}
+
+const FORM_CONTROL_TAGS = new Set(['input', 'textarea', 'select']);
+
+/**
+ * Is this address the site's own published contact point rather than a person's?
+ *
+ * Conservative by construction: every unknown answer is `false`, which means the
+ * address keeps being treated as personal and keeps being redacted exactly as before.
+ */
+export function isOrgContact(
+  raw: string,
+  signals: FieldSignals | undefined,
+  pageHost: string | undefined,
+): boolean {
+  if (!signals || !pageHost) return false;
+
+  // 3. Somebody typed it, so it is theirs. Checked first — it is the cheapest and it
+  //    is the condition that protects the login box in the original report.
+  if (FORM_CONTROL_TAGS.has(signals.tag)) return false;
+
+  const at = raw.trim().toLowerCase();
+  const m = /^([^\s@]+)@([^\s@]+\.[^\s@]+)$/.exec(at);
+  if (!m) return false;
+  const [, local, domain] = m as unknown as [string, string, string];
+
+  // 1. A role account. `support` yes; `priya.r` no. Plus-addressing is stripped, so
+  //    `support+portal@…` still reads as the role it is.
+  if (!ROLE_LOCAL_PARTS.has(local.split('+')[0]!)) return false;
+
+  // 2. The site's own domain. `support@pmvidyalaxmi.co.in` on pmvidyalaxmi.co.in is the
+  //    portal publishing itself; the same address on some other site is not ours to
+  //    reason about, and stays personal.
+  return registrableDomain(domain) === registrableDomain(pageHost);
 }
 
 /** Classify a field from DOM signals alone. Returns null when nothing fires. */

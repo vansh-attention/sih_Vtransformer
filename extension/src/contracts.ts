@@ -122,6 +122,15 @@ export interface Placeholder {
   verified: boolean;
   /** Present for visual redactions so the server knows layout was preserved. */
   box?: BoundingBox;
+  /**
+   * The site's own published contact address — still withheld, but not a person's.
+   *
+   * Deliberately a flag rather than a `PiiKind`. A kind named ORG_CONTACT mints
+   * `<PII_ORG_CONTACT_1>`, and a multiword kind has already cost this project a day:
+   * `<PII_BANK_ACCOUNT_1>` was invisible to nine different `/<PII_[A-Z]+_\d+>/`
+   * regexes, so a destroyed value read as clean. A flag touches no token.
+   */
+  orgContact?: boolean;
 }
 
 /**
