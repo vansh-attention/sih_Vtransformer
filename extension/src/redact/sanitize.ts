@@ -55,6 +55,17 @@ export interface SanitizeResult {
    */
   orgContacts: number;
   /**
+   * Distinct person names found in PROSE across the page, and whether that crossed the
+   * threshold at which the page reads as being about people rather than holding one
+   * person's data.
+   *
+   * Reported because a damper nobody can see is a damper nobody can audit: the panel and
+   * the ledger need to be able to say "14 names on this page were left alone, and here is
+   * why". The individual decisions are in `acknowledged`.
+   */
+  proseNameCandidates: number;
+  referenceDocument: boolean;
+  /**
    * Viewport boxes (CSS px) of every VISIBLE node something was redacted out of.
    *
    * Redacting the JSON does not erase the value from the user's screen, and the
@@ -72,6 +83,36 @@ export interface SanitizeResult {
  * Redact a FIELD VALUE. The field's own hint applies here, so a value sitting in a
  * field labelled "Aadhaar" is redacted even when no pattern recognises its format.
  */
+/**
+ * A field holds a value; a paragraph holds prose. 120 characters is the boundary, and it
+ * is the same one the wholesale-replacement rule below uses — one number, one meaning.
+ */
+const FIELD_VALUE_MAX = 120;
+
+/**
+ * Tags that present a value somebody entered or that a record states about them.
+ *
+ * `dd` is here for the same reason it is in the wholesale-replacement rule: a `<dt>`/`<dd>`
+ * pair is a labelling relationship in the accessibility tree, and read-only government
+ * and banking records are marked up that way when there is no form to fill in.
+ */
+function isFieldPosition(signals: FieldSignals | undefined): boolean {
+  return signals !== undefined
+    && ['input', 'textarea', 'select', 'dd', 'output'].includes(signals.tag);
+}
+
+/**
+ * Is this text PROSE rather than the value of a field?
+ *
+ * Used in exactly two places — the reference-document pre-pass and the layer-3 demotion
+ * it feeds — so that the pass which COUNTS candidates and the pass which ACTS on the
+ * count cannot drift apart. Two copies of this predicate would be the underscore-regex
+ * bug again, in a place where the consequence is silently redacting less.
+ */
+function isProsePosition(text: string, signals: FieldSignals | undefined): boolean {
+  return text.length > FIELD_VALUE_MAX && !isFieldPosition(signals);
+}
+
 function redactValue(
   text: string,
   signals: FieldSignals | undefined,
@@ -80,6 +121,13 @@ function redactValue(
   /** Host of the page being sanitized. Absent means no address can be judged the
    *  site's own, so everything stays a personal finding — the safe direction. */
   pageHost?: string,
+  /**
+   * True when the PAGE as a whole reads as a reference document — see
+   * `REFERENCE_DOC_NAMES` in `sanitize`. Only ever demotes, and only layer-3 names in
+   * prose. Absent means the damper is off, which is the behaviour every existing caller
+   * and every test had before it existed.
+   */
+  referenceDocument?: boolean,
 ): { text: string; placeholders: Placeholder[] } {
   const hint = signals ? classifyField(signals) : null;
   const placeholders: Placeholder[] = [];
@@ -195,6 +243,28 @@ function redactValue(
         kept?.push({ kind: 'NAME', reason: `name-shaped but low confidence: ${n.reason}` });
         continue;
       }
+      /**
+       * THE PAGE IS ABOUT PEOPLE, SO NONE OF THEM ARE YOU.
+       *
+       * No per-value signal separates "Vikram Sharma called this morning to dispute the
+       * charge" from "Kapil Sibal argued for the petitioners". Both are a person's name
+       * in a sentence, both score 0.9 through the gazetteer, and one is the user's data
+       * while the other is an encyclopedia's subject matter. The separation has to come
+       * from the page, and the claim is that your own data appears on a page in SMALL
+       * NUMBERS — a form names you once, a statement names an account holder, a case note
+       * names a customer and whoever it was escalated to.
+       *
+       * Three conditions, all required, the same shape as `isOrgContact`: the page as a
+       * whole carries many prose name candidates, this text is prose rather than a
+       * field's value, and confidence already cleared the bar. Demoted into
+       * `acknowledged` rather than dropped, so the decision is visible in the ledger and
+       * a reviewer can see what was NOT withheld and why.
+       */
+      if (referenceDocument && isProsePosition(text, signals)) {
+        kept?.push({ kind: 'NAME',
+                     reason: `name in prose on a page about many people: ${n.reason}` });
+        continue;
+      }
       spans.push({ start: n.start, end: n.end, kind: 'NAME' });
       placeholders.push({
         token: '', kind: 'NAME', source: 'model',
@@ -230,10 +300,7 @@ function redactValue(
   // <td> is deliberately NOT here. A table cell takes meaning from a column header
   // shared with every other row, and on a bank statement that route already redacted
   // references and balances as Aadhaar numbers once.
-  const FIELD_VALUE_MAX = 120;
-  const isFormControl = signals !== undefined
-    && ['input', 'textarea', 'select', 'dd', 'output'].includes(signals.tag);
-  if (spans.length === 0 && isFormControl && text.length <= FIELD_VALUE_MAX
+  if (spans.length === 0 && isFieldPosition(signals) && text.length <= FIELD_VALUE_MAX
       && hint && hint.kind !== 'NON_PII') {
     // `text` is the field's own value — reconcile needs it to rule out a hinted kind
     // the value cannot possibly be.
@@ -368,6 +435,49 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
   const piiBoxes: Array<{ x: number; y: number; w: number; h: number }> = [];
 
   /**
+   * HOW MANY DISTINCT PEOPLE DOES THIS PAGE TALK ABOUT IN PROSE?
+   *
+   * A pre-pass, not a post-pass, because the alternative is un-redacting after the fact:
+   * the value would already be in the vault and the token already in the payload, and
+   * reversing a redaction is the direction that creates leaks.
+   *
+   * It counts what the walk would actually redact — same `detectNames`, same threshold,
+   * same `isProsePosition` predicate — over the structure the extractor KEPT, not over
+   * the raw document. Counting the document instead reports 10 names on mygov.html where
+   * the pipeline withholds none, because most of those nodes never survive extraction.
+   * Measuring the stage instead of the operation is this project's most repeated mistake.
+   *
+   * Cost is one extra `detectNames` per prose node. On wikipedia.html, the heaviest page
+   * in any corpus, that is the difference reported in the drill rather than assumed.
+   */
+  function countProseNames(node: ElementNode, seen: Set<string>): Set<string> {
+    if (node.value && gazetteerLoaded() && isProsePosition(node.value, signals(node.id))) {
+      for (const n of detectNames(node.value)) {
+        if (n.confidence >= REDACT_THRESHOLD) seen.add(n.text);
+      }
+    }
+    node.children?.forEach((c) => countProseNames(c, seen));
+    return seen;
+  }
+
+  /**
+   * The threshold, and why it is six.
+   *
+   * Measured with `bench/name-density.ts` and printed per page by
+   * `bench/realpages-drill.ts --list`. Every transactional page in every corpus sits at
+   * 0-2 distinct prose names; the encyclopedia articles sit at 14-15. Six is chosen to
+   * leave a wide margin on BOTH sides rather than to make one page pass: a case note
+   * naming half a dozen people is still treated as holding personal data, and it would
+   * take a sevenfold increase over anything observed in a transactional page to trip
+   * this. The gap it exploits is an order of magnitude, which is why the exact number
+   * barely matters — and if it ever does start to matter, the design is wrong rather
+   * than the constant.
+   */
+  const REFERENCE_DOC_NAMES = 6;
+  const proseNames = countProseNames(structure.root, new Set<string>());
+  const referenceDocument = proseNames.size > REFERENCE_DOC_NAMES;
+
+  /**
    * Record a node's box if this pass redacted anything out of it AND it is on screen.
    * Invisible nodes are skipped deliberately: they contribute nothing to the screenshot,
    * and masking them would blank regions of the image for no privacy gain.
@@ -388,7 +498,7 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
 
     let value = node.value;
     if (value) {
-      const r = redactValue(value, sig, vault, kept, pageHost);
+      const r = redactValue(value, sig, vault, kept, pageHost, referenceDocument);
       value = r.text;
       allPlaceholders.push(...r.placeholders);
     }
@@ -518,6 +628,8 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
     },
     withheld: [...counts].map(([kind, count]) => ({ kind, count })),
     orgContacts,
+    proseNameCandidates: proseNames.size,
+    referenceDocument,
     // De-duplicated: a node redacted in both passes would otherwise be masked twice.
     piiBoxes: [...new Map(piiBoxes.map((b) => [`${b.x},${b.y},${b.w},${b.h}`, b])).values()],
   };

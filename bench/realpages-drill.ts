@@ -78,7 +78,7 @@ for (const file of files) {
 
     const t1 = performance.now();
     const vault = new Vault();
-    const { payload, withheld } = sanitize(r.structure, {
+    const { payload, withheld, proseNameCandidates, referenceDocument } = sanitize(r.structure, {
       goal: 'real page drill', vault,
       signals: (id) => { const el = resolveElement(id); return el ? signalsFor(el) : undefined; },
     });
@@ -132,7 +132,8 @@ for (const file of files) {
       + `(truncated=${truncated}) | ${interactive} interactive | `
       + `${(bytes / 1024).toFixed(0)}KB | withheld ${withheldTotal}`);
     console.log(`    extract ${Math.round(extractMs)}ms | sanitize ${Math.round(sanitizeMs)}ms `
-      + `| heap ${heapMb.toFixed(0)}MB`);
+      + `| heap ${heapMb.toFixed(0)}MB | prose names ${proseNameCandidates}`
+      + `${referenceDocument ? ' -> REFERENCE DOC, prose names left alone' : ''}`);
 
     // The hard invariant holds on real pages or it holds nowhere.
     check('no vault value in the payload', leaked.length === 0,
