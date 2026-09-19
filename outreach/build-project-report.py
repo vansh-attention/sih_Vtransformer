@@ -378,7 +378,7 @@ def build():
         "with no false positives and leaks nothing</b>. A real multi-step task, filling "
         "and submitting a three-field form, finishes in a <b>median 30 seconds</b> and "
         "completes reliably; browser heap "
-        "grows by <b>50 MB</b>; a turn puts <b>47 KB</b> on the wire. None of it needs "
+        "grows by <b>17 MB</b>; a turn puts <b>47 KB</b> on the wire. None of it needs "
         "a network."))
     a(P("We also report a weaker number on purpose, since it is the one that tells you "
         "something. Build a third corpus out of real captured pages, where the markup is "
@@ -518,7 +518,7 @@ def build():
         ["PII recall", "20%", "100% (52)", "100% (12)", "<b>75% (9/12)</b>"],
         ["PII precision", "20%", "100%", "100%", "100%"],
         ["Precision of redaction", "20%", "100% (48/48)", "100% (10/10)", "100% (9/9)"],
-        ["Client resource use", "20%", "+49.5 MB heap", "see 4.3", "see 4.3"],
+        ["Client resource use", "20%", "+16.7 MB heap", "see 4.3", "see 4.3"],
         ["End-to-end task latency", "15%", "63 s median, vision included", "see 4.3", "see 4.3"],
         ["Leaks (our own invariant)", "n/a", "0", "0", "0"],
     ], [42 * mm, 16 * mm, 32 * mm, 26 * mm, 24 * mm], align_from=1))
@@ -547,7 +547,12 @@ def build():
         "enter a reference number, write a description, submit. Submit is disabled until "
         "all three fields are filled, so this cannot be satisfied by a single lucky click."))
     a(P("It completes in a <b>median of 30 seconds</b> across six turns, and browser heap "
-        "in the page grows by about <b>50 MB</b>. Success is not taken from the loop's own "
+        "in the page grows by <b>16.7 MB</b>, flat after the first turn. That figure was "
+        "50 MB until the heap was sampled after a forced collection rather than whenever "
+        "the collector felt like running: what had looked like noise turned out to be a "
+        "straight line, 6.8 MB retained on every turn, because the content script was "
+        "re-injected each time and re-parsed a 5 MB name gazetteer that nothing could "
+        "then collect. Success is not taken from the loop's own "
         "report: the harness reads the page afterwards and requires every field populated "
         "and the confirmation banner actually visible. Section 5.4 explains why that "
         "distinction turned out to matter more than anything else in this report."))

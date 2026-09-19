@@ -224,6 +224,23 @@ function observe(msg: { goal?: string; history?: unknown[] }, sendResponse: (r: 
 function handleOther(msg: { type?: string; [k: string]: unknown },
                      sendResponse: (r: unknown) => void): boolean {
   /**
+   * "Are you already here?" — asked before every turn, so the loop can skip re-injecting.
+   *
+   * Re-injecting this file runs it again from the top: a second module instance, a second
+   * `onMessage` listener, and a second copy of the 5.1 MB name gazetteer parsed into
+   * three Sets. The older instance goes on answering, so the new one is dead weight that
+   * nothing can collect — measured at 6.8 MB retained per turn, 41 MB of a six-turn task.
+   *
+   * Answering this is the whole contract: if the document navigated, this script died
+   * with it, nothing replies, and the loop injects a fresh one with an empty vault, which
+   * is the security behaviour re-injection existed for in the first place.
+   */
+  if (msg.type === 'ping') {
+    sendResponse({ ok: true });
+    return false;
+  }
+
+  /**
    * Downscale and re-encode a captured frame.
    *
    * Lives in the CONTENT SCRIPT, not the offscreen document, because offscreen

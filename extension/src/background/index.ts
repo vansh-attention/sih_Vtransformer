@@ -820,6 +820,101 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
  * extension against an actual page through the actual agent loop, which is the only
  * configuration a judge will ever see.
  */
+/**
+ * Spike J — WHERE DOES THE PER-TURN MEMORY GO?
+ *
+ * Spike E measures the whole task and reported a browser heap delta of ~50 MB over six
+ * turns. Once the sample forces a collection first, that number stops being noise and
+ * becomes a straight line: +16.6 MB on turn 1, then +6.8 MB on every turn after it,
+ * reproducible to 0.1 MB across runs. Memory still held after a forced GC is retained,
+ * not garbage, so that is a leak of roughly 6.8 MB per turn — 41 of the 50 MB — and a
+ * twenty-turn task would pay about 150 MB for it. Client-side resource use is 20% of the
+ * rubric.
+ *
+ * Spike E cannot say WHICH part leaks, because a turn there is extract + sanitize +
+ * screenshot + vision + a model call + execute. This calls `observe` and nothing else,
+ * repeatedly, against the same page: no model, no screenshot, no actions. If the line is
+ * still straight, the leak is in extraction or sanitization; if it is flat, it is in
+ * everything Spike E does around them.
+ *
+ * The first sample is discarded: turn 1 of any run pays for the 5.1 MB gazetteer being
+ * fetched and parsed, which is a fixed setup cost and not the thing being measured.
+ */
+async function runSpikeJ(): Promise<Record<string, unknown>> {
+  const OBSERVES = 12;
+  const PAGE = 'http://127.0.0.1:8980/pages/multistep.html';
+
+  /**
+   * Confirm the fixture is actually being served BEFORE opening a tab on it.
+   *
+   * The first run of this spike failed with "Cannot access contents of url
+   * chrome-extension://…404…" — the collector had answered 404, Chrome rendered its own
+   * error page, and `executeScript` then refused to touch it. That error describes the
+   * injection, names no URL a reader recognises, and says nothing about the actual cause.
+   * One fetch turns it into a sentence.
+   */
+  const probe = await fetch(PAGE).catch(() => null);
+  if (!probe || !probe.ok) {
+    return { error: `fixture not served: ${PAGE} -> ${probe ? probe.status : 'unreachable'}` };
+  }
+
+  const tab = await chrome.tabs.create({ url: PAGE, active: true });
+  const tabId = tab.id!;
+  await new Promise<void>((resolve) => {
+    const listener = (id: number, info: chrome.tabs.OnUpdatedInfo) => {
+      if (id === tabId && info.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(listener); resolve();
+      }
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+  await new Promise((r) => setTimeout(r, 500));
+  await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/content.js'] });
+
+  const readHeap = async (): Promise<number | null> => {
+    const [p] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        (globalThis as { gc?: () => void }).gc?.();
+        const m = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+        return m ? m.usedJSHeapSize : null;
+      },
+    });
+    return (p.result as number | null) ?? null;
+  };
+
+  const samples: Array<number | null> = [];
+  const nodeCounts: number[] = [];
+  for (let i = 0; i < OBSERVES; i++) {
+    const before = await readHeap();
+    samples.push(before === null ? null : +(before / 1048576).toFixed(2));
+    const r = await chrome.tabs.sendMessage(tabId, {
+      target: 'content', type: 'observe', goal: 'heap probe', history: [],
+    });
+    nodeCounts.push(r?.nodeCount ?? 0);
+  }
+  const after = await readHeap();
+  samples.push(after === null ? null : +(after / 1048576).toFixed(2));
+
+  // Slope measured from the SECOND sample on, so the gazetteer's one-off cost does not
+  // get averaged into a per-observe figure and make a fixed cost look like a leak.
+  const usable = samples.slice(1).filter((s): s is number => s !== null);
+  const perObserveMb = usable.length > 1
+    ? +((usable[usable.length - 1]! - usable[0]!) / (usable.length - 1)).toFixed(2)
+    : null;
+
+  return {
+    observes: OBSERVES,
+    nodeCountStable: new Set(nodeCounts).size === 1,
+    nodeCount: nodeCounts[0],
+    heapMbBeforeEachObserve: samples,
+    perObserveMb,
+    verdict: perObserveMb === null ? 'no measurement'
+      : perObserveMb > 1 ? 'LEAKS in extract/sanitize'
+      : 'flat — extract/sanitize is not the leak',
+  };
+}
+
 async function runSpikeE(): Promise<Record<string, unknown>> {
   // The multi-step fixture: Submit is disabled until three fields are filled, so this
   // cannot be satisfied by a single click. A one-action demo proves far less.
@@ -856,6 +951,20 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
       const [p] = await chrome.scripting.executeScript({
         target: { tabId },
         func: () => {
+          /**
+           * Collect first, then read.
+           *
+           * `usedJSHeapSize` on its own measures garbage that has not been collected yet
+           * as though it were live. Across six turns it sawtoothed — up ~20MB, then GC
+           * reclaimed ~11MB whenever it felt like it — so the identical run reported
+           * +49.7MB and +59.4MB back to back. Neither figure separated a fixed setup
+           * cost from a per-turn leak, which is the only question worth asking about it.
+           *
+           * `gc()` exists only when Chrome is started with --js-flags=--expose-gc, which
+           * the spike does. If it is absent the read still works and is simply the noisy
+           * number again, so this degrades rather than breaking.
+           */
+          (globalThis as { gc?: () => void }).gc?.();
           const m = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
           return m ? m.usedJSHeapSize : null;
         },
@@ -868,6 +977,22 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
   const taskT0 = Date.now();
 
   const phases: string[] = [];
+  /**
+   * HEAP PER TURN, not just before and after.
+   *
+   * A before/after delta cannot tell a fixed cost from a leak. 50 MB spent once on
+   * extraction machinery and 8 MB retained on every turn look identical over a six-turn
+   * task, and only one of them is a bug — the second would make a twenty-turn task cost
+   * 160 MB against a resource budget worth 20% of the grade.
+   *
+   * Sampled at the START of each turn, before anything that turn allocates, so
+   * consecutive samples measure what the PREVIOUS turn failed to release. The read is
+   * async and `onProgress` is not, so the promises are collected and awaited afterwards;
+   * they must not be awaited inline, because that would stall the loop being measured.
+   */
+  const heapPerTurn: Array<Promise<{ turn: number; mb: number | null }>> = [];
+  const seenTurn = new Set<number>();
+
   const result = await runAgentLoop({
     tabId,
     windowId: tab.windowId!,
@@ -875,7 +1000,14 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
         + 'a short description, then submit the grievance',
     serverUrl: SERVER_URL,
     maxTurns: 6,
-    onProgress: (e) => phases.push(`${e.turn}:${e.phase}`),
+    onProgress: (e) => {
+      phases.push(`${e.turn}:${e.phase}`);
+      if (e.phase === 'observing' && !seenTurn.has(e.turn)) {
+        seenTurn.add(e.turn);
+        heapPerTurn.push(readHeap().then(
+          (b) => ({ turn: e.turn, mb: b === null ? null : +(b / 1048576).toFixed(1) })));
+      }
+    },
   });
   const records = result.records;
 
@@ -890,6 +1022,11 @@ async function runSpikeE(): Promise<Record<string, unknown>> {
     heapAfterMb: heapAfter === null ? null : +(heapAfter / 1048576).toFixed(1),
     heapDeltaMb: heapBefore === null || heapAfter === null
       ? null : +((heapAfter - heapBefore) / 1048576).toFixed(1),
+    /**
+     * The shape of the cost, which is the part that says whether it is a bug.
+     * Flat after the first turn = a fixed setup cost. Rising with every turn = a leak.
+     */
+    heapByTurnMb: (await Promise.all(heapPerTurn)).map((h) => h.mb),
     measuredIn: 'page context, real browser',
   };
 
@@ -1028,8 +1165,15 @@ chrome.runtime.onInstalled.addListener(() => {
         // A LIVE page by default, because the whole point of this check is that the
         // site is not one we prepared. SIH_LIVE_URL overrides it; the local capture is
         // only a fallback for a machine with no network.
+        /**
+         * ⚠ `r.text()` resolves happily on a 404, so without the `r.ok` check the
+         * collector's "File not found" HTML became the target URL and this spike opened
+         * a tab on it. That is what the failure looked like: "Cannot access contents of
+         * url chrome-extension://…%3C!DOCTYPE…404…", an error about script injection
+         * that names nothing a reader would recognise as a missing route.
+         */
         const target = await fetch('http://127.0.0.1:8979/target')
-          .then((r) => r.text()).catch(() => '');
+          .then((r) => (r.ok ? r.text() : '')).catch(() => '');
         out.spikeI = await runSpikeI(target.trim()
           || 'https://eportal.incometax.gov.in/iec/foservices/#/login');
       } catch (e) {
@@ -1057,6 +1201,16 @@ chrome.runtime.onInstalled.addListener(() => {
         out.error = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e);
       }
       await reportTo('http://127.0.0.1:8977/result', out);
+      return;
+    }
+
+    if (await collectorUp(8980)) {
+      try {
+        out.spikeJ = await runSpikeJ();
+      } catch (e) {
+        out.error = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e);
+      }
+      await reportTo('http://127.0.0.1:8980/result', out);
       return;
     }
 

@@ -20,7 +20,7 @@ He picked 15 of 17 offered. **Not chosen: the demo video, and integrating the re
 | B1 | 3B-vs-7B tradeoff study | ⏳ next — both models now pulled |
 | B2 | batch fields per turn | ⛔ **TRIED AND REJECTED — it costs the task, see below** |
 | B3 | overlap vision with the model call | open |
-| B4 | memory: lazy ViT + per-stage heap profile | open |
+| B4 | memory / heap profile | ✅ **DONE** — found a real leak, **50.1 MB → 16.7 MB** |
 | C1 | grow the real-page corpus to 30+ | open — best task for the team |
 | C2 | read inside iframes | open — needs a design, not a flag |
 | C3 | Indic names in prose | ✅ **DONE** — Devanagari; Bengali/Tamil knowingly left |
@@ -195,6 +195,50 @@ task.**
 ⚠ One of my new assertions was **vacuous for a few minutes**: written as
 `'４１１１'.repeat(4)` it searched for `4111` four times, not the fixture's `4` + fifteen
 `1`s. Write the literal out; do not compute it.
+
+### ✅ B4 — THE AGENT WAS LEAKING 6.8 MB A TURN. HEAP 50.1 MB → 16.7 MB
+
+**The biggest single win of the day, on the 20%-weighted resource metric, and it was
+found by fixing the MEASUREMENT first.**
+
+`usedJSHeapSize` counts uncollected garbage as live, so the same run reported +49.7 MB
+and +59.4 MB back to back and the number was a coin flip. Chrome now runs with
+`--js-flags=--expose-gc` and the sample forces a collection first. The noise vanished and
+left a straight line:
+
+```
+turn:   1     2     3     4     5     6
+MB:    0.7  17.3  24.1  30.8  37.6  44.3     +16.6 setup, then +6.8 EVERY turn
+```
+
+Memory still held after a forced GC is **retained, not garbage** — a real leak. ⇒ **Do
+not measure a heap without collecting first; you cannot tell a fixed cost from a leak.**
+
+**`spikes/j-heap/` found where.** It calls `observe` 12 times and nothing else — no
+model, no screenshot, no actions — and the line is **flat, 0.01 MB per observe.** So
+extraction and sanitization were innocent and the leak was in what the loop does around
+them.
+
+⛔ **The orchestrator re-injected the content script on EVERY turn.** `executeScript`
+runs the file again from the top, so each turn created another module instance, another
+`onMessage` listener, and **another copy of the 5.1 MB name gazetteer parsed into three
+Sets**. The first instance kept answering, so every later one was dead weight nothing
+could collect. It also re-parsed 5 MB of JSON per turn for nothing.
+
+The reasoning behind re-injection was right — a submit or a link click replaces the
+document and takes the content script and its vault with it — but doing it
+**unconditionally** was the bug. The loop now **pings first** and injects only if nothing
+answers. There is no state where a stale vault survives a navigation, because a
+navigation is exactly what stops the answer coming back. Both branches run every task:
+turn 1 finds nothing and injects, turns 2–6 skip.
+
+**Result: 50.1 MB → 16.7 MB, flat after turn 1, task still verified in 6 turns.**
+`outreach/SIH26171-Project-Report.pdf` has been rebuilt from its script and the rendered
+PDF was checked — it published +49.5 MB.
+
+⚠ Spike J first collided on **port 8979, which spike I already owns**, and that exposed a
+latent bug in spike I: `fetch(...).then(r => r.text())` with no `r.ok`, so a 404 body
+became the target URL. Fixed. Spike J is on **8980**. ⇒ **A 404 body is not data.**
 
 ### ⛔ B2 — BATCHING FIELDS PER TURN: MEASURED, AND IT COSTS THE TASK
 
@@ -1114,7 +1158,8 @@ property of the architecture, not a claim about code correctness.
 | PII / redaction precision | 100% / 98% | **100%** | **100% / 100%** |
 | leaks | **0** | **0** | **0** |
 
-⚠ Task end-to-end: **median ~30 s / 6 turns** on `multistep.html`, heap **+50 MB** —
+⚠ Task end-to-end: **median ~30 s / 6 turns** on `multistep.html`, heap **+16.7 MB**
+(was +50 MB until 19 Sep — see the per-turn re-injection leak) —
 **but that page triggers NO vision, so the figure excludes the whole vision stage.**
 With one image added, vision runs on all 6 turns (~7 s) and the same task takes
 **median 63 s** (51.5 / 63.3 / 71.1). Both are true of the page they were measured on.
@@ -1484,7 +1529,7 @@ holdout rule. `bench/score.ts` already prints these five weights.
 ## ✅ 35% OF THE RUBRIC IS NO LONGER A PROXY (17 Sep)
 
 `runSpikeE` now measures the two items that were guessed at, in a real browser with the
-live model: **task 34.5 s over 6 turns, browser heap +49.5 MB** (read via
+live model: **task ~34 s over 6 turns, browser heap +16.7 MB** (was +49.5 MB; read via
 `performance.memory` in the page, not the Node process). Reproduce with
 `bash spikes/e-e2e/run.sh`.
 

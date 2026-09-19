@@ -392,12 +392,35 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
     if (stopped()) return { records, stopReason: 'stopped-by-user' };
     const turnStart = performance.now();
 
-    // Re-injected every turn. A submit or a link click replaces the document and takes
-    // the previous content script - and its vault - with it. Re-injecting is both the
-    // fix and the correct security behaviour: the new page gets a new, empty vault.
+    /**
+     * Injected only when nothing is there to answer.
+     *
+     * A submit or a link click replaces the document and takes the previous content
+     * script — and its vault — with it, so re-injecting is both the fix for that and the
+     * correct security behaviour: the new page gets a new, empty vault. That reasoning
+     * was right; doing it UNCONDITIONALLY was not.
+     *
+     * `executeScript` runs the file again from the top, so a turn on an unchanged page
+     * produced a second module instance, a second `onMessage` listener, and a second copy
+     * of the 5.1 MB name gazetteer parsed into three Sets. The first instance kept
+     * answering, so every later one was dead weight nothing could collect. Measured with
+     * spikes/j-heap: 6.8 MB retained per turn, 41 MB of a six-turn task, and 12 observes
+     * against a single injected instance are FLAT — 0.01 MB each. It also re-parsed 5 MB
+     * of JSON per turn for nothing.
+     *
+     * The ping decides. Something answers, the page did not navigate and its vault is
+     * intact; nothing answers, the script is gone and a fresh one is injected. There is
+     * no state where a stale vault survives a navigation, because a navigation is
+     * precisely what stops the answer coming back.
+     */
     let obs;
     try {
-      await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/content.js'] });
+      const alive = await chrome.tabs.sendMessage(tabId, { target: 'content', type: 'ping' })
+        .then((r) => r?.ok === true)
+        .catch(() => false);
+      if (!alive) {
+        await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/content.js'] });
+      }
       progress({ turn, phase: 'observing' });
       obs = await chrome.tabs.sendMessage(tabId, {
         target: 'content', type: 'observe', goal, history,

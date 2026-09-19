@@ -1,22 +1,27 @@
 #!/bin/bash
-# Spike C: prove the DOM coordinate space maps correctly onto the captured screenshot,
-# by sampling actual pixels. Headed Chrome required - captureVisibleTab needs a real
-# window with a compositor; headless returns a blank or fails.
+# Spike J: WHERE DOES THE PER-TURN MEMORY GO?
+#
+# Calls `observe` twelve times against one page and samples the retained heap before
+# each — no model, no screenshot, no actions. Spike E measures a whole turn and so
+# cannot say which part of it leaks.
+#
+# Headed Chrome with --js-flags=--expose-gc, because `usedJSHeapSize` without a forced
+# collection counts uncollected garbage as live and turns the answer into a coin flip.
 set -u
 
 # Locate browsers portably; hardcoded paths broke this for everyone but
 # one machine.
 . "$(cd "$(dirname "$0")" && pwd)/../../scripts/find-browser.sh"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$ROOT"
-PORT=8976
+PORT=8980
 CHROME="$(find_chrome)" || { echo "no Chrome found — run scripts/get-chrome-for-testing.sh"; exit 1; }
-OUT="$ROOT/spikes/e-e2e/result.json"
+OUT="$ROOT/spikes/j-heap/result.json"
 rm -f "$OUT"
 pkill -f "spikec_serve" 2>/dev/null; pkill -f spikeC-profile 2>/dev/null; sleep 1
 # Fresh profile every run. Chrome caches the extension's service worker in the profile,
 # so a reused one silently runs YESTERDAY'S code against today's build - which cost a
 # confusing round of "the fix did not work" when the fix was never loaded.
-rm -rf /tmp/spikeE-profile
+rm -rf /tmp/spikeJ-profile
 
 python3 - "$PORT" "$OUT" "$ROOT/bench" <<'PY' & SRV=$!
 # spikec_serve
@@ -48,7 +53,7 @@ sleep 1
 # Client-side resource use is 20% of the rubric; it should not be a coin flip.
 "$CHROME" --no-sandbox --enable-unsafe-webgpu --use-angle=metal \
   --js-flags=--expose-gc \
-  --user-data-dir=/tmp/spikeE-profile \
+  --user-data-dir=/tmp/spikeJ-profile \
   --load-extension="$ROOT/extension" \
   --window-size=1200,800 --window-position=0,0 \
   --no-first-run --no-default-browser-check \
