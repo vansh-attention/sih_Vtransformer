@@ -2,10 +2,37 @@
 
 **READ THIS FIRST.**
 
-## ⭐⭐ PICK UP HERE — 19 Sep 2026
+## ⭐⭐ PICK UP HERE — close of 19 Sep 2026
 
-**Everything below the 18 Sep sections is still true. The tree is CLEAN and BOTH REMOTES
-ARE PUSHED** — the 15 files left dirty on 18 Sep went up in three commits first thing.
+**Tree CLEAN, both remotes PUSHED, `./test-all.sh` = 22 passed 0 skipped, `tsc` gate
+green.** 28 commits today. Everything below the 18 Sep sections is still true.
+
+### ⏭ THE FIRST THING TO DO NEXT SESSION
+
+**Re-run the pizza form end to end in the browser** — `httpbin.org/forms/post`, goal
+"Fill in the form and submit it". Every fix from the last four rounds converges on that
+one page and **the full round trip has never been driven by hand**: the batch ask, the
+clock field, the fill-and-verify, and the submit nudge are each verified in pieces
+(direct payloads against the live model, rendered pixels, unit tests) but not once
+together. `demo/needs-value.html` is the smaller version for the ask-and-fill path.
+
+⚠ **Machine state:** ollama holds `qwen2.5vl:7b` resident and the reasoning server may
+still be up on `:8975` — `curl -s 127.0.0.1:8975/health` to check, and restart with
+`cd server && .venv/bin/uvicorn main:app --port 8975`. `qwen2.5vl:3b` is also pulled
+(kept for the tradeoff study; safe to `ollama rm` for 3.2 GB back).
+
+### Where the 30 Sep deadline stands — NONE of this is code
+
+1. **The SPOC email is still unsent.** `outreach/email-to-spoc.md` →
+   **pujasarkar@iimmumbai.ac.in**, attaching `SIH26171-Project-Report.pdf` (rebuilt today
+   with the new heap figure).
+2. **Portal fields for deck slide 1** — Theme, Team ID, Team Name — then re-export the PDF
+   **from PowerPoint**.
+3. **Host the privacy policy** — the Chrome listing cannot be submitted without a URL and
+   the repo is private. Everything else for both stores is written in
+   `outreach/STORE-SUBMISSION.md`.
+4. Send Jinshri and Vansh `design/Aavaran-Canva-Template.pptx`. ⚠ The canvas has **13**
+   screens; the panel now has **17**.
 
 ### The agreed development queue (his choices, 19 Sep)
 
@@ -138,6 +165,31 @@ read at server start, and ollama loads a model on its first REQUEST. The 7B row 
 carried a number because that model happened to be resident already. Fixed to read after
 the first run. **A measurement that silently returns empty for the case you are studying
 is worse than no measurement.**
+
+### ✅ A CLOCK IS NOT A TEXT BOX, AND A RUN MUST NOT DIE ONE CLICK SHORT (19 Sep)
+
+The batch ask worked — six right questions at once — and **five of six answers landed**.
+
+**The sixth was a clock offered as free text.** Every input type the role map does not
+name falls through to role `textbox`: right for ACTING on a field, useless for asking a
+person to fill one in, because `<input type=time>` accepts `"HH:MM"` and nothing else. The
+payload now carries **`inputType`** and the panel renders the control the page wants.
+⛔ Through an **ALLOW-LIST**, never a pass-through — `inputType` comes off the page, and
+`type="password"` would turn our own question box into a password prompt. Unknown → plain
+text. Hostile cases tested.
+
+**And the run died one click from the goal.** With name/phone/email vaulted, the model
+re-typed the name over its own token until the loop gave up, **Submit unpressed**.
+⚠ **That validator branch had never been tested** — the existing case types `ABCPE1234F`,
+which the raw-PII guard refuses several branches earlier, so the overwrite rule was never
+reached. Ordinary text into a token-holding field is the case that exercises it.
+
+⭐ **Measuring changed the fix.** *"submit the form if it is complete, or return done"* →
+`done` **3/3**: no loop, no submission, still one click short. So the client names the
+actual button — `submitCandidate()`, an enabled visible button whose own label says what
+it does, **and only when exactly ONE matches**, because naming the wrong button is worse
+than naming none when the text is an instruction the model will follow. → clicks Submit
+**3/3**.
 
 ### ⛔ THE PAYLOAD COULD NOT DESCRIBE A CHOICE (his report, 19 Sep)
 
