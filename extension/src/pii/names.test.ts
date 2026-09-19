@@ -173,5 +173,63 @@ console.log('\n--- transliterated Indic vocabulary ---');
     withTitle.length ? JSON.stringify(withTitle.map((s) => s.text)) : 'nothing found');
 }
 
+/**
+ * DEVANAGARI — a person's name in Hindi prose.
+ *
+ * Layer 3 used to detect NOTHING in any Indic script, and the Hindi, Bengali and Tamil
+ * fixtures all scored 100% recall anyway, because every name in them sits in a form
+ * control or a <dt>/<dd> pair and LAYER 1 catches those from the label. The fixtures
+ * could not tell the difference. A name in running Hindi — which is what a portal's
+ * notices and acknowledgements are made of — was invisible.
+ *
+ * The English signals do not transfer: Devanagari has no case, and the gazetteer is
+ * 110,000 Latin entries with 0 Devanagari. What Hindi marks explicitly instead is the
+ * honorific and the surname, and those are the two branches.
+ */
+console.log('\n--- Devanagari names in prose ---');
+{
+  const found = (text: string) =>
+    detectNames(text).filter((s) => s.confidence >= 0.6).map((s) => s.text);
+
+  // Each branch on its own, so neither can be covering for the other.
+  const bySurname = found('यह आवेदन विक्रम शर्मा द्वारा दायर किया गया था।');
+  check('given token + known surname, in prose',
+    bySurname.includes('विक्रम शर्मा'), JSON.stringify(bySurname));
+
+  // The surname here is deliberately NOT in the list, so only the honorific can catch it.
+  const byHonorific = found('श्री अनिल बघेल ने जाँच पूरी कर ली है।');
+  check('honorific + unlisted surname',
+    byHonorific.includes('अनिल बघेल'), JSON.stringify(byHonorific));
+  check('the honorific is NOT part of the span',
+    !byHonorific.some((t) => t.includes('श्री')), JSON.stringify(byHonorific));
+
+  /**
+   * THE DECOYS. Departments, schemes and offices are all Devanagari token pairs sitting
+   * in the same prose, and reading one as a person is over-redaction — scored twice.
+   */
+  const notPeople: Array<[string, string]> = [
+    ['a department', 'यह कार्य शिक्षा विभाग को सौंपा गया है।'],
+    ['a scheme', 'यह लाभ प्रधानमंत्री आवास योजना के अंतर्गत दिया जाएगा।'],
+    ['an office', 'कृपया जिला कार्यालय से संपर्क करें।'],
+    ['a form label', 'आवेदन संख्या दर्ज करें।'],
+  ];
+  for (const [what, text] of notPeople) {
+    const f = found(text);
+    check(`${what} is not a person`, f.length === 0, JSON.stringify(f));
+  }
+
+  /**
+   * ⚠ Bengali and Tamil are NOT attempted and this asserts that, rather than leaving a
+   * reader to assume they work because the other Indic fixtures are green. The approach
+   * transfers; the word lists are the missing part, and writing surname lists for scripts
+   * nobody here reads is how a wrong entry silently costs recall. This is a note to hand
+   * to a native reader, not a passing feature.
+   */
+  const bn = found('সুদীপ্ত চট্টোপাধ্যায় আবেদন করেছেন');
+  const ta = found('கார்த்திகேயன் ராமன் விண்ணப்பித்தார்');
+  check('Bengali is knowingly NOT covered', bn.length === 0, JSON.stringify(bn));
+  check('Tamil is knowingly NOT covered', ta.length === 0, JSON.stringify(ta));
+}
+
 console.log(fail ? `\n${fail} FAILURES` : '\nall name-detection cases pass');
 process.exit(fail ? 1 : 0);

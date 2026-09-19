@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!-- Fixture 15 — a person's name in HINDI PROSE, with no field and no label.
+
+     The gap this exists to hold open: every other Indic fixture puts its name inside an
+     <input> or a <dt>/<dd> pair, so LAYER 1 catches it from the labelling cue and layer 3
+     is never asked. All of them scored 100% recall while layer 3 detected literally
+     nothing in any Indic script — the fixtures could not tell the difference.
+
+     A government portal's notices, statuses and acknowledgements are exactly this shape:
+     running Hindi with a citizen's name inside it and nothing marking it as a name.
+
+     The decoys matter more than the positives here. A department, a scheme and an office
+     are all Devanagari token pairs sitting in the same prose, and reading any of them as
+     a person is the over-redaction that costs precision twice in this PS. -->
+<html lang="hi"><head><meta charset="utf-8"><title>आवेदन की स्थिति</title></head>
+<body>
+  <h1>आवेदन की स्थिति</h1>
+
+  <!-- POSITIVE: given name + known surname, in running prose, no label anywhere. -->
+  <p id="p1">यह आवेदन विक्रम शर्मा द्वारा दायर किया गया था।</p>
+
+  <!-- POSITIVE: an honorific marks the person, and the surname is deliberately one that
+       is NOT in the surname list, so ONLY the honorific branch can catch it.
+       The first version used a listed surname, and sabotaging the honorific branch
+       changed nothing — the surname branch was quietly covering it, which is a guard no
+       test can fail. The title is not part of the name. -->
+  <p id="p2">श्री अनिल बघेल ने इसकी जाँच पूरी कर ली है।</p>
+
+  <!-- DECOY: a department. Two Devanagari tokens, and not a person. -->
+  <p id="d1">यह कार्य शिक्षा विभाग को सौंपा गया है।</p>
+
+  <!-- DECOY: a scheme name. -->
+  <p id="d2">यह लाभ प्रधानमंत्री आवास योजना के अंतर्गत दिया जाएगा।</p>
+
+  <!-- DECOY: an office, with an organisation marker beside it. -->
+  <p id="d3">कृपया जिला कार्यालय से संपर्क करें।</p>
+
+  <!-- Something to act on, so the extractor keeps the page. -->
+  <button id="sub">स्थिति देखें</button>
+</body></html>

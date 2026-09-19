@@ -1,0 +1,12 @@
+{
+  "name": "hindi-prose",
+  "note": "A name in running Hindi prose, with no field and no label — the case layer 1 cannot see and layer 3 could not read. Every other Indic fixture scored 100% with layer 3 detecting nothing at all in Devanagari, because their names all sit in labelled fields.",
+  "elements": [
+    { "id": "p1", "kind": "NAME", "redact": true,  "why": "given name + known surname in prose" },
+    { "id": "p2", "kind": "NAME", "redact": true,  "why": "honorific marks the person; surname deliberately NOT in the list, so only the honorific branch can catch it" },
+    { "id": "d1", "kind": null,   "redact": false, "why": "DECOY: a department, not a person" },
+    { "id": "d2", "kind": null,   "redact": false, "why": "DECOY: a scheme name" },
+    { "id": "d3", "kind": null,   "redact": false, "why": "DECOY: an office, with an organisation marker beside it" }
+  ],
+  "mustFind": ["स्थिति देखें"]
+}
