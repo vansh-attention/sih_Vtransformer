@@ -139,6 +139,40 @@ carried a number because that model happened to be resident already. Fixed to re
 the first run. **A measurement that silently returns empty for the case you are studying
 is worse than no measurement.**
 
+### ⛔⛔ A PDF WAS REPORTED CLEAN OVER AN ID CARD (his report, 19 Sep)
+
+**The worst failure this product has available.** He opened his IIT Madras ID card — a
+PDF on `storage.googleapis.com` — and Aavaran answered *"This page does not contain any
+names"* and printed **"Nothing of yours on this page"** over his name, mobile number,
+full residential address, date of birth and face.
+
+**Extraction was not wrong.** Probed over CDP against a real PDF tab:
+`contentType: "application/pdf"`, **4 nodes, 0 characters of text, and no `<embed>`
+visible to a content script at all.** Chrome renders a PDF in another process. There
+genuinely is no personal data *in the DOM*.
+
+⇒ **The bug was taking an empty vault as evidence of a clean page.** Not missing
+something — making a confident positive claim about content it never saw.
+
+⚠ **4 nodes sails past the existing `blind` heuristic of "≤ 2 nodes"**, which is why this
+needed its own signal rather than a wider version of an old one.
+
+`opaqueDocumentKind()` reports it by content type, with a full-page plugin `<embed>` as a
+fallback. **Full-page only** — a small embedded viewer inside an article is a *region*
+(`unreadableRegions` already strikes it out), and treating it as an unreadable page would
+disable the agent on anything with an embedded map or video. Both controls tested.
+
+The loop stops **before the screenshot**: we cannot redact what we cannot locate, so
+transmitting an image would send the whole card to the model in pixels. New reason
+**`opaque-document`**, neutral not red. The proof card now says *"This page was not read
+… this is not a clean bill of health, it is the absence of one"* — deliberately **without
+the `ok` class**.
+
+⛔ **NOT FIXED AND NOT FIXABLE HERE: reading the PDF.** That needs OCR, and the only thing
+on this machine that could is the VLM — which would mean transmitting an unredacted
+photograph of the card to find out what is on it. **An honest refusal is the correct
+output.** If he wants PDFs actually read, that is a real feature and a design decision.
+
 ### ⛔ A RUN MUST STAY ON THE SITE IT STARTED ON (his report, 19 Sep)
 
 He ran a task, switched site, and the result came back wrong. **Two independent causes,
