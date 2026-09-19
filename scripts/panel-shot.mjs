@@ -108,6 +108,16 @@ await send('Runtime.enable');
  * offline case, the scan result and a finished run without a server or a model.
  */
 function stub({ tabUrl, health, scan, run, buildInfo }) {
+  /**
+   * The audit reports on the values THIS run actually withheld.
+   *
+   * It was a hardcoded 3 for every state, so the needs-user-input reference — a run on a
+   * page where nothing was withheld — rendered "3 of your values were checked" directly
+   * above "0 values withheld". These PNGs go to the designers as the record of what each
+   * state looks like, and a reference that contradicts itself is one that gets copied.
+   */
+  const checkedValues = (run?.records ?? []).reduce(
+    (a, r) => a + (r.withheld ?? []).reduce((x, w) => x + w.count, 0), 0);
   // getURL must exist: loadBuildInfo() calls it, and without it the whole
   // build-detection path throws and silently falls back to the repo default — so the
   // harness would render advice that no real install would ever show.
@@ -118,7 +128,8 @@ function stub({ tabUrl, health, scan, run, buildInfo }) {
             // The panel asks the CONTENT script to audit the transcript and to
             // rehydrate an answer, because only it holds the vault.
             sendMessage: async (_id, m) => m.type === 'audit-transcript'
-              ? { checkedValues: 3, bytesScanned: 94208, leaks: [], clean: true }
+              ? { checkedValues: ${checkedValues}, bytesScanned: 94208,
+                  leaks: [], clean: true }
               : m.type === 'resolve-text'
                 ? { text: String(m.text ?? '').replace('<PII_PHONE_1>', '99•••••41') }
                 : {},
@@ -234,6 +245,39 @@ const RUN = {
   }],
 };
 
+/**
+ * THE AGENT NEEDS ONE VALUE THAT IS NOT ON THE PAGE.
+ *
+ * Manas's mca.gov.in report: the PAN box is empty, so nothing was withheld, and the model
+ * asked for `<PII_PAN_1>` anyway. The client refuses it — the value does not exist — and
+ * now stops to ask rather than spending turns being refused.
+ *
+ * This state exists because the last two things added to this panel rendered NOTHING the
+ * first time and the lamp stuck on "checking": correct code, invisible on screen. There is
+ * no substitute for looking at the pixels.
+ */
+const RUN_NEEDS_INPUT = {
+  stopReason: 'needs-user-input',
+  question: 'What is your Income Tax PAN?',
+  questionTarget: 'el_49',
+  previews: [],
+  records: [{
+    turn: 1, origin: 'www.mca.gov.in', nodeCount: 88, transmittedBytes: 21440,
+    withheld: [], facesBlurred: 0, piiMasked: 0,
+    timings: { extractMs: 14, sanitizeMs: 3, visionMs: 0, networkMs: 4010, totalMs: 4062 },
+    actions: [{ allowed: false,
+      reason: 'no value like <PII_PAN_1> was withheld on this page, so you do not have it'
+        + ' — either ask for it with {"kind":"ask_user","text":"What is your Income Tax'
+        + ' PAN?","reasoning":"not on page"} or leave the field empty and continue',
+      action: { kind: 'type', target: 'el_49', value: '<PII_PAN_1>',
+                reasoning: 'PAN field filled' } }],
+    transmitted: { goal: 'Complete the registration form',
+                   nodes: [{ role: 'textbox', label: 'Income Tax PAN', value: '' }] },
+    received: { actions: [{ kind: 'type', target: 'el_49', value: '<PII_PAN_1>',
+                            reasoning: 'PAN field filled' }] },
+  }],
+};
+
 const STATES = [
   // Captured mid-sweep on purpose: the launch screen is the one moment that a
   // still cannot otherwise show, and it is the first thing anyone sees.
@@ -250,6 +294,10 @@ const STATES = [
   { name: '4-run-complete', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_OK, scan: SCAN, run: RUN,
     after: `document.getElementById('goal').value='Fill in the form and submit it';
+            document.getElementById('run').click()` },
+  { name: '14-needs-user-input', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
+    health: HEALTH_OK, scan: SCAN, run: RUN_NEEDS_INPUT,
+    after: `document.getElementById('goal').value='Complete the registration form';
             document.getElementById('run').click()` },
   { name: '6-scan-ambiguous-field', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/#/login',
     health: HEALTH_DOWN, scan: SCAN_ITD, run: RUN,

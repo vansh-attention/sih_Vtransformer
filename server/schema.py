@@ -77,11 +77,30 @@ _ANSWER_ACTION = {
     "required": ["kind", "text", "reasoning"],
 }
 
+# Asking the user for a value that is not on the page.
+#
+# Its own branch for the same reason `answer` has one: `text` is the whole point of this
+# action and meaningless in every other. It was previously listed in `_BARE_ACTION`, which
+# has no `text` property at all — so the grammar made the model STRUCTURALLY INCAPABLE of
+# asking a question. `ask_user` was named in the contract, this schema, the validator and
+# the executor, and could not be produced or acted on anywhere. That is why the agent had
+# no way to say "I do not have your PAN" and instead re-proposed an invented token until
+# the loop gave up.
+_ASK_ACTION = {
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string", "enum": ["ask_user"]},
+        "text": {"type": "string", "minLength": 1},
+        "reasoning": _REASONING,
+    },
+    "required": ["kind", "text", "reasoning"],
+}
+
 # Kinds that need neither a target nor a value.
 _BARE_ACTION = {
     "type": "object",
     "properties": {
-        "kind": {"type": "string", "enum": ["scroll", "wait", "ask_user", "done"]},
+        "kind": {"type": "string", "enum": ["scroll", "wait", "done"]},
         "target": _TARGET,
         "value": {"type": "string"},
         "scrollDelta": {"type": "integer"},
@@ -95,7 +114,8 @@ AGENT_RESPONSE_SCHEMA = {
     "properties": {
         "actions": {
             "type": "array",
-            "items": {"oneOf": [_TEXT_ACTION, _TARGET_ACTION, _BARE_ACTION, _ANSWER_ACTION]},
+            "items": {"oneOf": [_TEXT_ACTION, _TARGET_ACTION, _BARE_ACTION,
+                                _ANSWER_ACTION, _ASK_ACTION]},
         },
         "needsMoreContext": {"type": "boolean"},
     },

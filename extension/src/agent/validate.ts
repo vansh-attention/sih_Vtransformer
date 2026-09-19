@@ -23,6 +23,31 @@ export interface ValidationResult {
   action: AgentAction;
   allowed: boolean;
   reason?: string;
+  /**
+   * A refusal the CLIENT already knows the answer to, in machine-readable form.
+   *
+   * Set only where the refusal identifies a definite next step rather than merely a
+   * mistake. Today that is one case: the model asked for a value that was never withheld
+   * from this page, so the value does not exist here and the only way forward is to ask
+   * the person for it.
+   *
+   * It exists because the model will not be talked into this. A general rule in the system
+   * prompt plus a PAN example produced `ask_user` on a PAN page 4/4 — and 0/4 on a driving
+   * licence field, where it invented `<PII_LICENSE_1>` instead; handing it the exact
+   * action to copy in the refusal text did not help either, 0/4 again. It was matching the
+   * example, not the rule. So the loop stops depending on the model for something it can
+   * work out for itself: the field's label is right here, in our own extractor's output.
+   */
+  remedy?: {
+    kind: 'ask_user';
+    question: string;
+    /**
+     * The field the value belongs in. Carried so the answer needs no further reasoning:
+     * the user replied to a question about THIS field, so the client fills THIS field and
+     * the model is never consulted about where it goes.
+     */
+     target: ElementId;
+  };
 }
 
 /** Actions the client knows how to execute. Anything else is refused. */
@@ -83,7 +108,10 @@ export function validateAction(
   /** Actions already executed successfully in this run, for the no-op rule below. */
   done: AgentAction[] = [],
 ): ValidationResult {
-  const deny = (reason: string): ValidationResult => ({ action, allowed: false, reason });
+  const deny = (
+    reason: string,
+    remedy?: ValidationResult['remedy'],
+  ): ValidationResult => ({ action, allowed: false, reason, ...(remedy ? { remedy } : {}) });
 
   if (!action || typeof action.kind !== 'string' || !KNOWN_KINDS.has(action.kind)) {
     return deny(`unknown action kind: ${String(action?.kind)}`);
@@ -100,7 +128,27 @@ export function validateAction(
   }
 
   // Actions that need no target.
-  if (action.kind === 'wait' || action.kind === 'done' || action.kind === 'ask_user') {
+  if (action.kind === 'wait' || action.kind === 'done') {
+    return { action, allowed: true };
+  }
+
+  /**
+   * `ask_user` NEEDS A QUESTION, for the same reason `answer` needs text.
+   *
+   * This kind sat in the contract, the JSON schema, this validator and the executor
+   * without a single line describing what it does, and executing it returned
+   * `executed: true` and moved the loop on — so the agent could "ask the user" something
+   * and the user was never asked anything. A capability present in five files and absent
+   * from behaviour reads as working to every test that only checks the action was
+   * allowed.
+   *
+   * The question is the entire payload of this action. Without it the panel has nothing
+   * to render and the run stops for no stated reason, which is worse than not stopping.
+   */
+  if (action.kind === 'ask_user') {
+    if (!(action.text ?? '').trim()) {
+      return deny('ask_user carried no question; put the question in "text"');
+    }
     return { action, allowed: true };
   }
 
@@ -262,7 +310,55 @@ export function validateAction(
     // AND the destination must be a field that actually wants that kind of value.
     if (TOKEN_RE.test(action.value)) {
       const known = payload.placeholders.some((p) => p.token === action.value);
-      if (!known) return deny(`unknown placeholder token: ${action.value}`);
+      /**
+       * AN INVENTED TOKEN IS A REQUEST FOR A VALUE THAT IS NOT ON THIS PAGE.
+       *
+       * Manas reported this on mca.gov.in: the "Income Tax PAN" box is empty, every turn
+       * correctly reports nothing withheld, and the model emits `<PII_PAN_1>` anyway.
+       * Detection is fine and the refusal is right — typing an unresolvable token would
+       * put the literal string "<PII_PAN_1>" into the form, and resolving it is
+       * impossible because no such value was ever vaulted.
+       *
+       * What was wrong was the refusal TEXT. "unknown placeholder token: <PII_PAN_1>"
+       * describes the model's mistake and names no alternative, so the re-plan it feeds
+       * produces the same action again, and the run ends on a message no user can act on.
+       * The same shape as the dropdown refusal that stopped a task at two fields of
+       * three: a refusal the model cannot act on is a refusal that will be retried.
+       *
+       * So the reason states the fact, the cause and the two ways out. It is deliberately
+       * one sentence — it is prepended to the history of every following turn, and this
+       * machine generates about 11 tokens a second.
+       */
+      if (!known) {
+        /**
+         * THE REFUSAL HANDS OVER THE EXACT ACTION, BECAUSE A 7B MODEL COPIES AND DOES
+         * NOT GENERALISE.
+         *
+         * Measured against the live model. A general rule in the system prompt, with a
+         * PAN example, made it emit `ask_user` on the PAN page 4 times out of 4 — and the
+         * control killed the result: swap the field for "Driving Licence Number", which
+         * the prompt never mentions, and it invented `<PII_LICENSE_1>` 3 times out of 3
+         * instead of asking. It was copying the example, not applying the rule, and the
+         * first test could not tell the difference because the treatment was inside it.
+         *
+         * The client does not need the model to generalise. It is holding the node, so it
+         * knows what the field is called, and it can write the whole action out for the
+         * model to copy — which is the one thing a small model does reliably.
+         *
+         * The label is OUR text, from our own extractor, not something the page asserts
+         * about itself; and a label that is itself redacted would produce a question with
+         * a token in it, so that falls back to neutral phrasing.
+         */
+        const rawLabel = (node.label ?? '').trim();
+        const usable = rawLabel && !/<PII_[A-Z_]+_\d+>/.test(rawLabel) && rawLabel.length <= 60;
+        const question = usable ? `What is your ${rawLabel}?` : 'What value should go here?';
+        return deny(
+          `no value like ${action.value} was withheld on this page, so you do not have `
+          + `it — either ask for it with {"kind":"ask_user","text":"${question}",`
+          + '"reasoning":"not on page"} or leave the field empty and continue',
+          { kind: 'ask_user', question, target: node.id },
+        );
+      }
 
       // KIND AGREEMENT. Without this a hostile page can simply ask the agent to put
       // <PII_PAN_1> into a box labelled "Optional feedback" that posts to the

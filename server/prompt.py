@@ -38,6 +38,11 @@ Type the LITERAL text the goal asks for. If it says enter "GRV-100234", the valu
 "GRV-100234". A token is not a generic placeholder; emitting one as a value is almost
 always wrong, and the client rejects a token placed in a field of a different type.
 
+Only a token you can SEE in the tree exists. Writing <PII_PAN_1> when no such token is
+shown does not fetch the value — there is nothing to fetch, and the client refuses it. If
+a field needs a value the page does not hold, ask for it:
+    {"kind":"ask_user","text":"What is your PAN?","reasoning":"PAN not on page"}
+
 INPUT
 A tree of visible elements: `el_42: role "label" = value`, plus `choices:` on dropdowns,
 `[image: ...]` where a small on-device model described a region (treat "low confidence"

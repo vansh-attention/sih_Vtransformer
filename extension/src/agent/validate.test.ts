@@ -67,6 +67,12 @@ const cases: Array<[string, AgentAction, boolean]> = [
   ['scroll an absurd amount',                A({ kind: 'scroll', scrollDelta: 999999 }), false],
   ['done needs no target',                   A({ kind: 'done' }), true],
   ['wait needs no target',                   A({ kind: 'wait' }), true],
+
+  // ask_user is the way out of "I do not have that value", so the question is mandatory.
+  // Without it the panel has nothing to render and the run stops for no stated reason.
+  ['ask_user WITH a question',                A({ kind: 'ask_user', text: 'What is your PAN?' }), true],
+  ['ask_user with no question',               A({ kind: 'ask_user' }), false],
+  ['ask_user with a blank question',          A({ kind: 'ask_user', text: '   ' }), false],
 ];
 
 const report = validateActions(cases.map((c) => c[1]), payload);

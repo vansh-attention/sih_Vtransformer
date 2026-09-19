@@ -270,6 +270,40 @@ function handleOther(msg: { type?: string; [k: string]: unknown },
     return true;
   }
 
+  /**
+   * A VALUE THE USER TYPED IN THE PANEL, PUT INTO THE PAGE.
+   *
+   * The agent asked for something the page does not hold — a PAN on an empty registration
+   * form — and the person answered. This is where that answer lands, and it is the
+   * clearest demonstration in the whole product of what the architecture buys: the value
+   * goes panel -> content script -> the page's own field, and the background service
+   * worker, which is the only part that touches the network, never sees it. On the next
+   * observe the field holds a real value, so `sanitize` vaults it and the model is told
+   * only that the field is now filled.
+   *
+   * ⛔ NOT routed through the validator, deliberately. The validator's job is to refuse
+   * what the MODEL proposes, because the model is downstream of a page that might be
+   * hostile. This value came from the user, about a field the user was asked about, and
+   * subjecting it to "refusing to overwrite a redacted value with literal text" would
+   * refuse the user's own answer.
+   *
+   * It still goes through `executeAction`, so the field is resolved and set by exactly the
+   * same code path as any other typing — one way of putting text into a page, not two.
+   */
+  if (msg.type === 'fill-user-value') {
+    (async () => {
+      const value = typeof msg.value === 'string' ? msg.value : '';
+      const target = typeof msg.target === 'string' ? msg.target : '';
+      if (!value || !target) return { filled: false, error: 'missing value or target' };
+      const r = await executeAction(
+        { kind: 'type', target, value, reasoning: 'value supplied by the user' } as AgentAction,
+        (t) => vault.resolve(t),
+      );
+      return { filled: r.executed, error: r.error };
+    })().then(sendResponse);
+    return true;
+  }
+
   // Masked previews for the ledger. Kept in the content script so the masking function
   // is applied on the same side of the boundary as the values themselves.
   /**

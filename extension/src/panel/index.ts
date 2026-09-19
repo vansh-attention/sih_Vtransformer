@@ -728,9 +728,19 @@ $('run').addEventListener('click', async () => {
         'page-unavailable': 'this page cannot be read',
         'unstable-viewport': 'the page kept moving while being read',
         'stopped-by-user': 'stopped',
+        // Not a failure: the run did everything it could and is waiting on a person.
+        'needs-user-input': 'the agent needs one value from you',
       };
       const reason = res.stopReason as string;
-      const cls = GOOD.has(reason) ? 'allow' : 'deny';
+      /**
+       * `needs-user-input` is neither good nor bad, and it must not be red.
+       *
+       * Every other non-completion here is something that went wrong. This one is the
+       * agent working correctly: it found a field whose value is not on the page and
+       * cannot be, and it asked instead of inventing one. Painting it with the failure
+       * colour would teach the user that being asked a question is a malfunction.
+       */
+      const cls = GOOD.has(reason) ? 'allow' : reason === 'needs-user-input' ? '' : 'deny';
       $('phase').innerHTML =
         `<span class="${cls}">${esc(label[reason] ?? reason)}</span>`
         + ` &middot; ${plural(res.records.length, 'turn')}`
@@ -784,6 +794,44 @@ $('run').addEventListener('click', async () => {
       }
 
       /**
+       * THE QUESTION THE AGENT ASKED, AND SOMEWHERE TO ANSWER IT.
+       *
+       * `ask_user` existed in the contract, the schema, the validator and the executor and
+       * did nothing at all — the loop treated it as a no-op and carried on, so the agent's
+       * only way to say "I do not have that value" reached the user as silence. This is
+       * the surface that was missing.
+       *
+       * The input is `type="text"`, NOT `type="password"`. The user is being asked for a
+       * PAN or a licence number and needs to see what they typed to check it; hiding it
+       * would be privacy theatre in the one place where the value is already on the user's
+       * own screen, in their own browser, on their own machine.
+       *
+       * ⚠ Only offers to fill when the CLIENT raised the question, because only then is
+       * the field known. A question the model composed is prose, and guessing which field
+       * prose refers to is how an agent types a value into the wrong box — so that case
+       * shows the question and says plainly that the user must fill it themselves.
+       */
+      let askHtml = '';
+      if (reason === 'needs-user-input' && res.question) {
+        const canFill = typeof res.questionTarget === 'string' && res.questionTarget.length > 0;
+        askHtml = `<div class="answer" id="askcard"><h2>One value needed</h2>`
+          + `<p>${esc(res.question as string)}</p>`
+          + (canFill
+            ? `<div class="askrow"><input id="askval" type="text" autocomplete="off"`
+              + ` spellcheck="false" placeholder="Type it here"`
+              + ` data-target="${esc(res.questionTarget as string)}">`
+              + `<button id="asksend" type="button">Fill and continue</button></div>`
+              + `<div class="t">It goes straight into the field on the page. It never `
+              + `reaches the reasoning server — that part of the extension is the only one `
+              + `that touches the network, and it will only ever be told the field is now `
+              + `filled.</div>`
+            : `<div class="t">Fill this in on the page yourself, then run the agent again. `
+              + `The agent described the value in words rather than naming a field, so `
+              + `there is no field it can be put into safely.</div>`)
+          + `</div>`;
+      }
+
+      /**
        * THE PROOF, IN THE PANEL — not a file on disk.
        *
        * Everything sent and everything received, concatenated and searched for every
@@ -806,15 +854,35 @@ $('run').addEventListener('click', async () => {
             { target: 'content', type: 'audit-transcript', transcript });
           if (v) {
             const clean = v.clean === true;
+            /**
+             * A CHECK OVER NOTHING IS NOT A PASS.
+             *
+             * When the page held no personal data, the vault is empty and the audit
+             * searches the transcript for zero values and finds zero of them. The card
+             * read "Verified clean — 0 of your values were checked", which is the
+             * user-facing form of a green test that cannot fail: the strongest wording in
+             * the panel, attached to a search that could not have found anything.
+             *
+             * Found by rendering the needs-user-input state, where the page genuinely has
+             * nothing to withhold. It is not a rare case — most pages hold nothing of
+             * yours — and it is the exact claim a judge would push on.
+             */
+            const nothingToCheck = clean && (v.checkedValues ?? 0) === 0;
             proofHtml = `<div class="proof ${clean ? 'ok' : 'bad'}">`
-              + `<h2>${clean ? 'Verified clean' : 'LEAK DETECTED'}</h2>`
-              + `<p><b>${num(v.checkedValues ?? 0)}</b> of your values were checked against `
-              + `<b>${num(v.bytesScanned ?? 0)}</b> bytes — every byte sent to the model and `
-              + `every byte it returned.</p>`
+              + `<h2>${!clean ? 'LEAK DETECTED' : nothingToCheck
+                  ? 'Nothing of yours on this page' : 'Verified clean'}</h2>`
+              + (nothingToCheck
+                ? `<p>No personal data was found here, so none was withheld and there was `
+                  + `nothing to leak. The <b>${num(v.bytesScanned ?? 0)}</b> bytes sent and `
+                  + `returned are below, unchanged.</p>`
+                : `<p><b>${num(v.checkedValues ?? 0)}</b> of your values were checked against `
+                  + `<b>${num(v.bytesScanned ?? 0)}</b> bytes — every byte sent to the model and `
+                  + `every byte it returned.</p>`)
               + (clean
-                  ? `<p class="t">None of them appears, in any form: literal, JSON-escaped, `
-                    + `or with spaces and hyphens stripped. Open any turn below to read the `
-                    + `bytes yourself.</p>`
+                  ? (nothingToCheck ? ''
+                    : `<p class="t">None of them appears, in any form: literal, JSON-escaped, `
+                      + `or with spaces and hyphens stripped. Open any turn below to read the `
+                      + `bytes yourself.</p>`)
                   : `<p class="t">` + (v.leaks ?? []).map((l: { kind: string; how: string }) =>
                       `${esc(l.kind)} found (${esc(l.how)})`).join('<br>') + `</p>`)
               /**
@@ -837,8 +905,46 @@ $('run').addEventListener('click', async () => {
         // The tab may have navigated away; the turns below are still inspectable.
       }
 
-      $('ledger').innerHTML = proofHtml + answerHtml + totals
+      // The question goes ABOVE the proof and the totals. It is the one thing on screen
+      // that needs the user to do something; burying it under a transcript would be the
+      // withheld-screenshot mistake again — a state that exists and nobody notices.
+      $('ledger').innerHTML = askHtml + proofHtml + answerHtml + totals
         + res.records.map((r: any) => renderTurn(r, previews)).join('');
+
+      /**
+       * ANSWER -> FIELD -> RUN AGAIN.
+       *
+       * Deliberately a fresh run rather than resuming the old one. Resuming would act on
+       * the observation from before the field was filled, and a stale observation is how
+       * this agent ends up acting on a page that has since changed. A new run re-observes,
+       * sees the field is now populated, vaults it, and tells the model only that it is
+       * filled — which is exactly the state the loop already handles well.
+       */
+      $('ledger').querySelector('#asksend')?.addEventListener('click', async () => {
+        const input = $('ledger').querySelector('#askval') as HTMLInputElement | null;
+        const send = $('ledger').querySelector('#asksend') as HTMLButtonElement | null;
+        const value = (input?.value ?? '').trim();
+        const target = input?.dataset.target ?? '';
+        if (!value || !target || !send) return;
+        send.disabled = true;
+        send.textContent = 'Filling…';
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (!tab?.id) throw new Error('no active tab');
+          const r = await chrome.tabs.sendMessage(tab.id,
+            { target: 'content', type: 'fill-user-value', target, value });
+          if (!r?.filled) throw new Error(r?.error || 'the field could not be filled');
+          // Wipe it from the input the moment it is in the page. There is no reason for
+          // the answer to sit in the panel's DOM after it has been delivered.
+          input!.value = '';
+          ($('run') as HTMLButtonElement).click();
+        } catch (e) {
+          send.disabled = false;
+          send.textContent = 'Fill and continue';
+          const msg = e instanceof Error ? e.message : String(e);
+          send.insertAdjacentHTML('afterend', `<div class="t deny">${esc(msg)}</div>`);
+        }
+      });
 
       // Optional, not automatic — he was right that files should not pile up by default.
       $('ledger').querySelector('#savetranscript')?.addEventListener('click', () => {

@@ -9,7 +9,7 @@
  * property of the architecture rather than a claim about this file's correctness.
  */
 
-import type { AgentAction, SanitizedNode, SanitizedPayload } from '../contracts.ts';
+import type { AgentAction, ElementId, SanitizedNode, SanitizedPayload } from '../contracts.ts';
 import { validateActions } from '../agent/validate.ts';
 import { callVision, ensureOffscreen } from '../vision/bridge.ts';
 
@@ -40,7 +40,15 @@ export interface LoopOptions {
 export type StopReason =
   | 'goal-complete' | 'answered' | 'max-turns' | 'nothing-executable' | 'stopped-by-user'
   | 'server-unreachable' | 'server-error' | 'server-timeout'
-  | 'page-unavailable' | 'unstable-viewport';
+  | 'page-unavailable' | 'unstable-viewport'
+  /**
+   * The agent needs a value that is not on the page and only the user has.
+   *
+   * A distinct reason rather than a flavour of 'nothing-executable', because it is the
+   * only stop that is not a failure: the run did everything it could and is waiting on a
+   * person. The panel renders `question` and an input; nothing is broken.
+   */
+  | 'needs-user-input';
 
 export interface LoopResult {
   records: TurnRecord[];
@@ -56,6 +64,23 @@ export interface LoopResult {
    * direction — it arrives as a token and is rehydrated on the client.
    */
   answer?: string;
+  /**
+   * Present when stopReason is 'needs-user-input' — the question the agent wants answered.
+   *
+   * Written by the model, so it is prose about a field, never a value: the model has never
+   * seen one. It is shown verbatim to the user beside an input.
+   */
+  question?: string;
+  /**
+   * The field the answer belongs in — present only when the CLIENT raised the question.
+   *
+   * The deterministic path knows the field, because the refusal it acted on named the node
+   * the model was trying to type into. A question the MODEL asked carries no target: it is
+   * prose, and guessing which field prose refers to is how an agent types a value into the
+   * wrong box. So that path shows the question and fills nothing, which is stated in the
+   * panel rather than papered over.
+   */
+  questionTarget?: ElementId;
 }
 
 export interface ProgressEvent {
@@ -563,6 +588,29 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
       return { records, stopReason: 'answered', answer: answer.text };
     }
 
+    /**
+     * ASKING THE USER ENDS THE TURN LOOP — it does not fall through.
+     *
+     * `ask_user` used to be executed as a no-op that returned `executed: true`, so the
+     * loop counted it as progress and carried straight on to observe the page again. The
+     * user was never asked anything, the model's question was discarded, and the next
+     * turn faced the identical page: the agent's only way to say "I do not have that
+     * value" did nothing at all. Checked BEFORE `done` for the same reason `answer` is —
+     * a model that asks a question and then declares itself finished in the same reply
+     * must have the question win, or the question is lost.
+     *
+     * The loop stops rather than awaiting input inline. Awaiting would hold the page, the
+     * screenshot and the whole turn open for however long a person takes to read and
+     * type, and a stale observation is how this agent acts on a page that has since
+     * changed. The panel collects the answer, puts it in the vault, and starts a fresh
+     * run against a freshly observed page.
+     */
+    const asking = report.allowed.find((a) => a.kind === 'ask_user');
+    if (asking) {
+      progress({ turn, phase: 'done', detail: 'waiting for the user' });
+      return { records, stopReason: 'needs-user-input', question: asking.text };
+    }
+
     if (report.allowed.some((a) => a.kind === 'done')) {
       progress({ turn, phase: 'done' });
       return { records, stopReason: 'goal-complete' };
@@ -594,6 +642,28 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
        * honestly that nothing was executable. Whether the task actually completed is a
        * question only something looking at the page can answer.
        */
+      /**
+       * A REFUSAL THE CLIENT ALREADY KNOWS THE ANSWER TO IS NOT A FAILED TURN.
+       *
+       * When every proposal was refused because the model asked for a value that was
+       * never withheld from this page, the value is not here and no amount of re-planning
+       * will conjure it. The loop knows the field's label, so it knows the question, and
+       * it stops to ask rather than spending another model call — about four seconds on
+       * this hardware — to be told the same thing again.
+       *
+       * Checked BEFORE `refusedTurns`, and it stops on the FIRST occurrence rather than
+       * the second: waiting for a second identical refusal is only correct when the
+       * re-plan might differ, and measured against the live model it does not. The model
+       * repeated the invented token 4/4 with the exact `ask_user` action written out for
+       * it in the refusal text.
+       */
+      const remedy = report.denied.find((d) => d.remedy)?.remedy;
+      if (remedy) {
+        progress({ turn, phase: 'done', detail: 'waiting for the user' });
+        return { records, stopReason: 'needs-user-input', question: remedy.question,
+                 questionTarget: remedy.target };
+      }
+
       refusedTurns += 1;
       progress({ turn, phase: 'error', detail: report.denied });
       if (refusedTurns >= 2 || turn === maxTurns) {
