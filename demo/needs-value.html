@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!-- A page that forces the "the agent needs one value from you" state.
+
+     This is Manas's mca.gov.in report in miniature: a required PAN field that is EMPTY,
+     so nothing is withheld, and a goal that cannot be completed without it. The model
+     asks for <PII_PAN_1>, the client refuses it because no such value exists on this
+     page, and the loop stops to ask you instead of burning turns.
+
+     Open it with file:// or any local server, set the goal to "Complete the
+     registration", and press Run.
+
+     Deliberately NOT in bench/pages/: that directory is the scored corpus, and a fixture
+     with no ground-truth file has no business in a scorecard. -->
+<html lang="en">
+<head><meta charset="utf-8"><title>Fresh user registration</title>
+<style>
+  body{font:15px/1.6 system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 20px}
+  label{display:block;margin:18px 0 6px;font-weight:600}
+  input{width:100%;padding:9px 11px;font:inherit;border:1px solid #bbb;border-radius:6px}
+  button{margin-top:22px;padding:10px 18px;font:inherit;border-radius:6px;border:0;
+         background:#1a1a1a;color:#fff}
+  .note{margin-top:28px;padding:12px 14px;background:#f4f4f4;border-radius:8px;
+        font-size:13px;color:#444}
+</style>
+</head>
+<body>
+  <h1>Fresh user registration</h1>
+  <p>All fields are required.</p>
+
+  <label for="fname">First name</label>
+  <input id="fname" name="first_name" value="">
+
+  <!-- The whole point: required, empty, and nothing on the page can supply it. -->
+  <label for="pan">Income Tax PAN</label>
+  <input id="pan" name="pan" placeholder="Enter PAN" required value="">
+
+  <button id="submit">Submit application</button>
+
+  <div class="note">
+    Expected: the agent fills the name, finds it has no PAN, and the panel shows
+    <b>“One value needed — What is your Income Tax PAN?”</b> with a box to type it in.
+    What you type goes into the field on this page and never reaches the reasoning
+    server.
+  </div>
+</body></html>
