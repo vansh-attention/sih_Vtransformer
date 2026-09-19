@@ -677,6 +677,31 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
             return hint && hint.kind !== 'NON_PII' ? hint.kind : undefined;
           })()
         : undefined,
+      /**
+       * Where this control's form actually SENDS what is typed into it.
+       *
+       * Computed here rather than in the validator because it needs the live DOM: the
+       * sanitized payload has no forms in it. Resolved against the document's own base
+       * URL, so a relative action — which is the overwhelming majority — comes out
+       * same-origin, and only a form genuinely pointed at another host is flagged.
+       *
+       * A form with no action at all submits to the current URL, so it is same-origin by
+       * definition and must not be flagged; an unparseable action is treated as
+       * cross-origin, because a destination we cannot read is not one we can vouch for.
+       */
+      crossOriginForm: INTERACTIVE_ROLES.has(role)
+        ? (() => {
+            const form = (el as HTMLInputElement).form ?? el.closest?.('form');
+            const action = form?.getAttribute('action');
+            if (!action) return undefined;
+            try {
+              return new URL(action, el.ownerDocument.baseURI).origin
+                !== new URL(el.ownerDocument.baseURI).origin || undefined;
+            } catch {
+              return true;
+            }
+          })()
+        : undefined,
       // Raw value. The sanitizer decides what happens to it, never the extractor.
       value,
       box,

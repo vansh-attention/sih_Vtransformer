@@ -63,6 +63,20 @@ export interface ElementNode {
   options?: Array<{ value: string; label: string }>;
   /** What layer 1 thinks this field is FOR. A category, never a value. */
   fieldKind?: PiiKind;
+  /**
+   * True when this control sits in a form that submits to a DIFFERENT ORIGIN.
+   *
+   * `fieldKind` is computed by our classifier from the page's own words — the label, the
+   * name, the placeholder — so a hostile page can obtain any `fieldKind` it likes simply
+   * by asking for the right thing in the right words. Labelling a harvesting box "Income
+   * Tax PAN" satisfied kind agreement and the client resolved the real PAN into it.
+   *
+   * Where the form POSTS is not a description the page writes about itself; it is where
+   * the data will actually go. A same-origin form sends the value back to the site the
+   * user is already on and already trusts with it. A cross-origin one sends it somewhere
+   * else, which is the shape of every credential-harvesting page ever built.
+   */
+  crossOriginForm?: boolean;
   /** Set when the DOM cannot describe this region and the ViT must look at it. */
   needsVision?: boolean;
   children?: ElementNode[];
@@ -157,6 +171,20 @@ export interface SanitizedNode {
   options?: Array<{ value: string; label: string }>;
   /** What layer 1 thinks this field is FOR. A category, never a value. */
   fieldKind?: PiiKind;
+  /**
+   * True when this control sits in a form that submits to a DIFFERENT ORIGIN.
+   *
+   * `fieldKind` is computed by our classifier from the page's own words — the label, the
+   * name, the placeholder — so a hostile page can obtain any `fieldKind` it likes simply
+   * by asking for the right thing in the right words. Labelling a harvesting box "Income
+   * Tax PAN" satisfied kind agreement and the client resolved the real PAN into it.
+   *
+   * Where the form POSTS is not a description the page writes about itself; it is where
+   * the data will actually go. A same-origin form sends the value back to the site the
+   * user is already on and already trusts with it. A cross-origin one sends it somewhere
+   * else, which is the shape of every credential-harvesting page ever built.
+   */
+  crossOriginForm?: boolean;
   /** Sanitized the same way `label` is — neighbouring text can carry PII too. */
   contextLabel?: string;
   /**

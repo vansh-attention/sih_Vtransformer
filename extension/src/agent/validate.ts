@@ -409,6 +409,32 @@ export function validateAction(
       // nothing and the injection path it exists to close was open for every
       // multiword kind. TOKEN_RE above was widened when BANK_ACCOUNT landed;
       // this copy was missed. Tenth instance of the same regex.
+      /**
+       * WHERE THE FORM POSTS IS NOT SOMETHING THE PAGE SAYS ABOUT ITSELF.
+       *
+       * Checked BEFORE kind agreement, because it is the stronger signal. Kind agreement
+       * asks whether the page called this field the right thing, and a hostile page will
+       * gladly call it the right thing — that was the whole finding. This asks where the
+       * value would actually go, and a destination is not a description.
+       *
+       * A same-origin form hands the value back to the site the user is already on and
+       * already trusts with it. A cross-origin form hands it to somebody else, which is
+       * the shape of every harvesting page ever built. There is no legitimate case for
+       * this agent resolving a value the user never typed into a form aimed off-site: if
+       * a payment gateway genuinely needs it, the user is the one who should type it.
+       *
+       * ⚠ Only vaulted values are refused. Literal text the model composed is untouched,
+       * because a cross-origin search box is ordinary and blocking it would break pages
+       * for no privacy gain.
+       */
+      if (node.crossOriginForm) {
+        return deny(
+          `refusing to put a withheld value into ${action.target}: its form submits to `
+          + 'another site, so that value would leave this page entirely. If it is genuinely '
+          + 'needed there, the person has to type it themselves.',
+        );
+      }
+
       const tokenKind = action.value.match(/^<PII_([A-Z_]+)_\d+>$/)?.[1];
       if (tokenKind && node.fieldKind !== tokenKind) {
         return deny(

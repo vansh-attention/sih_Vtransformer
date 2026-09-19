@@ -554,6 +554,7 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
       required: node.required,
       focused: node.focused,
       fieldKind: node.fieldKind,
+      crossOriginForm: node.crossOriginForm,
       options: node.options?.map((o) => ({
         value: o.value,
         label: redactLabel(o.label, undefined, vault).text,
