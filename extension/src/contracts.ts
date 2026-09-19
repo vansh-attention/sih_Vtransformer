@@ -64,6 +64,24 @@ export interface ElementNode {
   /** What layer 1 thinks this field is FOR. A category, never a value. */
   fieldKind?: PiiKind;
   /**
+   * Whether a radio or checkbox is CURRENTLY SELECTED.
+   *
+   * Its absence was a hole the size of every form with a choice in it. A radio's `value`
+   * attribute is its own option string — "small", "medium" — never its state, so the
+   * payload said `value: "small"` for an UNCHECKED Small button and the model had no way
+   * to tell a chosen option from an offered one. On httpbin's pizza form it could
+   * therefore neither see that Pizza Size was unset nor confirm it had set it.
+   */
+  checked?: boolean;
+  /**
+   * The name that ties one choice together: `name=size` for Small/Medium/Large.
+   *
+   * Without it three radios are three unrelated controls. With it they are one question.
+   * Not sensitive — a form field's name is written by the page's author, is already read
+   * by `classifyField`, and holds no user data.
+   */
+  group?: string;
+  /**
    * True when this control sits in a form that submits to a DIFFERENT ORIGIN.
    *
    * `fieldKind` is computed by our classifier from the page's own words — the label, the
@@ -171,6 +189,10 @@ export interface SanitizedNode {
   options?: Array<{ value: string; label: string }>;
   /** What layer 1 thinks this field is FOR. A category, never a value. */
   fieldKind?: PiiKind;
+  /** Whether a radio or checkbox is selected. A state, never a value. */
+  checked?: boolean;
+  /** Which choice this option belongs to — `name=size` ties Small/Medium/Large together. */
+  group?: string;
   /**
    * True when this control sits in a form that submits to a DIFFERENT ORIGIN.
    *

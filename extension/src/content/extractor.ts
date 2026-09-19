@@ -308,6 +308,27 @@ function isInteresting(el: Element, role: ElementRole): boolean {
  * this, "<td>Order Total</td><td>999999999999</td>" reads as an unlabelled Aadhaar.
  * Pure structural markup, so it does not breach the no-site-specific-logic rule.
  */
+/**
+ * A fieldset's legend text, computed once per fieldset.
+ *
+ * Cached because every control in a group asks the same question of the same element, and
+ * a radio group of ten repeats the subtree search ten times for one answer. Keyed on the
+ * element itself and reset per extraction, so a page that rewrites its legends between
+ * turns is read fresh.
+ */
+let legendCache = new WeakMap<Element, string>();
+
+function legendOf(group: Element): string {
+  const hit = legendCache.get(group);
+  if (hit !== undefined) return hit;
+  const legend = group.querySelector('legend');
+  const text = legend && !isHidden(legend)
+    ? (legend.textContent ?? '').replace(/\s+/g, ' ').trim()
+    : '';
+  legendCache.set(group, text);
+  return text;
+}
+
 function contextLabelFor(el: Element): string | undefined {
   /**
    * Borrowed text must come from something the USER CAN SEE.
@@ -396,6 +417,38 @@ function contextLabelFor(el: Element): string | undefined {
      */
     const combined = [columnHeader, rowLabel].filter(Boolean).join(' ');
     if (combined) return combined.slice(0, 100);
+  }
+
+  /**
+   * A FIELDSET'S LEGEND, which is the whole meaning of a radio group.
+   *
+   * On httpbin's pizza form the model saw three radios labelled Small, Medium and Large
+   * and four checkboxes labelled Bacon, Extra Cheese, Onion, Mushroom — with nothing
+   * anywhere saying that the first three are one choice called "Pizza Size" and the next
+   * four are "Pizza Toppings". It could not fill the form because it could not tell what
+   * the form was asking.
+   *
+   * `<legend>` is the element HTML provides for exactly this, and the accessibility tree
+   * already treats it as the group's name, so this is generic semantics rather than a
+   * site-specific rescue. Checked AFTER the table branch, since a control inside a table
+   * takes its meaning from the column first.
+   */
+  /**
+   * ⚠ FORM CONTROLS ONLY, and the gate is load-bearing rather than tidy.
+   *
+   * The first version asked this of EVERY element. `closest('fieldset')` walks the whole
+   * ancestor chain and `querySelector('legend')` searches a subtree, so on wikipedia.html
+   * — 5,993 nodes — extraction went from ~1.5s to 4.7s and blew the 5s bound in
+   * `realpages-drill`. Caught by the drill, which exists for exactly this.
+   *
+   * A legend names a GROUP OF CONTROLS. Headings, paragraphs and layout divs are not in
+   * one, so asking on their behalf bought nothing and cost three seconds.
+   */
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'input' || tag === 'select' || tag === 'textarea') {
+    const group = el.closest('fieldset');
+    const legend = group && legendOf(group);
+    if (legend) return legend.slice(0, 100);
   }
 
   const prevText = visibleText(el.previousElementSibling);
@@ -569,6 +622,7 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
 
   // One document scan for all label[for] associations, instead of one per element.
   labelForId = buildLabelIndex(doc);
+  legendCache = new WeakMap<Element, string>();
   truncatedText = [];
 
   let count = 0;
@@ -720,6 +774,17 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
       // every heading and paragraph doubled the per-node cost for a field that only
       // means anything on a control.
       options,
+      /**
+       * A radio's `value` attribute is the option it OFFERS; `checked` is whether it was
+       * taken. The payload carried only the first, so an unchecked "Small" and a chosen
+       * one were byte-for-byte identical to the model — and it could neither see that a
+       * choice was unmade nor confirm it had made one.
+       */
+      checked: (role === 'radio' || role === 'checkbox')
+        ? !!(el as HTMLInputElement).checked : undefined,
+      /** Ties one choice together. Never a user value — the page's author wrote it. */
+      group: (role === 'radio' || role === 'checkbox')
+        ? (el.getAttribute('name') ?? undefined) : undefined,
       fieldKind: INTERACTIVE_ROLES.has(role)
         ? (() => {
             const hint = classifyField(signalsFor(el, context));

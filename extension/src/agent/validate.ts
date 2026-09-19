@@ -272,6 +272,30 @@ export function validateAction(
    * correction it cannot skim past. The options are already on the node, so it has
    * everything it needs to choose one.
    */
+  /**
+   * "select" AIMED AT A RADIO OR A CHECKBOX, WHICH IS SET BY CLICKING IT.
+   *
+   * Once the payload started reporting `checked` and `group`, the model immediately began
+   * picking the right option — Medium out of Small/Medium/Large, Onion out of four
+   * toppings, 3 runs of 3. It just reaches for `select`, because choosing an option is
+   * what it is doing. `select` sets `el.value`, and a radio's value is fixed by the page,
+   * so it does nothing whatsoever and the choice stays unmade.
+   *
+   * Normalised rather than refused, on the same reasoning as the type-on-a-dropdown rule
+   * below: this is not a guess about what the model meant. It named a specific radio and
+   * a click is the only way that radio can be set. Bounded, too — clicking a radio can
+   * only produce a state the page itself offers.
+   *
+   * `normalised` is recorded so the Privacy Ledger shows the rewrite, because a
+   * correction the user cannot see is indistinguishable from the agent doing something it
+   * was not asked to do.
+   */
+  if (action.kind === 'select' && (node.role === 'radio' || node.role === 'checkbox')) {
+    action.kind = 'click';
+    (action as { normalised?: string }).normalised = 'select on a radio read as click';
+    return { action, allowed: true };
+  }
+
   if (action.kind === 'click' && node.role === 'select') {
     const choices = (node.options ?? []).map((o) => o.value).filter(Boolean);
     return deny(

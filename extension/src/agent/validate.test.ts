@@ -28,6 +28,11 @@ const payload: SanitizedPayload = {
       { id: 'el_6', role: 'textbox',  label: 'Coupon',  box, visible: true,  enabled: true },
       { id: 'el_8', role: 'textbox',  label: 'PAN (empty)', box, visible: true, enabled: true, fieldKind: 'PAN' },
       { id: 'el_9', role: 'textbox',  label: 'Account number', box, visible: true, enabled: true, fieldKind: 'BANK_ACCOUNT' },
+      { id: 'el_20', role: 'radio', label: 'Medium', group: 'size', checked: false, box, visible: true, enabled: true },
+      { id: 'el_21', role: 'checkbox', label: 'Onion', group: 'topping', checked: false, box, visible: true, enabled: true },
+      // A real <select>, so the radio normalisation can be shown NOT to touch it.
+      { id: 'el_22', role: 'select', label: 'Category', box, visible: true, enabled: true,
+        options: [{ value: 'billing', label: 'Billing' }] },
       { id: 'el_7', role: 'button',   label: 'Hidden',  box, visible: false, enabled: true },
     ],
   },
@@ -70,6 +75,23 @@ const cases: Array<[string, AgentAction, boolean]> = [
 
   // ask_user is the way out of "I do not have that value", so the question is mandatory.
   // Without it the panel has nothing to render and the run stops for no stated reason.
+  /**
+   * A radio is set by clicking it. The model reaches for "select" because choosing an
+   * option is what it is doing — measured 3 runs of 3 once the payload started reporting
+   * `checked` and `group` — and `select` sets el.value, which a radio ignores entirely.
+   * Normalised, so the choice is actually made rather than silently skipped.
+   */
+  ['select on a RADIO is normalised to a click',   A({ kind: 'select', target: 'el_20', value: 'medium' }), true],
+  ['select on a CHECKBOX is normalised too',       A({ kind: 'select', target: 'el_21', value: 'onion' }), true],
+  ['clicking a radio directly is fine',            A({ kind: 'click', target: 'el_20' }), true],
+  /**
+   * THE CONTROL, and the first version of it was wrong: it clicked `el_2`, a BUTTON,
+   * while claiming to test a dropdown — so it asserted `true` and exercised nothing.
+   * A real <select> must still refuse a bare click, or the older dropdown rule that this
+   * normalisation sits next to has quietly stopped working.
+   */
+  ['CONTROL: clicking a real dropdown is still refused', A({ kind: 'click', target: 'el_22' }), false],
+
   ['ask_user WITH a question',                A({ kind: 'ask_user', text: 'What is your PAN?' }), true],
   ['ask_user with no question',               A({ kind: 'ask_user' }), false],
   ['ask_user with a blank question',          A({ kind: 'ask_user', text: '   ' }), false],

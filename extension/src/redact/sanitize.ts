@@ -554,6 +554,8 @@ export function sanitize(structure: PageStructure, opts: SanitizeOptions): Sanit
       required: node.required,
       focused: node.focused,
       fieldKind: node.fieldKind,
+      checked: node.checked,
+      group: node.group,
       crossOriginForm: node.crossOriginForm,
       options: node.options?.map((o) => ({
         value: o.value,

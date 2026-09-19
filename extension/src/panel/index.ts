@@ -9,6 +9,7 @@
  */
 
 import { animate, stagger, press, hover } from 'motion';
+import { missingFields, type MissingField } from '../agent/missing.ts';
 import {
   decide, originOf, threadFor, getThread, createThread, appendRun, listThreads, deleteAll,
   type Thread, type ThreadVerdict,
@@ -153,6 +154,51 @@ function labelOfTarget(res: any, target: unknown): string {
     if (found) return found;
   }
   return '';
+}
+
+/**
+ * One form for everything the page is still waiting for.
+ *
+ * A text box per empty field, a real radio group per unanswered choice — rendered as the
+ * controls they actually are, because asking "what size?" in a free-text box and hoping
+ * the answer matches an option is how you get a form filled with words the page will not
+ * accept.
+ */
+function renderMissingForm(missing: MissingField[], question?: string): string {
+  const rows = missing.map((f, i) => {
+    if (f.kind === 'choice') {
+      // Checkboxes are a MULTIPLE choice. Rendering toppings as radios would quietly
+      // forbid a second one and the person would assume the form said so.
+      const type = f.multiple ? 'checkbox' : 'radio';
+      const opts = (f.options ?? []).map((o) =>
+        `<label class="mopt"><input type="${type}" name="mf_${i}" value="${esc(o.id)}">`
+        + `<span>${esc(o.label)}</span></label>`).join('');
+      return `<div class="mrow" data-kind="choice"><div class="mlabel">${esc(f.label)}`
+        + `${f.required ? '<span class="mreq">required</span>' : ''}</div>`
+        + `<div class="mopts">${opts}</div></div>`;
+    }
+    return `<div class="mrow" data-kind="text"><div class="mlabel">${esc(f.label)}`
+      + `${f.required ? '<span class="mreq">required</span>' : ''}</div>`
+      + `<input class="mtext" type="text" autocomplete="off" spellcheck="false"`
+      + ` data-target="${esc(f.id)}" placeholder="Leave blank to skip"></div>`;
+  }).join('');
+
+  /**
+   * The model's own question is deliberately NOT shown when we have a computed list.
+   *
+   * That question is what went wrong in the first place: it asked "What is your name?"
+   * about a field already holding his name. The list is read off the page and is simply
+   * better evidence, so showing both would put a known-wrong sentence above a right one.
+   */
+  return `<div class="answer" id="askcard"><h2>${plural(missing.length, 'value')} needed</h2>`
+    + `<p>Fill in what you want the agent to use. Anything left blank is skipped.</p>`
+    + `<div class="mform">${rows}</div>`
+    + `<div class="askrow"><button type="button" id="asksend">Fill these in and continue`
+    + `</button></div>`
+    + `<div class="t">Everything you type goes straight into the fields on the page. None `
+    + `of it reaches the reasoning server — that part of the extension is the only one `
+    + `that touches the network, and it will only ever be told the field is now filled. `
+    + `Anything you leave blank is skipped.</div></div>`;
 }
 
 function renderTurn(rec: any, previews: Map<string, Preview>): string {
@@ -992,8 +1038,25 @@ $('run').addEventListener('click', async () => {
        * prose refers to is how an agent types a value into the wrong box — so that case
        * shows the question and says plainly that the user must fill it themselves.
        */
+      /**
+       * ASK FOR EVERYTHING AT ONCE, AND ASK FOR THE RIGHT THINGS.
+       *
+       * His report: it asked for his email, took it, put it in the field correctly — then
+       * asked for his NAME, which was already on the page, and never mentioned Pizza
+       * Size, the toppings, the delivery time or the instructions at all.
+       *
+       * The client is holding the payload. It knows every control, its value, whether it
+       * is checked and which choice it belongs to, so it can simply read off what is not
+       * yet filled instead of asking the weakest component in the system to remember.
+       * Computed from the LAST turn's payload, which is the most recent read of the page.
+       */
+      const lastPayload = res.records?.[res.records.length - 1]?.transmitted;
+      const missing: MissingField[] = lastPayload ? missingFields(lastPayload) : [];
+
       let askHtml = '';
-      if (reason === 'needs-user-input' && res.question) {
+      if (missing.length) {
+        askHtml = renderMissingForm(missing, res.question as string | undefined);
+      } else if (reason === 'needs-user-input' && res.question) {
         const canFill = typeof res.questionTarget === 'string' && res.questionTarget.length > 0;
         askHtml = `<div class="answer" id="askcard"><h2>One value needed</h2>`
           + `<p>${esc(res.question as string)}</p>`
@@ -1126,41 +1189,97 @@ $('run').addEventListener('click', async () => {
        * filled — which is exactly the state the loop already handles well.
        */
       $('ledger').querySelector('#asksend')?.addEventListener('click', async () => {
-        const input = $('ledger').querySelector('#askval') as HTMLInputElement | null;
+        const card = $('ledger').querySelector('#askcard');
         const send = $('ledger').querySelector('#asksend') as HTMLButtonElement | null;
-        const value = (input?.value ?? '').trim();
-        const target = input?.dataset.target ?? '';
-        if (!value || !target || !send) return;
+        if (!card || !send) return;
+
+        /**
+         * Everything the person entered, in one pass.
+         *
+         * A blank text box is a deliberate skip, not an error — he may not want to give a
+         * delivery time. An unanswered choice is the same. The form fills what it was
+         * given and reports honestly on the rest.
+         */
+        const answers: Array<{ id: string; value: string }> = [];
+        for (const box of Array.from(card.querySelectorAll('.mtext')) as HTMLInputElement[]) {
+          const v = box.value.trim();
+          if (v && box.dataset.target) answers.push({ id: box.dataset.target, value: v });
+        }
+        for (const picked of Array.from(
+          card.querySelectorAll('.mopt input:checked')) as HTMLInputElement[]) {
+          if (picked.value) answers.push({ id: picked.value, value: '' });
+        }
+
         send.disabled = true;
-        send.textContent = 'Filling…';
+        send.textContent = answers.length ? 'Filling…' : 'Checking…';
         try {
           /**
-           * ⛔ The RUN's tab, and the sharpest case of the four: this puts a value the
-           * PERSON typed into a page. Aimed at the active tab, switching tabs before
-           * pressing this would have typed their PAN into whatever site was in front.
+           * ⛔ The RUN's tab. This puts values the PERSON typed into a page: aimed at the
+           * active tab, switching tabs before pressing it would have typed his PAN into
+           * whatever site happened to be in front.
            */
-          const tab = { id: res.tabId as number | undefined };
-          if (typeof tab.id !== 'number') throw new Error('the tab this ran on is gone');
+          const tabId = res.tabId as number | undefined;
+          if (typeof tabId !== 'number') throw new Error('the tab this ran on is gone');
+
+          const failed: string[] = [];
+          for (const a of answers) {
+            // ⚠ `elementId`, NOT `target` — `target` is the message ROUTING field. The
+            // shorthand form of this overwrote it once and the fill silently did nothing.
+            const r = await chrome.tabs.sendMessage(tabId,
+              { target: 'content', type: 'fill-user-value', elementId: a.id, value: a.value });
+            if (!r?.filled) failed.push(a.id);
+          }
+          // Nothing lingers in the panel's DOM once it is in the page.
+          for (const box of Array.from(card.querySelectorAll('.mtext')) as HTMLInputElement[]) {
+            box.value = '';
+          }
+
           /**
-           * ⚠ `elementId`, NOT `target`.
+           * ⭐ NOW READ THE PAGE BACK — his second ask, and the more important half.
            *
-           * This read `{ target: 'content', type: 'fill-user-value', target, value }`.
-           * The shorthand overwrote the routing field with the element id, so the
-           * content script's `msg.target !== 'content'` guard dropped the message and
-           * the button could never have filled anything. Caught by `tsc` (TS1117,
-           * duplicate property) — which is not in the build or the test suite, which is
-           * why it shipped.
+           * Never trust the values we believe we typed. A control that silently refuses a
+           * scripted value looks perfectly filled from this side and is empty on the
+           * page; this project has already been bitten by exactly that on demoqa.com. A
+           * fresh `observe` is the only honest check, and it costs no model call.
            */
-          const r = await chrome.tabs.sendMessage(tab.id,
-            { target: 'content', type: 'fill-user-value', elementId: target, value });
-          if (!r?.filled) throw new Error(r?.error || 'the field could not be filled');
-          // Wipe it from the input the moment it is in the page. There is no reason for
-          // the answer to sit in the panel's DOM after it has been delivered.
-          input!.value = '';
+          const check = await chrome.tabs.sendMessage(tabId,
+            { target: 'content', type: 'observe', goal: '', history: [] });
+          const left = check?.payload ? missingFields(check.payload) : [];
+          const required = left.filter((f) => f.required);
+
+          if (failed.length || required.length) {
+            /**
+             * Stop and say so rather than submitting a form that is not ready. Optional
+             * gaps are reported too, but they do not block: leaving the delivery
+             * instructions empty is a choice, not a mistake.
+             */
+            send.disabled = false;
+            send.textContent = 'Fill these in and continue';
+            const parts = [
+              failed.length ? `${plural(failed.length, 'field')} would not accept a value`
+                : '',
+              required.length
+                ? `still required: ${required.map((f) => esc(f.label)).join(', ')}` : '',
+              !failed.length && !required.length ? '' : '',
+            ].filter(Boolean);
+            const optional = left.filter((f) => !f.required);
+            card.querySelector('.mform')?.insertAdjacentHTML('beforebegin',
+              `<div class="t deny">Checked the page again — ${parts.join('; ')}.</div>`);
+            if (optional.length) {
+              card.querySelector('.mform')?.insertAdjacentHTML('beforebegin',
+                `<div class="t">Still empty, but optional: `
+                + `${optional.map((f) => esc(f.label)).join(', ')}.</div>`);
+            }
+            return;
+          }
+
+          card.insertAdjacentHTML('beforeend',
+            `<div class="t allow">Checked the page again — everything you entered is `
+            + `in place.</div>`);
           ($('run') as HTMLButtonElement).click();
         } catch (e) {
           send.disabled = false;
-          send.textContent = 'Fill and continue';
+          send.textContent = 'Fill these in and continue';
           const msg = e instanceof Error ? e.message : String(e);
           send.insertAdjacentHTML('afterend', `<div class="t deny">${esc(msg)}</div>`);
         }

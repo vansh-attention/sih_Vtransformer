@@ -414,6 +414,27 @@
                                  background:transparent}
   .threadbar .t{margin-top:8px}
 
+  /* One question per row: a label, then the control it actually is. Radios are rendered
+     as radios rather than as a text box hoping for a matching word. */
+  .mform{margin:0 0 12px}
+  .mrow + .mrow{margin-top:13px}
+  .mlabel{font-size:12.5px;color:var(--ash);margin:0 0 6px;display:flex;gap:7px;
+          align-items:baseline}
+  .mreq{font-size:10.5px;color:var(--amber)}
+  .mtext{width:100%;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);
+         background:var(--pit);border:1px solid var(--edge-2);border-radius:var(--r-md)}
+  .mtext:focus-visible{outline:none;border-color:var(--ink)}
+  .mtext::placeholder{color:var(--ash-2)}
+  /* Wraps, because "Bacon / Extra Cheese / Onion / Mushroom" does not fit one 400px row
+     and a horizontal scrollbar inside a side panel is not a control anyone finds. */
+  .mopts{display:flex;flex-wrap:wrap;gap:7px}
+  .mopt{display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:var(--r-pill);
+        background:var(--card-2);border:1px solid var(--edge);font-size:12.5px;
+        color:var(--ash);cursor:pointer}
+  .mopt:hover{border-color:var(--edge-2);color:var(--ink)}
+  .mopt input{accent-color:var(--ink);margin:0}
+  .mopt:has(input:checked){border-color:var(--ink);color:var(--ink);background:var(--row)}
+
   .askrow{display:flex;gap:9px;align-items:center;margin:0 0 10px}
   .askrow input{flex:1 1 auto;min-width:0;padding:11px 13px;font:inherit;font-size:13.5px;
                 color:var(--ink);background:var(--pit);border:1px solid var(--edge-2);

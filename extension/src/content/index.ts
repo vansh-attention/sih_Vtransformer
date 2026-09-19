@@ -320,9 +320,25 @@ function handleOther(msg: { type?: string; [k: string]: unknown },
       // 'content' here. Reading the element id out of it produced a fill that silently
       // did nothing at all.
       const target = typeof msg.elementId === 'string' ? msg.elementId : '';
-      if (!value || !target) return { filled: false, error: 'missing value or target' };
+      if (!target) return { filled: false, error: 'missing target' };
+
+      /**
+       * A CHOICE IS CLICKED, NOT TYPED.
+       *
+       * Pizza Size is three radios. Typing "Medium" into one does nothing at all — the
+       * value attribute is fixed by the page — so the answer to a choice is a click on
+       * the option the person picked. Same executor either way, so there is still one
+       * code path that puts anything into a page.
+       */
+      const el = resolveElement(target);
+      const type = (el as HTMLInputElement | null)?.type?.toLowerCase();
+      const isChoice = type === 'radio' || type === 'checkbox';
+      if (!isChoice && !value) return { filled: false, error: 'missing value' };
+
       const r = await executeAction(
-        { kind: 'type', target, value, reasoning: 'value supplied by the user' } as AgentAction,
+        isChoice
+          ? { kind: 'click', target, reasoning: 'choice made by the user' } as AgentAction
+          : { kind: 'type', target, value, reasoning: 'value supplied by the user' } as AgentAction,
         (t) => vault.resolve(t),
       );
       return { filled: r.executed, error: r.error };

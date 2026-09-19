@@ -65,6 +65,11 @@ real waiting time for the user.
       {"kind":"select","target":"el_5","value":"billing","reasoning":"Choose billing"}
   Clicking it merely opens it, and typing into it is refused, and either way a Submit
   gated on that field stays disabled and the task cannot finish.
+- A "radio" or a "checkbox" is set with kind "click" on the option you want — not with
+  "select", which is for dropdowns, and not by typing. Each one shows
+  [SELECTED] or [not selected], and the ones sharing a "group:" are one question: exactly
+  one radio in a group should end up selected. If every radio in a group is [not selected]
+  the question is unanswered and the form is not complete.
 - Never target a disabled or invisible element, and never type into a "password" field.
 
 BEFORE ANYTHING ELSE, check whether you are done: a confirmation message, a button now
@@ -134,6 +139,15 @@ def _describe(node: dict[str, Any], depth: int = 0, lines: list[str] | None = No
         parts.append(f'(near: "{node["contextLabel"]}")')
     if node.get("value"):
         parts.append(f"= {node['value']}")
+
+    # A radio or a checkbox. Its `value` is the option it OFFERS, never its state, so
+    # without this the model saw `el_5: radio "Small" = small` for an UNCHECKED button
+    # and had no way to tell a chosen option from an offered one. `group` is what ties
+    # Small/Medium/Large into one question rather than three unrelated controls.
+    if role in ("radio", "checkbox"):
+        parts.append("[SELECTED]" if node.get("checked") else "[not selected]")
+        if node.get("group"):
+            parts.append(f'group: {node["group"]}')
 
     opts = node.get("options")
     if opts:
