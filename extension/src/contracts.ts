@@ -64,6 +64,18 @@ export interface ElementNode {
   /** What layer 1 thinks this field is FOR. A category, never a value. */
   fieldKind?: PiiKind;
   /**
+   * The input's own `type`: "time", "date", "email", "number", "tel", "url"…
+   *
+   * Every type the role map does not name falls through to role `textbox`, which is right
+   * for acting on it and useless for asking a person to fill it in. `<input type=time>`
+   * accepts "HH:MM" and nothing else, so the panel offered a plain text box, the answer
+   * typed into it was rejected by the control, and the field stayed empty — the one
+   * question out of six that could not be answered.
+   *
+   * A control's type is written by the page's author and holds no user data.
+   */
+  inputType?: string;
+  /**
    * Whether a radio or checkbox is CURRENTLY SELECTED.
    *
    * Its absence was a hole the size of every form with a choice in it. A radio's `value`
@@ -189,6 +201,8 @@ export interface SanitizedNode {
   options?: Array<{ value: string; label: string }>;
   /** What layer 1 thinks this field is FOR. A category, never a value. */
   fieldKind?: PiiKind;
+  /** The input's own type — "time", "date", "email". A category, never a value. */
+  inputType?: string;
   /** Whether a radio or checkbox is selected. A state, never a value. */
   checked?: boolean;
   /** Which choice this option belongs to — `name=size` ties Small/Medium/Large together. */

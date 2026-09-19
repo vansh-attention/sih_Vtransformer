@@ -32,6 +32,15 @@ export interface MissingField {
   /** For a choice: every option in the group, so the panel can render the real thing. */
   options?: Array<{ id: string; label: string }>;
   /**
+   * The HTML input type to render: "time", "date", "email", "number", "text"…
+   *
+   * A clock field needs a clock. He filled five of six questions correctly and the sixth
+   * — Preferred delivery time — was offered as a plain text box, so whatever he typed was
+   * rejected by the control and the field stayed empty. `<input type=time>` accepts
+   * "HH:MM" and nothing else; a browser's own time picker cannot produce anything else.
+   */
+  inputType: string;
+  /**
    * True for a CHECKBOX group, where more than one answer is allowed.
    *
    * Pizza Size is three radios and exactly one is right. Pizza Toppings is four
@@ -43,6 +52,24 @@ export interface MissingField {
 
 /** Roles that hold typed text. */
 const TEXTY = new Set(['textbox']);
+
+/**
+ * Types a browser gives a real editor for, and that we are willing to put in the panel.
+ *
+ * An allow-list rather than a pass-through: `inputType` comes off the page, and handing
+ * an arbitrary string to `type="..."` lets a page choose the control we render — a
+ * `type="password"` would turn our own question box into a password prompt, which is
+ * exactly the shape this product exists to argue against. Anything not named here falls
+ * back to a plain text box, which always works.
+ */
+const RENDERABLE = new Set([
+  'time', 'date', 'datetime-local', 'month', 'week',
+  'email', 'number', 'tel', 'url', 'search', 'color', 'range', 'text',
+]);
+
+function renderableType(t: string | undefined): string {
+  return t && RENDERABLE.has(t) ? t : 'text';
+}
 
 function walk(root: SanitizedNode, fn: (n: SanitizedNode) => void): void {
   (function rec(n: SanitizedNode) { fn(n); n.children?.forEach(rec); })(root);
@@ -77,6 +104,7 @@ export function missingFields(payload: SanitizedPayload): MissingField[] {
         label: (n.label || n.contextLabel || 'this field').replace(/\s*:\s*$/, ''),
         kind: 'text',
         required: n.required === true,
+        inputType: renderableType(n.inputType),
       });
       return;
     }
@@ -111,6 +139,10 @@ export function missingFields(payload: SanitizedPayload): MissingField[] {
       required: g.required,
       options: g.options,
       multiple: g.multiple,
+      // A choice is rendered as radios or checkboxes, never as an input, so this is
+      // unused for it. Required rather than optional on the type, so a TEXT field cannot
+      // quietly lose its type and fall back to a box that rejects the answer.
+      inputType: 'text',
     });
   }
 

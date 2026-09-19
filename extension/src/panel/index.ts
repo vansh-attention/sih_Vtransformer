@@ -177,10 +177,31 @@ function renderMissingForm(missing: MissingField[], question?: string): string {
         + `${f.required ? '<span class="mreq">required</span>' : ''}</div>`
         + `<div class="mopts">${opts}</div></div>`;
     }
+    /**
+     * The control the PAGE wants, not a text box for everything.
+     *
+     * A `time` field gets the browser's clock, a `date` field a date picker. He answered
+     * five of six questions correctly and the sixth was a clock offered as free text, so
+     * what he typed was rejected by the control and the field stayed empty.
+     *
+     * A placeholder is only shown where one is visible: a time or date input renders its
+     * own `--:--` and a placeholder attribute on it is ignored by every browser, so the
+     * hint has to move out to the label or it simply is not there.
+     */
+    const type = f.inputType || 'text';
+    /**
+     * A placeholder only shows on a free-text control. A time or date input renders its
+     * own `--:--` and ignores the attribute in every browser, so the hint would simply
+     * not be there — better to omit it than to write a line nobody sees.
+     */
+    const plain = type === 'text' || type === 'email' || type === 'tel'
+      || type === 'url' || type === 'search' || type === 'number';
     return `<div class="mrow" data-kind="text"><div class="mlabel">${esc(f.label)}`
-      + `${f.required ? '<span class="mreq">required</span>' : ''}</div>`
-      + `<input class="mtext" type="text" autocomplete="off" spellcheck="false"`
-      + ` data-target="${esc(f.id)}" placeholder="Leave blank to skip"></div>`;
+      + `${f.required ? '<span class="mreq">required</span>' : ''}`
+      + `</div>`
+      + `<input class="mtext" type="${esc(type)}" autocomplete="off" spellcheck="false"`
+      + ` data-target="${esc(f.id)}"`
+      + `${plain ? ' placeholder="Leave blank to skip"' : ''}></div>`;
   }).join('');
 
   /**

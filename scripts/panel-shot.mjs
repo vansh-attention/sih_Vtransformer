@@ -313,8 +313,10 @@ const RUN_NEEDS_INPUT = {
           contextLabel: 'Pizza Toppings', visible: true, enabled: true },
         { id: 'el_11', role: 'checkbox', label: 'Extra Cheese', group: 'topping',
           checked: false, contextLabel: 'Pizza Toppings', visible: true, enabled: true },
+        // A CLOCK, not a text box. This is the field he could not answer: whatever he
+        // typed into a plain input was rejected by the control and it stayed empty.
         { id: 'el_15', role: 'textbox', label: 'Preferred delivery time', value: '',
-          required: true, visible: true, enabled: true },
+          inputType: 'time', required: true, visible: true, enabled: true },
         { id: 'el_16', role: 'textbox', label: 'Delivery instructions', value: '',
           visible: true, enabled: true },
       ] } },

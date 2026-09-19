@@ -96,6 +96,30 @@ function indexNodes(root: SanitizedNode): Map<ElementId, SanitizedNode> {
   return map;
 }
 
+/**
+ * The button that most likely submits this form, if there is an obvious one.
+ *
+ * The client is holding the page and the model is guessing, so when a refusal needs to
+ * say "you are finished, press the button", it can name the actual button instead of
+ * describing one. Offered "submit the form, or return done", the model returned `done`
+ * 3 times out of 3 and the form was never submitted — one click short of the goal.
+ *
+ * Deliberately conservative. Only an enabled, visible button whose own label says what it
+ * does, and only when exactly ONE matches: naming the wrong button is worse than naming
+ * none, because this text is an instruction the model will follow.
+ */
+const SUBMITTISH = /\b(submit|send|order|place|confirm|continue|save|pay|book|apply)\b/i;
+
+function submitCandidate(root: SanitizedNode): SanitizedNode | undefined {
+  const found: SanitizedNode[] = [];
+  (function walk(n: SanitizedNode) {
+    if (n.role === 'button' && n.visible !== false && n.enabled !== false
+        && SUBMITTISH.test(n.label ?? '')) found.push(n);
+    n.children?.forEach(walk);
+  })(root);
+  return found.length === 1 ? found[0] : undefined;
+}
+
 /** Does this element currently hold a redacted value? */
 function holdsRedactedValue(node: SanitizedNode): boolean {
   return typeof node.value === 'string' && /<PII_[A-Z_]+_\d+>/.test(node.value);
@@ -242,9 +266,13 @@ export function validateAction(
      * Same lesson as the invented-token refusal, reached from the opposite direction: a
      * refusal a model cannot act on is a refusal it will repeat.
      */
+    const submit = submitCandidate(payload.root);
+    const next = submit
+      ? `click ${submit.id} ("${submit.label}") if the form is complete`
+      : 'submit the form if it is complete';
     return deny(`${action.target} already holds that value, so this would change nothing `
-      + '— that field is finished; submit the form if it is complete, or return '
-      + '{"kind":"done","reasoning":"..."}');
+      + `— that field is finished. Next: ${next}, or return `
+      + '{"kind":"done","reasoning":"..."} only if there is nothing left to press.');
   }
   /**
    * Tried twice and the page still does not show it. Refuse — but say what is actually
@@ -478,9 +506,29 @@ export function validateAction(
         );
       }
     } else if (holdsRedactedValue(node)) {
-      // The field already holds redacted content. Overwriting it with literal text
-      // would destroy the user's real data on the strength of a model's guess.
-      return deny(`refusing to overwrite redacted value in ${action.target} with literal text`);
+      /**
+       * The field already holds redacted content. Overwriting it with literal text would
+       * destroy the user's real data on the strength of a model's guess.
+       *
+       * ⚠ THE REFUSAL IS RIGHT AND IT USED TO END THE RUN. On httpbin's form, once the
+       * name, phone and email were filled and vaulted, the model spent its remaining
+       * turns re-typing the name over its own token, was refused each time, and the loop
+       * stopped with "every proposed action was refused" — one click away from Submit.
+       *
+       * A token in a field means that field is FINISHED, which the prompt already says
+       * and the model does not reliably act on. So the refusal says what is true and what
+       * to do next, the same fix as the invented-token and no-op refusals: a refusal a
+       * model cannot act on is a refusal it will repeat.
+       */
+      const submit = submitCandidate(payload.root);
+      const next = submit
+        ? `click ${submit.id} ("${submit.label}") if the form is complete`
+        : 'submit the form if it is complete';
+      return deny(
+        `${action.target} already holds the user's own value — that field is finished. `
+        + `Do not type into it. Next: ${next}, or return `
+        + '{"kind":"done","reasoning":"..."} only if there is nothing left to press.',
+      );
     }
   }
 

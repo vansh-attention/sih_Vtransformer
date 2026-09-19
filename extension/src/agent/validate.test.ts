@@ -60,6 +60,14 @@ const cases: Array<[string, AgentAction, boolean]> = [
   ['multiword token into a MISMATCHED field', A({ kind: 'type', target: 'el_6', value: '<PII_BANK_ACCOUNT_1>' }), false],
   ['type an UNKNOWN token',                  A({ kind: 'type', target: 'el_5', value: '<PII_PAN_9>' }), false],
   ['overwrite a redacted value with text',   A({ kind: 'type', target: 'el_5', value: 'ABCPE1234F' }), false],
+  /**
+   * ⚠ The case above never reaches the overwrite rule: 'ABCPE1234F' is PAN-shaped, so the
+   * raw-PII guard refuses it several branches earlier and the overwrite branch has been
+   * untested the whole time. ORDINARY text into a field holding a token is the case that
+   * actually exercises it — and it is the one that ended his run on httpbin, where the
+   * model kept re-typing his name over its own token until the loop gave up.
+   */
+  ['overwrite a token with ORDINARY text',   A({ kind: 'type', target: 'el_5', value: 'Harsh Bajpai' }), false],
   ['type plain text into an empty field',    A({ kind: 'type', target: 'el_6', value: 'SAVE10' }), true],
   ['type with no value',                     A({ kind: 'type', target: 'el_6' }), false],
 

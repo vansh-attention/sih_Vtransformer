@@ -780,6 +780,15 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
        * one were byte-for-byte identical to the model — and it could neither see that a
        * choice was unmade nor confirm it had made one.
        */
+      /**
+       * The control's own type, for the types the role map does not name.
+       *
+       * `<input type=time>` is role `textbox` — correct for acting on it, useless for
+       * asking a person to fill it in, because it accepts "HH:MM" and rejects anything
+       * else. Without this the panel offered a plain text box for a clock.
+       */
+      inputType: el.tagName.toLowerCase() === 'input'
+        ? ((el as HTMLInputElement).type?.toLowerCase() || undefined) : undefined,
       checked: (role === 'radio' || role === 'checkbox')
         ? !!(el as HTMLInputElement).checked : undefined,
       /** Ties one choice together. Never a user value — the page's author wrote it. */

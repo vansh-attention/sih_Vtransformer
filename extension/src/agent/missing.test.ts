@@ -87,6 +87,45 @@ console.log('\n--- nothing already answered is asked for again ---');
     labels(m).includes('Delivery time'), JSON.stringify(labels(m)));
 }
 
+console.log('\n--- the control the PAGE wants, not a text box for everything ---');
+{
+  /**
+   * The one question out of six he could not answer. `<input type=time>` accepts "HH:MM"
+   * and nothing else, so a plain text box took his answer and the control rejected it and
+   * the field stayed empty. Every input type falls through to role `textbox`, which is
+   * right for ACTING on a field and useless for asking a person to fill one in.
+   */
+  const m = missingFields(page([
+    node({ id: 'el_15', role: 'textbox', label: 'Preferred delivery time', value: '',
+           inputType: 'time' }),
+    node({ id: 'el_2', role: 'textbox', label: 'Date of visit', value: '', inputType: 'date' }),
+    node({ id: 'el_3', role: 'textbox', label: 'Age', value: '', inputType: 'number' }),
+    node({ id: 'el_4', role: 'textbox', label: 'Notes', value: '' }),
+  ]));
+  const byLabel = (l: string) => m.find((f) => f.label === l);
+  check('a time field asks for a time', byLabel('Preferred delivery time')?.inputType === 'time',
+    JSON.stringify(byLabel('Preferred delivery time')));
+  check('a date field asks for a date', byLabel('Date of visit')?.inputType === 'date', '');
+  check('a number field asks for a number', byLabel('Age')?.inputType === 'number', '');
+  check('an untyped field falls back to text', byLabel('Notes')?.inputType === 'text', '');
+
+  /**
+   * ⛔ THE PAGE DOES NOT GET TO CHOOSE OUR CONTROL. `inputType` comes off the page, so
+   * passing it through to `type="..."` would let a site turn our own question box into a
+   * password prompt — the exact shape this product exists to argue against. Allow-list,
+   * and anything unknown becomes a plain text box, which always works.
+   */
+  const hostile = missingFields(page([
+    node({ id: 'el_9', role: 'textbox', label: 'Your PIN', value: '', inputType: 'password' }),
+    node({ id: 'el_8', role: 'textbox', label: 'Odd', value: '', inputType: 'file' }),
+    node({ id: 'el_7', role: 'textbox', label: 'Made up', value: '', inputType: 'nonsense' }),
+  ]));
+  for (const f of hostile) {
+    check(`"${f.label}" is rendered as plain text, not "${'password'}"`,
+      f.inputType === 'text', `got ${f.inputType}`);
+  }
+}
+
 console.log('\n--- things it must never ask for ---');
 {
   const m = missingFields(page([
