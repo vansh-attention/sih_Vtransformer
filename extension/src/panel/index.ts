@@ -848,8 +848,13 @@ $('run').addEventListener('click', async () => {
      */
     try {
       if (!res?.error) {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const origin = originOf(tab?.url);
+        /**
+         * The origin the RUN acted on, reported by the worker — never the tab that
+         * happens to be in front now. Switching tabs mid-run filed the conversation
+         * under the wrong site, so returning to the site you had just used showed
+         * "No conversation on this site yet".
+         */
+        const origin = originOf(res.origin);
         if (origin) {
           const existing = activeThreadId ? await getThread(activeThreadId) : undefined;
           const thread = existing?.origin === origin
@@ -892,6 +897,8 @@ $('run').addEventListener('click', async () => {
         'stopped-by-user': 'stopped',
         // Not a failure: the run did everything it could and is waiting on a person.
         'needs-user-input': 'the agent needs one value from you',
+        // Also not a failure: the user navigated, and a goal does not cross origins.
+        'navigated-away': 'stopped — this tab left the site the task was for',
       };
       const reason = res.stopReason as string;
       /**
@@ -902,7 +909,13 @@ $('run').addEventListener('click', async () => {
        * cannot be, and it asked instead of inventing one. Painting it with the failure
        * colour would teach the user that being asked a question is a malfunction.
        */
-      const cls = GOOD.has(reason) ? 'allow' : reason === 'needs-user-input' ? '' : 'deny';
+      /**
+       * Neither of these is red. `needs-user-input` is the agent working correctly, and
+       * `navigated-away` is the user's own doing — painting either with the failure
+       * colour teaches people that normal behaviour is a malfunction.
+       */
+      const NEUTRAL = new Set(['needs-user-input', 'navigated-away']);
+      const cls = GOOD.has(reason) ? 'allow' : NEUTRAL.has(reason) ? '' : 'deny';
       $('phase').innerHTML =
         `<span class="${cls}">${esc(label[reason] ?? reason)}</span>`
         + ` &middot; ${plural(res.records.length, 'turn')}`
@@ -940,9 +953,13 @@ $('run').addEventListener('click', async () => {
       if (res.answer) {
         let shown: string = res.answer;
         try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          if (tab?.id) {
-            const r2 = await chrome.tabs.sendMessage(tab.id,
+          /**
+           * The RUN's tab. Only that content script holds the vault these tokens were
+           * minted in — this is why the answer rendered a raw `<PII_NAME_1>` after
+           * switching tabs: a different page's vault has never heard of it.
+           */
+          if (typeof res.tabId === 'number') {
+            const r2 = await chrome.tabs.sendMessage(res.tabId,
               { target: 'content', type: 'resolve-text', text: res.answer });
             if (r2?.text) shown = r2.text;
           }
@@ -1010,9 +1027,11 @@ $('run').addEventListener('click', async () => {
       })));
       let proofHtml = '';
       try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab?.id) {
-          const v = await chrome.tabs.sendMessage(tab.id,
+        // Same reason as the answer: the audit compares the transcript against the vault
+        // for THIS run. Against another tab's vault it searches for nothing and finds
+        // nothing, which reads as a clean bill of health and is not one.
+        if (typeof res.tabId === 'number') {
+          const v = await chrome.tabs.sendMessage(res.tabId,
             { target: 'content', type: 'audit-transcript', transcript });
           if (v) {
             const clean = v.clean === true;
@@ -1091,8 +1110,13 @@ $('run').addEventListener('click', async () => {
         send.disabled = true;
         send.textContent = 'Filling…';
         try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          if (!tab?.id) throw new Error('no active tab');
+          /**
+           * ⛔ The RUN's tab, and the sharpest case of the four: this puts a value the
+           * PERSON typed into a page. Aimed at the active tab, switching tabs before
+           * pressing this would have typed their PAN into whatever site was in front.
+           */
+          const tab = { id: res.tabId as number | undefined };
+          if (typeof tab.id !== 'number') throw new Error('the tab this ran on is gone');
           /**
            * ⚠ `elementId`, NOT `target`.
            *

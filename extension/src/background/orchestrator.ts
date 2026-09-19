@@ -48,7 +48,12 @@ export type StopReason =
    * only stop that is not a failure: the run did everything it could and is waiting on a
    * person. The panel renders `question` and an input; nothing is broken.
    */
-  | 'needs-user-input';
+  | 'needs-user-input'
+  /**
+   * The tab left the site the goal was given about. Not a failure and not the agent's
+   * doing — the user navigated, and a goal does not transfer across origins.
+   */
+  | 'navigated-away';
 
 export interface LoopResult {
   records: TurnRecord[];
@@ -138,6 +143,29 @@ export interface TurnRecord {
    */
   received?: Record<string, unknown>;
   nodeCount: number;
+}
+
+/**
+ * Has this tab left the site the goal was given about?
+ *
+ * A separate, exported function purely so it can be asserted on. The check itself is
+ * three lines and living inside the loop it would be untestable — the loop needs a tab,
+ * a content script and a model — and an untestable guard is how this project has twice
+ * shipped a condition that could not fail.
+ *
+ *   'pin'   first observation of the run; this origin is what was authorised
+ *   'ok'    same site, including any path or query change within it
+ *   'left'  a different origin: the goal does not transfer, stop
+ */
+export function originGuard(
+  pinned: string | undefined,
+  seen: string | undefined,
+): 'pin' | 'ok' | 'left' {
+  // No readable origin means no judgement to make. The run continues as it always did,
+  // which is the behaviour every existing caller and test had before this existed.
+  if (!seen) return 'ok';
+  if (!pinned) return 'pin';
+  return seen === pinned ? 'ok' : 'left';
 }
 
 /** Downscale via the content script; fall back to the original if anything fails. */
@@ -388,6 +416,13 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
 
   const stopped = () => opts.shouldStop?.() === true;
 
+  /**
+   * The origin this run was authorised for, taken from the first observation rather than
+   * from the tab up front: the payload's origin is what the redactor actually saw, and it
+   * is the same string the panel and the thread are keyed on.
+   */
+  let pinnedOrigin: string | undefined;
+
   for (let turn = 1; turn <= maxTurns; turn++) {
     if (stopped()) return { records, stopReason: 'stopped-by-user' };
     const turnStart = performance.now();
@@ -435,6 +470,40 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
 
     if (!obs?.ok) {
       return { records, stopReason: 'page-unavailable', detail: 'the page could not be observed' };
+    }
+
+    /**
+     * THE GOAL WAS GIVEN ABOUT ONE SITE. IT DOES NOT TRANSFER TO ANOTHER.
+     *
+     * The loop is pinned to a tab id, which correctly survives the user looking at a
+     * different tab. What it did NOT survive was that tab going somewhere else — a link
+     * that leaves the site, a redirect, a new URL typed in. From the next turn on, the
+     * agent was reading, screenshotting and acting on a site nobody had asked it about,
+     * still carrying the goal and the history from the old one. "What PII is on this
+     * website" answered about a page the user never pointed at.
+     *
+     * Checked HERE, before the screenshot: capturing an image of an unauthorised page is
+     * itself the leak, so the check has to come before the capture rather than before the
+     * model call.
+     *
+     * ORIGIN, not URL. Moving around within a site is the normal shape of a multi-step
+     * task — a form posts to a confirmation page and the task is not finished until it
+     * does — so matching on the full URL would abort almost every real run. Leaving the
+     * origin is the thing that was never authorised.
+     *
+     * It stops rather than asking, because the alternative is holding a half-finished
+     * action open across a navigation the user performed for their own reasons.
+     */
+    const seen = typeof obs.payload?.origin === 'string' ? obs.payload.origin : undefined;
+    const verdict = originGuard(pinnedOrigin, seen);
+    if (verdict === 'pin') pinnedOrigin = seen;
+    if (verdict === 'left') {
+      return {
+        records,
+        stopReason: 'navigated-away',
+        detail: `this tab went from ${pinnedOrigin} to ${seen} mid-task, so the agent `
+              + 'stopped. Start a thread on the new site to continue there.',
+      };
     }
     if (!obs.stable) {
       // Geometry is stale; retry rather than act on boxes that have moved.

@@ -823,6 +823,23 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         question: result.question,
         questionTarget: result.questionTarget,
         previews: result.records[0]?.previews ?? [],
+        /**
+         * WHICH TAB THIS RUN ACTUALLY ACTED ON.
+         *
+         * Everything the panel does afterwards — rehydrating the answer, auditing the
+         * transcript, filing the thread, filling in a value the user typed — needs the
+         * content script that HOLDS THE VAULT for this run. The panel was asking
+         * `tabs.query({active: true})` for all four, which is "whatever the user is
+         * looking at now". Switch tabs while the agent works and every one of them went
+         * to a different site's content script: the answer came back with a raw
+         * `<PII_NAME_1>` in it because the wrong vault could not resolve it, the audit
+         * checked an empty vault, the thread was filed under the wrong site, and a value
+         * the user typed would have been put into a different website's form.
+         *
+         * The worker knows the answer and the panel is guessing, so the worker says.
+         */
+        tabId: tab.id,
+        origin: result.records[0]?.origin,
       };
     })()
       .then(sendResponse)
