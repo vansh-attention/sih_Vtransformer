@@ -23,8 +23,8 @@ He picked 15 of 17 offered. **Not chosen: the demo video, and integrating the re
 | B4 | memory: lazy ViT + per-stage heap profile | open |
 | C1 | grow the real-page corpus to 30+ | open — best task for the team |
 | C2 | read inside iframes | open — needs a design, not a flag |
-| C3 | Indic names in prose | open |
-| C4 | adversarial injection suite | open |
+| C3 | Indic names in prose | ✅ **DONE** — Devanagari; Bengali/Tamil knowingly left |
+| C4 | adversarial injection suite | ✅ **DONE** — found a 6th leak and a real boundary |
 | D2 | proper dropdown handling | open |
 | D4 | run history in the ledger | open |
 | S1 | Chrome Web Store, Unlisted | open — needs HIS Google account |
@@ -138,6 +138,63 @@ read at server start, and ollama loads a model on its first REQUEST. The 7B row 
 carried a number because that model happened to be resident already. Fixed to read after
 the first run. **A measurement that silently returns empty for the case you are studying
 is worse than no measurement.**
+
+### ✅ C3 — A NAME IN HINDI PROSE, WHICH LAYER 3 COULD NOT READ AT ALL
+
+⛔ **Layer 3 detected NOTHING in any Indic script, and the Hindi, Bengali and Tamil
+fixtures all scored 100% recall anyway** — every name in them sits in a form control or a
+`<dt>`/`<dd>` pair, so layer 1 catches it from the label and layer 3 is never asked. The
+fixtures could not tell working from absent.
+
+Neither English signal transfers: Devanagari has no case, and the gazetteer is 110,000
+entries with **0** Devanagari. What Hindi marks explicitly instead is the **honorific**
+and the **surname**, so those are the two branches. New fixture
+`bench/pages/hindi-prose.html` — 2 TP, 0 FP, 0 FN, **3 decoys** (a department, a scheme,
+an office) which matter more than the positives.
+
+⚠ **The fixture's first version had a guard no test could fail** — sabotaging the
+honorific branch changed nothing, because that sentence's surname was also in the surname
+list. The surname is now deliberately unlisted, so each branch fails on its own.
+⚠ `nearOrgMarker` matched `/[a-z]+/`, which cannot match a Devanagari letter, so the
+organisation guard silently did nothing for every Devanagari span.
+⚠ The org list and the not-a-name list must stay **separate** — collapsing them broke the
+exact case this was written for, because "application" and "by" stand next to real names
+in every Hindi notice ever written.
+
+**Bengali and Tamil are knowingly NOT covered and the tests assert that**, rather than
+letting the green Indic fixtures imply otherwise. The approach transfers; the word lists
+are the missing part. ⇒ **A job for a native reader, with Devanagari as the template.**
+
+### ✅ C4 — THE ADVERSARIAL SUITE FOUND A 6th LEAK, AND A REAL BOUNDARY
+
+**The sixth instance of the leak class** — legible on screen, invisible to the redactor,
+transmitted in full. All three were **leaking before today**:
+
+| on screen | why it escaped |
+|---|---|
+| `ABCPE<U+200B>1234F` | a zero-width space; `[A-Z]{5}\d{4}[A-Z]` does not match |
+| `АBCPE1234F` | first letter is **Cyrillic** А, not Latin A |
+| `４１１１…` | fullwidth digits render as digits and are not `\d` |
+
+Neither is exotic — a zero-width space survives copy-paste out of a PDF, and mixed
+Cyrillic is what the whole homoglyph phishing industry runs on. Detection now folds the
+text (invisibles dropped, homoglyphs → Latin) and **maps offsets back**, so redaction
+replaces exactly what is on screen. Sabotage-verified.
+
+⛔ **AND A CLAIM IN THE CODE WAS FALSE.** `validate.ts` said *"the page cannot forge that:
+`fieldKind` comes from our own classifier, not from anything the page asserts"*. The
+classifier is ours, but **everything it reads — label, name, placeholder, autocomplete —
+is written by the page.** A hostile page labelling its harvesting box "Income Tax PAN"
+gets `fieldKind: PAN` from us, kind agreement passes, and the client resolves the real
+PAN into the attacker's form. Printed on every drill run as a **known boundary** so
+"all injection defences hold" is not read as covering it. What the check does stop — a
+token aimed at a coupon box — it still stops. ⇒ **The fix would be refusing to resolve a
+token into a form whose action is cross-origin. Not built; it is the best next security
+task.**
+
+⚠ One of my new assertions was **vacuous for a few minutes**: written as
+`'４１１１'.repeat(4)` it searched for `4111` four times, not the fixture's `4` + fifteen
+`1`s. Write the literal out; do not compute it.
 
 ### ⛔ B2 — BATCHING FIELDS PER TURN: MEASURED, AND IT COSTS THE TASK
 
