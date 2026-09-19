@@ -139,6 +139,39 @@ carried a number because that model happened to be resident already. Fixed to re
 the first run. **A measurement that silently returns empty for the case you are studying
 is worse than no measurement.**
 
+### ⛔ A RUN MUST STAY ON THE SITE IT STARTED ON (his report, 19 Sep)
+
+He ran a task, switched site, and the result came back wrong. **Two independent causes,
+same shape: something asked "what is in front of the user NOW?" when the question was
+"what did this RUN act on?"**
+
+**1. The panel was talking to the wrong tab.** Four post-run operations — rehydrating the
+answer, auditing the transcript, filing the thread, filling a value the user typed — all
+used `tabs.query({active:true})`. Consequences, all observed:
+- the answer rendered a **raw `<PII_NAME_1>`** (tokens resolve only against the vault they
+  were minted in)
+- the thread bar said *"No conversation on this site yet"* **on the site he had just used**
+- the audit checked an **empty vault** and reported a clean bill of health
+- ⛔ the fill would have typed his **PAN into whichever site he was looking at**
+
+⇒ The worker knows the tab and the panel was guessing, so the response now carries
+**`tabId` and `origin`**. One `tabs.query({active:true})` survives, in `showTarget`, where
+"the tab in front of the user" is genuinely the question.
+
+**2. The loop never pinned the ORIGIN** — the sharper half. It is bound to a tab id, which
+survives looking elsewhere, but **not that tab going somewhere else**. A link off-site, a
+redirect, a typed URL, and from the next turn the agent read, screenshotted and acted on a
+page nobody asked about, still carrying the old goal and history.
+
+Pinned to the first observation's origin, checked **before the screenshot** — capturing an
+image of an unauthorised page is itself the leak. **Origin, not URL**: moving within a site
+is the normal shape of a multi-step task. New stop reason **`navigated-away`**, not red.
+
+⚠ `originGuard` is exported and tested because the loop needs a tab, a content script and a
+model to exercise. **Its control was first written as `originGuard(A, A)`** — character for
+character the assertion above it, testing no path change at all. **A control that contained
+its own treatment, for the second time in one day.**
+
 ### ✅ THREADS — A CONVERSATION PER SITE (his ask, 19 Sep)
 
 ⛔ **HE FOUND A SHIPPED BUG FIRST, AND THERE WERE TWO.** The panel said *"the agent needs
