@@ -1,0 +1,33 @@
+Jinshri, Vansh —
+
+Attaching a blank Canva template for the Aavaran side panel. Design is entirely
+yours — colours, type, mood, all of it.
+
+  Aavaran-Canva-Template.pptx  — import into Canva (Create a design > Import file)
+  Aavaran-Canva-Template.pdf   — same thing, readable on a phone
+
+If the import misbehaves, Canva > Custom size > 800 x 1800 px gives you the same
+canvas.
+
+The only thing that has to be right is the size:
+
+  800 x 1800 px, because the real panel is 400 x 900. You are designing at 2x,
+  so every number halves cleanly when it gets built. Please keep the numbers
+  even — an odd one lands on half a pixel in the browser.
+
+Two small things that make it buildable:
+
+  One screen per page. If a screen runs longer than the page, continue on a new
+  page and add -cont to the name.
+
+  Keep the page names as they are. There are 13 screens and that is how each
+  design gets matched to the screen it belongs to. Page 1 lists them.
+
+The dashed grey lines on each page are just guides showing where the current
+margins sit. Move them, ignore them, delete them.
+
+Send back: a PNG of each page at 1:1 (no scaling), filename the same as the page
+name. The Canva edit link too, if you can.
+
+If it helps to see what exists today, ask and I'll send the current screens —
+but don't feel bound by them, the point is to replace them.
