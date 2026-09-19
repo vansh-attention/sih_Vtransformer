@@ -139,6 +139,41 @@ carried a number because that model happened to be resident already. Fixed to re
 the first run. **A measurement that silently returns empty for the case you are studying
 is worse than no measurement.**
 
+### ⛔ THE PAYLOAD COULD NOT DESCRIBE A CHOICE (his report, 19 Sep)
+
+He asked it to fill and submit httpbin's pizza form. It asked for his email, took it,
+filled the field correctly — **then asked for his NAME, which was already on the page**,
+and never mentioned Pizza Size, the toppings, the delivery time or the instructions.
+
+⛔ **The root cause was not the question flow.** A radio's `value` is the option it
+*offers* — `"small"`, `"medium"` — and **`checked` was never transmitted at all**, so an
+unchecked Small and a chosen one were byte-for-byte identical to the model. No grouping
+either: `name=size` dropped, `<legend>Pizza Size</legend>` never reached the payload. Three
+radios arrived as three unrelated controls. **It could not fill the form because it could
+not tell what the form was asking.**
+
+Fixed: `checked` + `group` cross the wire, a fieldset's legend becomes the contextLabel of
+its controls, and the prompt renders `[SELECTED]` / `[not selected]` with the group name.
+**Measured live: given "Medium pizza with onion" it now picks el_6, el_12, Submit — 3/3.**
+
+⚠ The legend lookup was first asked of **every element**; `closest('fieldset')` +
+`querySelector('legend')` took wikipedia extraction 1.5 s → 4.7 s and **blew the drill's
+5 s bound**. Gated to form controls and cached per fieldset.
+⚠ The model reaches for `select` on a radio — which sets `el.value` and a radio ignores it,
+so the choice was silently never made. Normalised to a click.
+
+**`agent/missing.ts`** reads every outstanding value off the payload, and the panel asks
+for all of them in **one form** — text boxes, real radios for single choices, real
+checkboxes for multiple. ⛔ **A field holding a TOKEN is FULL**: `<PII_EMAIL_1>` means the
+value is in the box and was withheld from us. Reading a token as emptiness is exactly how
+it asked for a name that was on screen. Passwords, invisible and disabled fields are never
+asked for, each with its own control.
+
+**The check he asked for:** after filling, a fresh `observe` reads the page **back** and
+recomputes. Never trust the values we believe we typed — a control that silently refuses a
+scripted value looks filled from this side and is empty on the page. Required gaps block;
+optional ones are reported and do not.
+
 ### ⛔⛔ A PDF WAS REPORTED CLEAN OVER AN ID CARD (his report, 19 Sep)
 
 **The worst failure this product has available.** He opened his IIT Madras ID card — a
