@@ -107,7 +107,7 @@ await send('Runtime.enable');
  * Each state below decides what chrome.* returns, so one harness can render the
  * offline case, the scan result and a finished run without a server or a model.
  */
-function stub({ tabUrl, health, scan, run, buildInfo }) {
+function stub({ tabUrl, health, scan, run, buildInfo, threads }) {
   /**
    * The audit reports on the values THIS run actually withheld.
    *
@@ -123,7 +123,18 @@ function stub({ tabUrl, health, scan, run, buildInfo }) {
   // harness would render advice that no real install would ever show.
   return `
   globalThis.chrome = {
-    storage: { local: { get: async () => ({}), set: async () => {} } },
+    /* A real enough storage: the thread bar reads the threads key out of it, so a stub
+       that always answers {} can only ever render one of the three states. remove()
+       exists because deleteAll calls it — a stub missing a method throws inside the
+       panel and takes the surrounding render down with it, which is how the status
+       readout was lost to a missing getManifest.
+       NO BACKTICKS IN HERE: this whole block is inside a template literal, and the
+       first one ended the string and broke the harness. */
+    storage: { local: {
+      get: async (k) => (k === 'threads' ? { threads: ${JSON.stringify(threads ?? {})} } : {}),
+      set: async () => {},
+      remove: async () => {},
+    } },
     tabs: { query: async () => [{ id: 1, url: ${JSON.stringify(tabUrl)} }],
             // The panel asks the CONTENT script to audit the transcript and to
             // rehydrate an answer, because only it holds the vault.
@@ -256,6 +267,19 @@ const RUN = {
  * first time and the lamp stuck on "checking": correct code, invisible on screen. There is
  * no substitute for looking at the pixels.
  */
+/** A conversation already on the books for a site, for the resume state. */
+const THREADS = {
+  th_1: {
+    id: 'th_1', origin: 'https://www.mca.gov.in', goal: 'Complete the registration form',
+    title: 'Complete the registration form',
+    createdAt: Date.now() - 86400000, updatedAt: Date.now() - 86400000,
+    status: 'open',
+    turns: [{ at: Date.now() - 86400000, summary: 'Entered the first name', withheld: [] },
+            { at: Date.now() - 86400000, summary: 'PAN field filled', withheld: [] }],
+    pending: { question: 'What is your Income Tax PAN?', fieldLabel: 'Income Tax PAN' },
+  },
+};
+
 const RUN_NEEDS_INPUT = {
   stopReason: 'needs-user-input',
   question: 'What is your Income Tax PAN?',
@@ -295,6 +319,12 @@ const STATES = [
     health: HEALTH_OK, scan: SCAN, run: RUN,
     after: `document.getElementById('goal').value='Fill in the form and submit it';
             document.getElementById('run').click()` },
+  // The three thread states. They are the answer to "I changed site mid-conversation",
+  // which used to be a flat refusal on every page including ordinary ones.
+  { name: '15-thread-resume', tabUrl: 'https://www.mca.gov.in/content/mca/global/en/home.html',
+    health: HEALTH_OK, scan: SCAN, run: RUN, after: null, threads: THREADS },
+  { name: '16-thread-new', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
+    health: HEALTH_OK, scan: SCAN, run: RUN, after: null, threads: {} },
   { name: '14-needs-user-input', tabUrl: 'https://eportal.incometax.gov.in/iec/foservices/',
     health: HEALTH_OK, scan: SCAN, run: RUN_NEEDS_INPUT,
     after: `document.getElementById('goal').value='Complete the registration form';

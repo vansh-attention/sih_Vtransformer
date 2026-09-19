@@ -310,7 +310,10 @@ function handleOther(msg: { type?: string; [k: string]: unknown },
   if (msg.type === 'fill-user-value') {
     (async () => {
       const value = typeof msg.value === 'string' ? msg.value : '';
-      const target = typeof msg.target === 'string' ? msg.target : '';
+      // `elementId`, not `target` — `target` is the message ROUTING field and is always
+      // 'content' here. Reading the element id out of it produced a fill that silently
+      // did nothing at all.
+      const target = typeof msg.elementId === 'string' ? msg.elementId : '';
       if (!value || !target) return { filled: false, error: 'missing value or target' };
       const r = await executeAction(
         { kind: 'type', target, value, reasoning: 'value supplied by the user' } as AgentAction,

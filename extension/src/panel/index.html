@@ -391,6 +391,29 @@
      ⚠ `min-width:0` on the input: a flex item defaults to its intrinsic content width, so
      without it a long placeholder pushes the button off the 400px panel. Same flex-row
      trap this panel has now hit four times. */
+  /* The thread bar. Sits under the target row and above Settings, because "which
+     conversation am I in" belongs with "which page will be acted on" — they are the same
+     question asked about time and about space. */
+  .threadbar{margin:10px 18px 0;padding:11px 13px;border-radius:var(--r-md);
+             background:var(--card);border:1px solid var(--edge)}
+  .trow{display:flex;gap:8px;align-items:center;min-width:0}
+  .trow + .trow{margin-top:9px}
+  /* min-width:0 so a long thread title truncates instead of shoving the buttons off a
+     400px panel. Fourth time this flex trap has come up in this file. */
+  .tlabel{flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--ash);
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tlabel b{color:var(--ink);font-weight:600}
+  .tdot{flex:0 0 auto;width:6px;height:6px;border-radius:var(--r-pill);background:var(--amber)}
+  .threadbar button{flex:0 0 auto;padding:7px 11px;border:0;border-radius:var(--r-pill);
+                    background:var(--ink);color:#000;font-size:11.5px;font-weight:600;
+                    white-space:nowrap}
+  .threadbar button:hover{background:#e6e6e6}
+  .threadbar button.tghost{background:transparent;border:1px solid var(--edge-2);
+                           color:var(--ash);font-weight:500}
+  .threadbar button.tghost:hover{border-color:var(--edge-3);color:var(--ink);
+                                 background:transparent}
+  .threadbar .t{margin-top:8px}
+
   .askrow{display:flex;gap:9px;align-items:center;margin:0 0 10px}
   .askrow input{flex:1 1 auto;min-width:0;padding:11px 13px;font:inherit;font-size:13.5px;
                 color:var(--ink);background:var(--pit);border:1px solid var(--edge-2);
@@ -555,6 +578,10 @@
   <div class="target" id="target" role="status" aria-live="polite">
     <span class="tmsg">checking this tab…</span></div>
 
+  <!-- Which conversation this is, and what to do if you have changed site.
+       Populated by renderThreadBar(); hidden on pages an extension cannot act on. -->
+  <div class="threadbar" id="threadbar" role="status" aria-live="polite" hidden></div>
+
   <details id="settings">
     <!-- No status chip here. The top bar's lamp already states the server's
          condition, and saying it twice ten pixels apart is noise, not emphasis. -->
@@ -569,6 +596,15 @@
     <div class="setrow">
       <button id="autodetect">Find my server</button>
       <button id="resetsrv">Reset to default</button>
+    </div>
+
+    <!-- Threads are local history: which sites the agent was used on, and what was
+         asked. Kept on this machine and never transmitted — but it IS history, so the
+         way to destroy it has to be visible rather than buried in a policy document. -->
+    <label for="wipethreads">Conversations</label>
+    <div class="t" id="threadcount">no saved conversations</div>
+    <div class="setrow">
+      <button id="wipethreads">Delete all conversations</button>
     </div>
   </details>
 

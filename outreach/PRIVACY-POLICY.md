@@ -31,13 +31,27 @@ cannot verify.
 
 ## What is stored on your device
 
-One setting: the address of your local reasoning server. It is kept in the browser's
-extension storage and is never transmitted.
+Two things, both in the browser's extension storage on your own computer, and **neither is
+ever transmitted anywhere**.
 
-No page content, no personal data and no history is written to disk. The Privacy Ledger
-shown in the side panel exists only for the current run and is cleared when a new run
-starts. If you press "Save as a file", a transcript is written to the location you choose,
-by you — nothing is saved automatically.
+**The address of your local reasoning server.**
+
+**Your conversations.** Aavaran keeps one conversation per website so you can pick up where
+you left off. A conversation records the site, the goal you typed, when it happened, how
+many values of each KIND were withheld, and a one-line summary of each step the agent took.
+
+It does **not** record any personal value, any page content, or any placeholder that could
+be resolved back to a value — placeholders are created fresh for each page and mean nothing
+afterwards, by design. A saved conversation is safe to show to anyone.
+
+⚠ A conversation does record **which sites you used Aavaran on**, which is a kind of
+browsing history. It stays on your machine, and **Settings → Delete all conversations**
+erases every one of them immediately. The fifty most recent are kept and older ones are
+discarded automatically.
+
+The Privacy Ledger shown in the side panel exists only for the current run and is cleared
+when a new run starts. If you press "Save as a file", a transcript is written to the
+location you choose, by you — nothing is saved automatically.
 
 ## Permissions
 

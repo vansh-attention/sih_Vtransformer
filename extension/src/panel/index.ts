@@ -10,10 +10,23 @@
 
 import { animate, stagger, press, hover } from 'motion';
 import {
+  decide, originOf, threadFor, getThread, createThread, appendRun, listThreads, deleteAll,
+  type Thread, type ThreadVerdict,
+} from './threads.ts';
+import {
   createIcons, Zap, Square, ScanEye, Settings2, ShieldCheck, Lightbulb, FileSearch,
 } from 'lucide';
 
 const $ = (id: string) => document.getElementById(id)!;
+
+/**
+ * The conversation currently being continued, or null for "start fresh on next Run".
+ *
+ * Panel-local rather than stored: which thread you are looking at is a property of this
+ * open panel, not of the machine. Reopening the panel starts you unattached, and the
+ * thread bar immediately offers whatever exists for the site in front of you.
+ */
+let activeThreadId: string | null = null;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
@@ -116,6 +129,31 @@ function maskHtml(masked: string): string {
 const SKELETON = '<div class="skel"><i></i><i></i><i></i></div>';
 
 interface Preview { token: string; kind: string; masked: string }
+
+/**
+ * The LABEL of the element a question was about, dug out of the turn records.
+ *
+ * A thread stores the label rather than the element id, because `el_49` is minted per
+ * extraction: restoring it on the next visit points at nothing, or at a different
+ * element on a page that has since changed. The label is what a person recognises and
+ * what survives a reload.
+ *
+ * Returns '' when it cannot be found, and the caller stores that happily — a question
+ * with no field name still reads fine ("It stopped waiting on you: What is your PAN?").
+ */
+function labelOfTarget(res: any, target: unknown): string {
+  if (typeof target !== 'string') return '';
+  for (const rec of res?.records ?? []) {
+    const found = (function walk(n: any): string | undefined {
+      if (!n) return undefined;
+      if (n.id === target && typeof n.label === 'string') return n.label;
+      for (const c of n.children ?? []) { const r = walk(c); if (r) return r; }
+      return undefined;
+    })(rec?.transmitted?.root);
+    if (found) return found;
+  }
+  return '';
+}
 
 function renderTurn(rec: any, previews: Map<string, Preview>): string {
   const t = rec.timings;
@@ -628,17 +666,109 @@ async function showTarget(): Promise<void> {
     // loose text beside a <span> became a second column and the refusal wrapped
     // into two narrow stacks instead of a sentence.
     const say = (html: string) => { el.innerHTML = `<span class="tmsg">${html}</span>`; };
-    if (!tab?.url) { say('no page selected'); return; }
-    if (/^(chrome|about|edge|moz-extension|chrome-extension):/.test(tab.url)) {
+    if (!tab?.url) { say('no page selected'); renderThreadBar({ kind: 'internal' }); return; }
+
+    /**
+     * The verdict is computed by `decide()` in threads.ts, not here.
+     *
+     * Everything about which site this is, whether we have been here before and what to
+     * offer is one pure function, so it can be tested without a browser. This renders it.
+     */
+    const site = originOf(tab.url);
+    const [siteThread, active] = await Promise.all([
+      threadFor(site),
+      activeThreadId ? getThread(activeThreadId) : Promise.resolve(undefined),
+    ]);
+    const verdict = decide(tab.url, active, siteThread);
+
+    if (verdict.kind === 'internal') {
+      // Still a refusal, and correctly so: an extension cannot act on chrome:// at all,
+      // and offering a thread there would be a button that cannot work.
       say('<span class="deny">this page cannot be read</span> '
         + '— browser-internal pages are off-limits to extensions');
-      return;
+    } else {
+      say(`will act on <b>${esc(new URL(tab.url).host)}</b>`);
     }
-    say(`will act on <b>${esc(new URL(tab.url).host)}</b>`);
+    renderThreadBar(verdict);
   } catch {
     $('target').textContent = '';
   }
 }
+
+/**
+ * THE THREAD BAR — what happens when you change site mid-conversation.
+ *
+ * Before this, switching to another site during a run said only that the page could not
+ * be read, which was true of `chrome://` and misleading everywhere else. Now an ordinary
+ * site is an invitation rather than a refusal: start a thread here, or pick up the one
+ * you already have.
+ */
+function renderThreadBar(v: ThreadVerdict): void {
+  const bar = $('threadbar');
+  if (v.kind === 'internal') { bar.innerHTML = ''; bar.hidden = true; return; }
+  bar.hidden = false;
+
+  if (v.kind === 'continue') {
+    bar.innerHTML = `<div class="trow"><span class="tdot"></span>`
+      + `<span class="tlabel">Continuing <b>${esc(v.thread.title)}</b></span>`
+      + `<button type="button" id="thnew" class="tghost">New thread</button></div>`
+      + (v.thread.pending
+        ? `<div class="t">Waiting on you: ${esc(v.thread.pending.question)}</div>` : '');
+  } else if (v.kind === 'resume') {
+    const when = new Date(v.thread.updatedAt).toLocaleDateString();
+    bar.innerHTML = `<div class="trow"><span class="tdot"></span>`
+      + `<span class="tlabel">You were here on ${esc(when)} — `
+      + `<b>${esc(v.thread.title)}</b></span></div>`
+      + `<div class="trow"><button type="button" id="thresume">Continue where you left off`
+      + `</button><button type="button" id="thnew" class="tghost">New thread</button></div>`
+      + (v.thread.pending
+        ? `<div class="t">It stopped waiting on you: ${esc(v.thread.pending.question)}</div>`
+        : `<div class="t">${plural(v.thread.turns.length, 'turn')} so far.</div>`);
+  } else {
+    bar.innerHTML = `<div class="trow"><span class="tdot"></span>`
+      + `<span class="tlabel">No conversation on this site yet</span>`
+      + `<button type="button" id="thnew" class="tghost">Start a thread</button></div>`;
+  }
+
+  bar.querySelector('#thresume')?.addEventListener('click', () => {
+    if (v.kind !== 'resume') return;
+    activeThreadId = v.thread.id;
+    ($('goal') as HTMLInputElement).value = v.thread.goal;
+    void showTarget();
+  });
+  bar.querySelector('#thnew')?.addEventListener('click', () => {
+    // A new thread is created lazily, on the next Run, so pressing this does not leave
+    // an empty thread behind for a user who changes their mind.
+    activeThreadId = null;
+    ($('goal') as HTMLInputElement).value = '';
+    void showTarget();
+  });
+}
+/**
+ * The saved-conversation count, and the way to destroy them.
+ *
+ * Threads never leave the machine, but they are still a record of which sites the agent
+ * was used on. A feature like that needs its off switch ON SCREEN, not described in a
+ * policy file nobody opens — the count is there so the control is not an abstraction.
+ */
+async function refreshThreadSettings(): Promise<void> {
+  const all = await listThreads();
+  const sites = new Set(all.map((t) => t.origin)).size;
+  $('threadcount').textContent = all.length
+    ? `${plural(all.length, 'conversation')} across ${plural(sites, 'site')}, on this machine only`
+    : 'no saved conversations';
+}
+$('wipethreads').addEventListener('click', async () => {
+  const btn = $('wipethreads') as HTMLButtonElement;
+  btn.disabled = true;
+  await deleteAll();
+  activeThreadId = null;
+  await refreshThreadSettings();
+  void showTarget();
+  btn.disabled = false;
+});
+void refreshThreadSettings();
+
 void showTarget();
 chrome.tabs?.onActivated.addListener(() => void showTarget());
 chrome.tabs?.onUpdated.addListener(() => void showTarget());
@@ -707,6 +837,38 @@ $('run').addEventListener('click', async () => {
 
   try {
     const res = await chrome.runtime.sendMessage({ target: 'background', type: 'run-agent', goal });
+
+    /**
+     * Fold the run into this site's thread.
+     *
+     * Created lazily HERE rather than when "Start a thread" is pressed, so changing your
+     * mind leaves nothing behind. Best-effort throughout: a storage failure — quota, a
+     * private window — must never take down a run that has already happened and is on
+     * screen. Losing the history of a run is a nuisance; losing the ledger is the product.
+     */
+    try {
+      if (!res?.error) {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const origin = originOf(tab?.url);
+        if (origin) {
+          const existing = activeThreadId ? await getThread(activeThreadId) : undefined;
+          const thread = existing?.origin === origin
+            ? existing
+            : await createThread(origin, goal);
+          activeThreadId = thread.id;
+          await appendRun(thread.id, {
+            stopReason: String(res.stopReason ?? ''),
+            question: res.question,
+            // The LABEL, never the element id — ids are minted per extraction and mean
+            // nothing on the next visit. See the header of threads.ts.
+            questionFieldLabel: labelOfTarget(res, res.questionTarget),
+            records: res.records ?? [],
+          });
+        }
+      }
+    } catch { /* history is a convenience; the run is the product */ }
+    void showTarget();
+
     if (res?.error) {
       $('phase').innerHTML = `<span class="deny">error:</span> ${esc(res.error)}`;
     } else {
@@ -931,8 +1093,18 @@ $('run').addEventListener('click', async () => {
         try {
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
           if (!tab?.id) throw new Error('no active tab');
+          /**
+           * ⚠ `elementId`, NOT `target`.
+           *
+           * This read `{ target: 'content', type: 'fill-user-value', target, value }`.
+           * The shorthand overwrote the routing field with the element id, so the
+           * content script's `msg.target !== 'content'` guard dropped the message and
+           * the button could never have filled anything. Caught by `tsc` (TS1117,
+           * duplicate property) — which is not in the build or the test suite, which is
+           * why it shipped.
+           */
           const r = await chrome.tabs.sendMessage(tab.id,
-            { target: 'content', type: 'fill-user-value', target, value });
+            { target: 'content', type: 'fill-user-value', elementId: target, value });
           if (!r?.filled) throw new Error(r?.error || 'the field could not be filled');
           // Wipe it from the input the moment it is in the page. There is no reason for
           // the answer to sit in the panel's DOM after it has been delivered.
