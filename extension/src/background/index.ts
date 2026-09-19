@@ -797,11 +797,31 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
        * the tokens here would break that property for a piece of display text. The
        * panel asks the content script to rehydrate it instead.
        */
+      /**
+       * ⛔ THIS LIST IS A PLACE FEATURES GO TO DIE SILENTLY.
+       *
+       * Every field the panel reads has to be named here. `needs-user-input` shipped
+       * with `question` and `questionTarget` missing from it: the panel received the
+       * stop reason, so it correctly printed "the agent needs one value from you" —
+       * and then rendered no question and no input, because the question never crossed
+       * this boundary. A dead end that announces itself is worse than no feature.
+       *
+       * It was invisible to the screenshot harness because that stubs the run result
+       * directly and never crosses this boundary at all. Same shape as the `#splash`
+       * and `getManifest` failures: the pixels were right and the product was not.
+       *
+       * Kept explicit rather than `...result`, because this is the one part of the
+       * extension that touches the network and a blind spread would forward whatever
+       * a future LoopResult happens to carry. The cost of that choice is this comment
+       * and the test in `panel-contract.test.ts`, which fails if the two drift.
+       */
       return {
         records: result.records,
         stopReason: result.stopReason,
         detail: result.detail,
         answer: result.answer,
+        question: result.question,
+        questionTarget: result.questionTarget,
         previews: result.records[0]?.previews ?? [],
       };
     })()

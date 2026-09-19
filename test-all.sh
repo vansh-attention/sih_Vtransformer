@@ -56,6 +56,7 @@ for f in extension/src/pii/checksums.test.ts \
          extension/src/pii/names.test.ts \
          extension/src/content/extractor.test.ts \
          extension/src/agent/validate.test.ts \
+         extension/src/background/panel-contract.test.ts \
          extension/src/vision/faces.test.ts; do
   run "$(basename "$f")" $NODE "$f"
 done
