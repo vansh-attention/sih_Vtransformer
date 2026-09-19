@@ -74,7 +74,12 @@ for (const phrase of ['Statement Of Accounts', 'Download Annual Report', 'New De
  * so breaking the detector cannot move expectation and actual together.
  */
 for (const phrase of ['Master Directions', 'Master Circulars', 'Not Pressed',
-                      'Annual Returns', 'Press Releases']) {
+                      'Annual Returns', 'Press Releases',
+                      // From pgportal.gov.in. "Best viewed in Mozilla Firefox" is
+                      // boilerplate on nearly every Indian government site, and neither
+                      // token is an English word, so dictionary-absence read it as a
+                      // person.
+                      'Mozilla Firefox', 'Internet Explorer', 'Adobe Acrobat']) {
   const f = detectNames(phrase).filter((s) => s.confidence >= 0.6);
   check(`real-page false positive rejected: ${phrase}`, f.length === 0,
     f.length ? `WRONGLY FLAGGED "${f[0].text}" (${f[0].reason})` : '');
@@ -225,6 +230,29 @@ console.log('\n--- Devanagari names in prose ---');
    * nobody here reads is how a wrong entry silently costs recall. This is a note to hand
    * to a native reader, not a passing feature.
    */
+  /**
+   * FOUND BY GROWING THE CORPUS, within minutes of the Devanagari branch shipping.
+   *
+   * `pgportal.gov.in` withheld भारत सरकार — "Government of India", the most common
+   * phrase on Indian government websites — as a person, because सरकार is both a real
+   * Bengali surname and the ordinary word for "government", and the branch checked its
+   * not-a-name list against the FIRST token only.
+   */
+  check('"Government of India" is not a person',
+    found('भारत सरकार द्वारा संचालित').length === 0,
+    JSON.stringify(found('भारत सरकार द्वारा संचालित')));
+
+  /**
+   * The cost of that fix, stated rather than discovered later: a surname that is also an
+   * ordinary word can no longer carry the surname branch on its own. Someone actually
+   * named Sarkar is caught by the HONORIFIC branch instead, which is exactly how the
+   * Latin path handles "Amit Shah" — the strong branch is untouched and only the weak
+   * inference is withdrawn.
+   */
+  const sarkar = found('श्री सुदीप्त सरकार ने आवेदन किया');
+  check('a real person named Sarkar is still caught via the honorific',
+    sarkar.length > 0, sarkar.length ? '' : 'MISSED — the fix above cost recall');
+
   const bn = found('সুদীপ্ত চট্টোপাধ্যায় আবেদন করেছেন');
   const ta = found('கார்த்திகேயன் ராமன் விண்ணப்பித்தார்');
   check('Bengali is knowingly NOT covered', bn.length === 0, JSON.stringify(bn));

@@ -91,6 +91,15 @@ const NOT_NAMES = new Set([
   'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
   // frequent place/org words that are Title-Cased and gazetteer-collide
   'new', 'delhi', 'mumbai', 'india', 'road', 'street', 'nagar', 'city', 'state',
+  /**
+   * Software and browser names. "Mozilla Firefox" is two Title-Case tokens and neither
+   * is an English word, so dictionary-absence read it as a person — caught on
+   * pgportal.gov.in, where "best viewed in Mozilla Firefox" is boilerplate that Indian
+   * government sites carry almost universally.
+   */
+  'mozilla', 'firefox', 'chrome', 'chromium', 'safari', 'opera', 'netscape',
+  'internet', 'explorer', 'browser', 'windows', 'android', 'adobe', 'acrobat',
+  'javascript', 'flash', 'unicode', 'pdf',
 ]);
 
 /**
@@ -359,10 +368,24 @@ function detectDevanagariNames(text: string): NameSpan[] {
       continue;
     }
 
-    // 2. A given name then a KNOWN SURNAME. Surname-final is the dominant order, so the
-    //    unknown token is the given name — the half a list will never have.
+    /**
+     * 2. A given name then a KNOWN SURNAME. Surname-final is the dominant order, so the
+     *    unknown token is the given name — the half a list will never have.
+     *
+     * ⛔ NEITHER token may be ordinary vocabulary, and the SURNAME is the half that was
+     * missing. This checked `DEV_NOT_PERSON` on the first token only, and the very next
+     * page added to the corpus was `pgportal.gov.in`, which withheld **भारत सरकार** —
+     * "Government of India", the single most common phrase on Indian government
+     * websites — as a person. `सरकार` is a real Bengali surname AND the ordinary word
+     * for "government", so the surname list matched and nothing else looked.
+     *
+     * The Latin path above already states this rule: a gazetteer entry that is also an
+     * ordinary word is not evidence. I wrote the Devanagari branch without carrying it
+     * over, and it cost a false positive on the most predictable phrase in the corpus.
+     */
     if (adjacent(a, b) && DEV_SURNAMES.has(b!.text)
-        && !DEV_NOT_PERSON.has(a.text) && !DEV_SURNAMES.has(a.text)
+        && !DEV_NOT_PERSON.has(a.text) && !DEV_NOT_PERSON.has(b!.text)
+        && !DEV_SURNAMES.has(a.text)
         && [...a.text].length >= 2) {
       spans.push({
         start: a.start, end: b!.end, text: text.slice(a.start, b!.end),
