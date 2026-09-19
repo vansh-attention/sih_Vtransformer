@@ -2,6 +2,173 @@
 
 **READ THIS FIRST.**
 
+## ⭐⭐ PICK UP HERE — 19 Sep 2026
+
+**Everything below the 18 Sep sections is still true. The tree is CLEAN and BOTH REMOTES
+ARE PUSHED** — the 15 files left dirty on 18 Sep went up in three commits first thing.
+
+### The agreed development queue (his choices, 19 Sep)
+
+He picked 15 of 17 offered. **Not chosen: the demo video, and integrating the redesign**
+(the latter is blocked on Jinshri and Vansh anyway).
+
+| # | item | state |
+|---|---|---|
+| A | redaction precision on real pages | ✅ **DONE** — 22 false positives → 3 |
+| D1 | invented tokens / actionable refusals | ✅ **DONE** |
+| D3 | resume after `ask_user` | ✅ **DONE** — same piece of work as D1 |
+| B1 | 3B-vs-7B tradeoff study | ⏳ next — both models now pulled |
+| B2 | batch fields per turn | open |
+| B3 | overlap vision with the model call | open |
+| B4 | memory: lazy ViT + per-stage heap profile | open |
+| C1 | grow the real-page corpus to 30+ | open — best task for the team |
+| C2 | read inside iframes | open — needs a design, not a flag |
+| C3 | Indic names in prose | open |
+| C4 | adversarial injection suite | open |
+| D2 | proper dropdown handling | open |
+| D4 | run history in the ledger | open |
+| S1 | Chrome Web Store, Unlisted | open — needs HIS Google account |
+| S2 | Firefox signed unlisted XPI | open — needs HIS AMO account |
+
+### ✅ A — REDACTION PRECISION: 22 FALSE POSITIVES → 3
+
+`bench/realpages-drill.ts --list` is new and is the reason this was fixable: the drill
+printed `withheld 15` and nothing else, which is a count with no way to tell a catch from
+a false positive. Printing the values is safe **only there** — every page in `realpages/`
+is a public capture taken with nobody logged in.
+
+With the evidence printed, all 22 were false positives, and **three unrelated causes, not
+the one the notes claimed**:
+
+- **6 were transliterated Indic vocabulary** — "Seva Kendra", "Bharat Mandapam", "Bharat
+  Ka", "Meri Pehchaan", "Shri Saurabh". The dictionary-absence rule is backed by an
+  ENGLISH word list, so every ordinary Hindi word in Latin script looks like an
+  uncatalogued surname. `INDIC_COMMON` in `pii/names.ts` is the other half of that
+  dictionary. **This generalises far past those five — transliterated scheme names are
+  what Indian government portals are made of, and those are the finale's sites.**
+  ⚠ It deliberately OMITS `pradhan`, `mantri`, `adhikari`, `kaushal`, `nidhi`, `vidya`,
+  `kiran`, `suraksha` — each is a real name, and suppressing a token removes it from the
+  stream, so a wrong entry costs RECALL.
+- **1 was arithmetic** — python.org withheld a "card number" of `666666666666667`, the
+  fractional tail of `5.666666666666667` in a code sample. `\b` sits between a full stop
+  and a digit, and 15 arbitrary digits pass Luhn one time in ten.
+- **14 were public figures in encyclopedia prose** — see the damper below.
+
+⛔ **THE OBVIOUS FIX WAS MEASURED AND REJECTED BEFORE ANY CODE WAS WRITTEN.** 8 of 22
+ground-truth names in the corpus sit OUTSIDE a form control — three `<dd>`, two `<p>`,
+two `<span>` — so "prose names are not personal" would take NAME recall from 100% to
+**64%**. Same trap as the rejected "already public on the page" rule for emails.
+
+**The reference-document damper** (`sanitize.ts`): three conditions, all required — the
+page carries **more than six** distinct prose name candidates, the text is prose rather
+than a field's value, and confidence already cleared the bar. Six has an order of
+magnitude of margin: every transactional page in every corpus is 0–2, the articles are
+13–15. A **pre**-pass, because un-redacting after the fact means the value is already
+vaulted and the token already in the payload, and reversing a redaction is the direction
+that creates leaks. `bench/name-density.ts` is the measurement behind the threshold.
+⚠ It counts over the structure the extractor KEPT, not the raw document — counting the
+document reports 10 names on mygov.html where the pipeline withholds none.
+
+**Scores unchanged and re-run to prove it**: tuned 100/100 with redaction precision
+98.0% and the same single accepted shortfall, holdout 100/100/100, wild 100/100/100,
+zero leaks on all three.
+
+**The 3 that remain are stated, not hidden**: a checksum-valid PAN used as a format
+example in the article (kept deliberately — un-redacting pattern matches is the wrong
+trade), and two names in short text nodes, which no signal available to us distinguishes
+from `<dd>Lakshmi Narayanan</dd>`.
+
+### ✅ D — THE AGENT CAN NOW SAY "I DO NOT HAVE YOUR PAN", AND YOU CAN HAND IT OVER
+
+⛔ **`ask_user` was a capability in name only.** It was in the contract, the JSON schema,
+the validator and the executor — and **the schema listed it under `_BARE_ACTION`, which
+has no `text` property, so constrained decoding made the model structurally incapable of
+asking a question.** Executing it returned `executed: true` and the loop carried on, so
+the agent's only way to say "I do not have that value" reached the user as silence.
+
+⚠⚠ **WHAT I BUILT FIRST DID NOT WORK AND THE FIRST TEST HID IT.** A rule in the system
+prompt with a PAN example produced `ask_user` **4/4 on a PAN page** — and the control
+killed it: swap in "Driving Licence Number", which the prompt never names, and it
+invented `<PII_LICENSE_1>` **3/3**. It was matching the example, not the rule. Writing the
+exact action into the refusal text did not help either, **0/4**.
+⇒ **A 7B model copies; it does not generalise. Do not build on it doing otherwise.**
+
+So the loop stops depending on the model: the refusal carries a machine-readable
+`remedy` — the question, composed from the field's own label, plus the field id — and the
+orchestrator stops on the FIRST such refusal with `stopReason: 'needs-user-input'`.
+The panel shows the question with an input, and the value goes **panel → content script →
+the page's own field**. The service worker, the only part that touches the network, never
+sees it. **Panel state `14-needs-user-input`.**
+⚠ The designers' canvas has 13 screens and there are now **14** — they need the extra page.
+
+**A real defect in shipped copy fell out of rendering it**: with an empty vault the audit
+searches for zero values, finds zero, and the card said *"Verified clean — 0 of your
+values were checked"* — the strongest wording in the panel attached to a search that could
+not have found anything, in front of a judge. Now it says nothing of yours was on the page.
+
+**Verified against the live model, not just tests:** Spike E still completes the
+form-filling task, 6 turns, 38.4 s, browser heap +58.2 MB.
+
+### ✅ B1 — 3B vs 7B: THE ANSWER IS KEEP THE 7B, AND IT IS A SLIDE
+
+`bash bench/model-tradeoff.sh 3` — 3 Spike E runs per model, task success read off the
+PAGE afterwards, not from the model's own claim.
+
+| model | verified | turns | task | model time | browser heap | resident |
+|---|---|---|---|---|---|---|
+| **qwen2.5vl:7b** | **3/3** | 6 | **33.8 s** | 29.8 s | 49.6 MB | 6.9 GB |
+| qwen2.5vl:3b | **0/3** | 5 | 16.7 s | 12.1 s | 51.3 MB | 4.6 GB |
+
+**The 3B is twice as fast, 2.3 GB smaller, and finishes the task zero times out of three.**
+
+⭐ **The failure is specific and worth putting on a slide.** The 3B fills every field
+correctly — `allFilled: true` on all three runs — and then **never submits**. It loops
+re-typing the description until the validator refuses it twice for being a no-op.
+`successVisible: false`. So the accuracy/cost curve has a **cliff, not a slope**: the
+cheap model does most of the work and none of the task. That is a far better answer to
+"why 7B" than an assertion, and it costs 35 minutes to reproduce.
+
+⚠ **What this study does NOT move, stated so nobody over-claims it:** PII recall,
+redaction precision and visual-context accuracy are all CLIENT-side. The server model
+never sees a value and cannot affect any of them. What it decides is task completion,
+turns and latency.
+
+⚠ First pass of the harness recorded an empty resident size for the 3B: `ollama ps` was
+read at server start, and ollama loads a model on its first REQUEST. The 7B row only
+carried a number because that model happened to be resident already. Fixed to read after
+the first run. **A measurement that silently returns empty for the case you are studying
+is worse than no measurement.**
+
+### 🏪 STORE SUBMISSIONS — WRITTEN, WAITING ON HIS ACCOUNTS
+
+`outreach/STORE-SUBMISSION.md` has every field for both stores already written: listing
+copy, single-purpose statement, per-permission justifications, data-usage disclosures,
+which five panel states to use as screenshots, and the Firefox source-upload requirement.
+`outreach/PRIVACY-POLICY.md` is the policy text.
+
+**Four things need him:** host the privacy policy somewhere public (⛔ the Chrome listing
+cannot be submitted without a URL, and the repo is private so a GitHub link will not
+serve — a Gist or a one-file Pages site is enough), pay the $5, create the AMO account,
+and decide whether a 2–3 day review is worth starting before 30 Sep.
+
+⛔ **Fixed while preparing this: the Firefox add-on id was `sih26171-privacy-agent@example.org`.**
+AMO ties that id to the add-on **permanently**, and no Firefox build has shipped yet, so
+changing it was free today and never would be again. It is now
+`aavaran@aavaranai.github.io`. The Firefox sidebar title also still read **"Privacy
+Agent"** — the pre-Aavaran name, user-visible — as did both action titles. The build's
+manifest-drift guard caught me changing one manifest and not the other, which is exactly
+what it is for.
+
+⚠ Still stale, not swept: `scripts/package-extension.sh` builds
+`demo/privacy-agent-extension.zip`, referenced in 4 docs. Cosmetic, but it is the old
+name on a file we hand to people.
+
+⚠ `npx tsc --noEmit` reports **13 errors, all pre-existing** (same count before and after
+today). `tsc` is not in `build.mjs` or `test-all.sh` — the build is esbuild. Worth closing
+one day; not a regression.
+
+---
+
 ## ⭐ PICK UP HERE — close of 18 Sep 2026 (evening session)
 
 **`./test-all.sh` = 19 passed, 0 skipped.** ⛔ **BUT THE TREE IS DIRTY AND NOTHING IS
