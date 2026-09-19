@@ -21,7 +21,7 @@ He picked 15 of 17 offered. **Not chosen: the demo video, and integrating the re
 | B2 | batch fields per turn | ⛔ **TRIED AND REJECTED — it costs the task, see below** |
 | B3 | overlap vision with the model call | open |
 | B4 | memory / heap profile | ✅ **DONE** — found a real leak, **50.1 MB → 16.7 MB** |
-| C1 | grow the real-page corpus to 30+ | open — best task for the team |
+| C1 | grow the real-page corpus | 🟡 **TOOL BUILT**, 11→14 pages; hand the list to the team |
 | C2 | read inside iframes | open — needs a design, not a flag |
 | C3 | Indic names in prose | ✅ **DONE** — Devanagari; Bengali/Tamil knowingly left |
 | C4 | adversarial injection suite | ✅ **DONE** — found a 6th leak and a real boundary |
@@ -138,6 +138,41 @@ read at server start, and ollama loads a model on its first REQUEST. The 7B row 
 carried a number because that model happened to be resident already. Fixed to read after
 the first run. **A measurement that silently returns empty for the case you are studying
 is worse than no measurement.**
+
+### 🟡 C1 — GROWING THE CORPUS IS NOW A COMMAND, AND IT IMMEDIATELY FOUND TWO BUGS
+
+`node scripts/capture-page.mjs <url> <name>` — or `--list urls.txt` with one
+`name<TAB>url` per line, so **a teammate can be handed a file rather than a technique.**
+That is the point: the corpus had reached 11 pages in a month because every page in it
+was saved by hand.
+
+⛔ **`curl` is not a capture, and that is measured.** Probed on six real portals it
+returned three redirects, two JavaScript shells with one input between them, and a 403.
+The pages that matter are React/Angular shells whose pre-JS HTML has no form fields at
+all. The tool drives Chrome over CDP and writes the **rendered** outerHTML, with
+provenance in a header comment.
+
+It **refuses a page under 100 nodes** rather than saving it — an un-hydrated shell would
+join the corpus and test nothing, which is worse than a failed capture. ⚠ `epfindia`,
+`nsdl` and `passportindia` are rejected by that rule even headed at 12 s: they block
+automation. Recorded, not worked around.
+
+**11 → 14 pages** (digilocker, pgportal, income-tax login), and true to the README, two
+new false positives within minutes — **one of them mine from the same morning**:
+
+- **भारत सरकार** — *"Government of India"*, the most common phrase on Indian government
+  sites — withheld as a **person**. `सरकार` is both a real Bengali surname and the
+  ordinary word for "government", and my Devanagari branch checked its not-a-name list
+  against the **first token only**. The Latin path above it already states the rule I
+  failed to carry over: **a gazetteer entry that is also an ordinary word is not
+  evidence.**
+- **Mozilla Firefox** — two Title-Case tokens, neither an English word, so
+  dictionary-absence fired. *"Best viewed in Mozilla Firefox"* is boilerplate on nearly
+  every Indian government site.
+
+⇒ **The next 15 pages are the single best task to hand a teammate.** The command exists;
+they need only a URL list and to capture **logged out**, which is what makes it safe for
+the drill to print every withheld value.
 
 ### ✅ C3 — A NAME IN HINDI PROSE, WHICH LAYER 3 COULD NOT READ AT ALL
 
