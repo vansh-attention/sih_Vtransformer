@@ -53,7 +53,16 @@ export type StopReason =
    * The tab left the site the goal was given about. Not a failure and not the agent's
    * doing — the user navigated, and a goal does not transfer across origins.
    */
-  | 'navigated-away';
+  | 'navigated-away'
+  /**
+   * The page is a PDF or another plugin document: its contents are rendered outside the
+   * DOM and no extension can read them.
+   *
+   * Its own reason, and not a flavour of 'page-unavailable', because the honest message
+   * is specific — we can SEE that there is something here and we cannot read it, which
+   * is different from a page that refused us outright.
+   */
+  | 'opaque-document';
 
 export interface LoopResult {
   records: TurnRecord[];
@@ -494,6 +503,31 @@ export async function runAgentLoop(opts: LoopOptions): Promise<LoopResult> {
      * It stops rather than asking, because the alternative is holding a half-finished
      * action open across a navigation the user performed for their own reasons.
      */
+    /**
+     * ⛔ A DOCUMENT WE CANNOT READ MUST NOT BE REPORTED AS CLEAN.
+     *
+     * A PDF in Chrome renders in a separate process. The DOM we can reach is a wrapper
+     * around an <embed>, so extraction correctly finds no personal data — over an ID card
+     * showing a name, a mobile number, an address, a date of birth and a face.
+     *
+     * Reported as "Nothing of yours on this page". That is the worst failure a privacy
+     * tool has available to it: not missing something, but making a confident positive
+     * claim about content it never saw.
+     *
+     * Stopped before the screenshot, deliberately. We cannot redact what we cannot
+     * locate, so transmitting an image of it would send the whole card to the model in
+     * pixels — the exact inversion of the product.
+     */
+    if (obs.opaqueDocument) {
+      return {
+        records,
+        stopReason: 'opaque-document',
+        detail: `this is a ${obs.opaqueDocument.kind === 'application/pdf' ? 'PDF' : obs.opaqueDocument.kind}`
+              + ' — its contents are drawn outside the page, where no extension can read'
+              + ' them. Nothing here has been checked, and nothing was sent.',
+      };
+    }
+
     const seen = typeof obs.payload?.origin === 'string' ? obs.payload.origin : undefined;
     const verdict = originGuard(pinnedOrigin, seen);
     if (verdict === 'pin') pinnedOrigin = seen;

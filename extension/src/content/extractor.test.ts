@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
-import { extractPage, signalsFor, resolveElement } from './extractor.ts';
+import { extractPage, signalsFor, resolveElement, opaqueDocumentKind } from './extractor.ts';
 import { classifyField, reconcile } from '../pii/dom.ts';
 import { scanText } from '../pii/patterns.ts';
 import type { ElementNode } from '../contracts.ts';
@@ -136,3 +136,75 @@ console.log('\n--- table context isolation ---');
 }
 
 console.log(fail ? `\n${fail} FAILURES` : '\nall extractor cases pass');
+
+
+/**
+ * A DOCUMENT WE CANNOT READ MUST ANNOUNCE ITSELF.
+ *
+ * He opened his IIT Madras ID card — a PDF at storage.googleapis.com — and Aavaran said
+ * "Nothing of yours on this page" over a name, a mobile number, a full address, a date
+ * of birth and a face. Extraction was correct: Chrome renders a PDF in another process,
+ * so the DOM is a wrapper around an <embed> and there genuinely is no personal data IN
+ * THE DOM. The bug was the confident claim made about it afterwards.
+ */
+console.log('\n--- documents whose content is not in the DOM ---');
+{
+  const make = (html: string) => {
+    const d = new JSDOM(html).window.document;
+    // jsdom has no layout, so the full-page test needs a box. 1280x900 viewport.
+    Object.defineProperty(d.documentElement, 'clientWidth', { value: 1280, configurable: true });
+    Object.defineProperty(d.documentElement, 'clientHeight', { value: 900, configurable: true });
+    for (const el of Array.from(d.querySelectorAll('embed,object'))) {
+      const w = Number((el as Element).getAttribute('data-w') ?? 0);
+      const h = Number((el as Element).getAttribute('data-h') ?? 0);
+      (el as HTMLElement).getBoundingClientRect = () =>
+        ({ x: 0, y: 0, width: w, height: h, top: 0, left: 0, right: w, bottom: h,
+           toJSON() {} }) as DOMRect;
+    }
+    return d;
+  };
+
+  const pdf = make('<body><embed type="application/pdf" data-w="1280" data-h="900"></body>');
+  check('a full-page PDF embed is opaque',
+    opaqueDocumentKind(pdf)?.kind, 'application/pdf');
+
+  /**
+   * THE CONTROL. A small embedded viewer inside an ordinary article is a REGION we
+   * cannot read — `unreadableRegions` already strikes that out of the screenshot — not a
+   * reason to declare the whole page unreadable and refuse to act on it. Without this
+   * the rule would disable the agent on any page carrying an embedded map or video.
+   */
+  const article = make('<body><h1>Report</h1><p>Text we can read.</p>'
+    + '<embed type="application/pdf" data-w="300" data-h="200"></body>');
+  check('CONTROL: a small embed does NOT make the page opaque',
+    opaqueDocumentKind(article), undefined);
+
+  const plain = make('<body><h1>Ordinary</h1><p>Nothing embedded.</p></body>');
+  check('CONTROL: an ordinary page is not opaque', opaqueDocumentKind(plain), undefined);
+
+  /**
+   * THE BRANCH THAT ACTUALLY FIRES IN CHROME, measured rather than assumed.
+   *
+   * A real PDF tab was probed over CDP and reports:
+   *   contentType "application/pdf", 4 nodes, 0 characters of text, and NO <embed>
+   *   visible to a content script at all — the viewer lives somewhere we cannot reach.
+   *
+   * So the embed test above is a fallback for other shapes, and `contentType` is the
+   * signal doing the real work. Note the node count: 4, which sails past the existing
+   * "blind" heuristic of two nodes or fewer. That is why this needed its own signal
+   * rather than a wider version of an old one.
+   */
+  const realPdf = { contentType: 'application/pdf', querySelectorAll: () => [],
+                    documentElement: { clientWidth: 1280, clientHeight: 900 } } as unknown as Document;
+  check('Chrome\'s real PDF tab is opaque by content type',
+    opaqueDocumentKind(realPdf)?.kind, 'application/pdf');
+
+  const realHtml = { contentType: 'text/html', querySelectorAll: () => [],
+                     documentElement: { clientWidth: 1280, clientHeight: 900 } } as unknown as Document;
+  check('CONTROL: an ordinary text/html document is not opaque',
+    opaqueDocumentKind(realHtml), undefined);
+
+  const html = make('<body><embed type="text/html" data-w="1280" data-h="900"></body>');
+  check('CONTROL: a full-page HTML embed is not opaque',
+    opaqueDocumentKind(html), undefined);
+}

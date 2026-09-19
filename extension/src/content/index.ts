@@ -195,6 +195,12 @@ function observe(msg: { goal?: string; history?: unknown[] }, sendResponse: (r: 
       context: after,
       visionQueue: result.visionQueue,
       closedShadowHosts: result.closedShadowHosts,
+      /**
+       * The whole document is a plugin — a PDF, most of the time. Extraction found
+       * nothing because there is nothing in the DOM, not because the page is clean, and
+       * the difference between those two has to reach the panel intact.
+       */
+      opaqueDocument: result.opaqueDocument,
       // Reported in their own right, not just folded into piiBoxes for masking.
       // An <iframe> is content we CANNOT SEE, and a scan that cannot see a page must
       // not be free to report it clean.

@@ -899,6 +899,8 @@ $('run').addEventListener('click', async () => {
         'needs-user-input': 'the agent needs one value from you',
         // Also not a failure: the user navigated, and a goal does not cross origins.
         'navigated-away': 'stopped — this tab left the site the task was for',
+        // Not a failure either: we can see there is something here and cannot read it.
+        'opaque-document': 'this page could not be read',
       };
       const reason = res.stopReason as string;
       /**
@@ -914,7 +916,7 @@ $('run').addEventListener('click', async () => {
        * `navigated-away` is the user's own doing — painting either with the failure
        * colour teaches people that normal behaviour is a malfunction.
        */
-      const NEUTRAL = new Set(['needs-user-input', 'navigated-away']);
+      const NEUTRAL = new Set(['needs-user-input', 'navigated-away', 'opaque-document']);
       const cls = GOOD.has(reason) ? 'allow' : NEUTRAL.has(reason) ? '' : 'deny';
       $('phase').innerHTML =
         `<span class="${cls}">${esc(label[reason] ?? reason)}</span>`
@@ -1049,7 +1051,29 @@ $('run').addEventListener('click', async () => {
              * yours — and it is the exact claim a judge would push on.
              */
             const nothingToCheck = clean && (v.checkedValues ?? 0) === 0;
-            proofHtml = `<div class="proof ${clean ? 'ok' : 'bad'}">`
+
+            /**
+             * ⛔ AND IF THE PAGE COULD NOT BE READ AT ALL, SAY NOTHING ABOUT IT.
+             *
+             * "Nothing of yours on this page" is a positive claim, and on a PDF it was
+             * printed over an ID card carrying a name, a mobile number, an address, a
+             * date of birth and a face. The vault is empty there because the DOM is
+             * empty, not because the page is clean, and the card had no way to tell
+             * those apart.
+             *
+             * The strongest wording in the panel belongs to the case where we actually
+             * looked.
+             */
+            const unread = reason === 'opaque-document';
+            proofHtml = unread
+              // Deliberately no `ok` class: this card is not a pass, and colouring it
+              // green would say the opposite of what it says.
+              ? `<div class="proof"><h2>This page was not read</h2>`
+                + `<p>${esc(res.detail ?? 'Its contents are drawn outside the page.')}</p>`
+                + `<p class="t">Nothing was transmitted and nothing here has been checked,`
+                + ` so this is not a clean bill of health — it is the absence of one.</p>`
+                + `</div>`
+              : `<div class="proof ${clean ? 'ok' : 'bad'}">`
               + `<h2>${!clean ? 'LEAK DETECTED' : nothingToCheck
                   ? 'Nothing of yours on this page' : 'Verified clean'}</h2>`
               + (nothingToCheck
@@ -1223,7 +1247,15 @@ $('scan').addEventListener('click', async () => {
      * privacy tool that is the most dangerous output there is: the user reasonably
      * concludes the page holds nothing sensitive.
      */
-    const blind = (r.blindRatio ?? 0) > 0.4 || (r.nodeCount ?? 0) <= 2;
+    /**
+     * A PLUGIN DOCUMENT IS THE MAXIMAL CASE OF THIS, not a new one.
+     *
+     * The GoDaddy frame hid most of a page. A PDF hides ALL of it: Chrome renders it in
+     * another process and the DOM we can reach is a wrapper around an <embed>. Same
+     * category, same refusal to issue a clean bill of health.
+     */
+    const opaque = r.opaqueDocument as { kind: string } | undefined;
+    const blind = !!opaque || (r.blindRatio ?? 0) > 0.4 || (r.nodeCount ?? 0) <= 2;
 
     const warn = [
       r.unreadable?.length
@@ -1233,7 +1265,11 @@ $('scan').addEventListener('click', async () => {
       r.truncated ? `page exceeded the node budget; form controls were rescued` : '',
     ].filter(Boolean);
 
-    $('phase').innerHTML = blind
+    $('phase').innerHTML = opaque
+      ? `<b class="fig">—</b> this is a `
+        + `${esc(opaque.kind === 'application/pdf' ? 'PDF' : opaque.kind)}; its contents `
+        + `are drawn outside the page and cannot be read`
+      : blind
       ? `<b class="fig">—</b> this page could not be read`
       : orgOnly
         ? `<b class="fig">${num(orgContacts)}</b> site contact `

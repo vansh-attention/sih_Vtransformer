@@ -506,6 +506,55 @@ export interface ExtractResult {
   nodeCount: number;
   /** Elements the ViT must inspect, in document order. */
   visionQueue: ElementId[];
+  /**
+   * The WHOLE document is rendered by a plugin, not by the DOM.
+   *
+   * A PDF opened in Chrome is the case that matters. The viewer is a separate process;
+   * the DOM we can reach is a wrapper containing an <embed> and nothing else. Extraction
+   * is perfectly correct and finds no personal data, because there is none IN THE DOM —
+   * while a full ID card with a name, a mobile number, an address, a date of birth and a
+   * face sits on screen in front of the user.
+   *
+   * That is this project's recurring leak class at its worst: content visible to the user
+   * and invisible to the redactor. Worse than the earlier instances, because the panel
+   * then made a POSITIVE claim about it — "Nothing of yours on this page" over an ID
+   * card. A privacy tool that is confidently wrong in that direction is worse than one
+   * that says nothing at all.
+   *
+   * Reported rather than worked around. We cannot read a PDF, and an honest "I cannot
+   * read this" is the only correct output: reading it would need OCR, and the only thing
+   * on this machine that could is the VLM — which would mean transmitting an unredacted
+   * photograph of the card to answer the question, exactly inverting the product.
+   */
+  opaqueDocument?: { kind: string };
+}
+
+/**
+ * Is this document's content rendered by a plugin rather than by the DOM?
+ *
+ * Two signals, because Chrome has used both shapes: the document's own content type, and
+ * a full-page <embed>/<object> of a plugin type, which is what a PDF URL actually
+ * produces — an HTML wrapper whose entire body is the viewer.
+ */
+export function opaqueDocumentKind(doc: Document): { kind: string } | undefined {
+  const ct = (doc.contentType ?? '').toLowerCase();
+  if (ct && !/^(text\/html|text\/plain|application\/xhtml\+xml|text\/xml|application\/xml)$/.test(ct)) {
+    return { kind: ct };
+  }
+  for (const el of Array.from(doc.querySelectorAll('embed,object'))) {
+    const type = (el.getAttribute('type') ?? '').toLowerCase();
+    if (!type || /^(text\/html)$/.test(type)) continue;
+    /**
+     * Full-page only. A small embedded viewer inside an ordinary article is a region we
+     * cannot read — which `unreadableRegions` already handles by striking it out — not a
+     * reason to declare the whole page unreadable and refuse to act on it.
+     */
+    const r = (el as HTMLElement).getBoundingClientRect?.();
+    const big = r && r.width >= doc.documentElement.clientWidth * 0.6
+             && r.height >= doc.documentElement.clientHeight * 0.6;
+    if (big) return { kind: type };
+  }
+  return undefined;
 }
 
 export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractResult {
@@ -788,6 +837,7 @@ export function extractPage(doc: Document, opts: ExtractOptions = {}): ExtractRe
     visionQueue,
     closedShadowHosts: [...new Set(closedShadowHosts)],
     unreadableRegions,
+    opaqueDocument: opaqueDocumentKind(doc),
     // Check the DISCARDED tails only. Cheap, because truncation is rare, and it turns a
     // silent leak into a visible decision.
     piiBeyondTextCap: truncatedText.some((t) => scanText(t.slice(2000)).some((d) => d.verified)),
