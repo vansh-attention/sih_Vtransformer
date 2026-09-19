@@ -183,4 +183,45 @@ for (const [host, want] of [['pmvidyalaxmi.co.in', 'pmvidyalaxmi.co.in'],
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${`registrable(${host})`.padEnd(42)} ${got}`);
 }
 
+/**
+ * A DECIMAL IS ARITHMETIC, NOT AN ACCOUNT.
+ *
+ * python.org withheld a "card number" of `666666666666667` — the fractional tail of
+ * `5.666666666666667` in a code sample. A word boundary sits happily between a full stop
+ * and a digit, and 15 arbitrary digits pass Luhn one time in ten, so the checksum that
+ * carries this project's precision was no defence at all.
+ *
+ * The controls matter more than the case: a card is printed with spaces and hyphens, and
+ * an Aadhaar at the end of a sentence is followed by a full stop with no digit after it.
+ * Both must still be caught, or this guard bought precision with recall.
+ */
+console.log('\n--- decimals are not card numbers ---');
+{
+  const notPii = [
+    'result: 5.666666666666667 per second',
+    'ratio 0.4111111111111111 measured',
+    'pi to 4111111111111111.0 places',
+  ];
+  for (const text of notPii) {
+    const d = firstDetection(text);
+    const ok = d === null || (d.kind !== 'CARD' && d.kind !== 'AADHAAR' && d.kind !== 'PHONE');
+    if (!ok) fail++;
+    console.log(`${ok ? 'ok  ' : 'FAIL'}  ${`decimal not PII: ${text.slice(0, 26)}`.padEnd(42)}`
+      + ` ${d ? `${d.kind} ${d.raw}` : 'none'}`);
+  }
+
+  const stillPii: Array<[string, string]> = [
+    ['4111 1111 1111 1111', 'CARD'],              // embossed grouping
+    ['card 4111111111111111 on file', 'CARD'],    // bare run, no decimal anywhere
+    ['Aadhaar is 5678 9012 3458.', 'AADHAAR'],     // sentence-final full stop, no digit after
+  ];
+  for (const [text, want] of stillPii) {
+    const d = firstDetection(text);
+    const ok = d?.kind === want;
+    if (!ok) fail++;
+    console.log(`${ok ? 'ok  ' : 'FAIL'}  ${`still ${want}: ${text.slice(0, 26)}`.padEnd(42)}`
+      + ` ${d ? d.kind : 'none'}`);
+  }
+}
+
 console.log(fail ? `\n${fail} FAILURES` : '\nall reconciliation cases pass');

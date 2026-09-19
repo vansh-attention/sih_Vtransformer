@@ -26,6 +26,19 @@ loadGazetteer(JSON.parse(readFileSync(
 const dir = new URL('./realpages/', import.meta.url);
 const files = readdirSync(dir).filter((f) => f.endsWith('.html'));
 
+/**
+ * `--list` prints every value this pipeline withheld, with the kind, the node it came
+ * out of and that node's role.
+ *
+ * Without it the drill reports `withheld 15` and nothing else, which is a count with no
+ * way to tell a catch from a false positive — and redaction PRECISION is 20% of the
+ * official rubric. Printing these values is safe and only safe HERE: every page in
+ * `realpages/` is a public capture taken with nobody logged in, so there is no user's
+ * data in any of them to print. Do not copy this into anything that runs on a real
+ * user's page.
+ */
+const LIST = process.argv.includes('--list');
+
 let fail = 0;
 const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) fail++;
@@ -55,6 +68,7 @@ for (const file of files) {
   let extractMs = 0; let sanitizeMs = 0; let nodeCount = 0; let truncated = false;
   let bytes = 0; let withheldTotal = 0; let leaked: string[] = [];
   let crashed: string | null = null;
+  let listing: string[] = [];
 
   try {
     const t0 = performance.now();
@@ -73,6 +87,31 @@ for (const file of files) {
     const wire = JSON.stringify(payload);
     bytes = wire.length;
     withheldTotal = withheld.reduce((a, w) => a + w.count, 0);
+
+    if (LIST) {
+      /**
+       * Where each token ended up, so a false positive can be read off the role.
+       * A value out of a `textbox` is plausibly the user's; a value out of
+       * `text`/`link`/`heading` is page prose, and page prose on an anonymous public
+       * capture belongs to nobody.
+       */
+      const seat = new Map<string, { role: string; label: string }>();
+      (function walk(n: SanitizedNode) {
+        for (const field of [n.value, n.label]) {
+          for (const tok of field?.match(/<PII_[A-Z_]+_\d+>/g) ?? []) {
+            if (!seat.has(tok)) seat.set(tok, { role: n.role, label: n.label ?? '' });
+          }
+        }
+        n.children?.forEach(walk);
+      })(payload.root);
+
+      for (const tok of vault.tokens()) {
+        const where = seat.get(tok);
+        listing.push(`      ${tok.padEnd(22)} ${JSON.stringify(vault.resolve(tok))}`
+          + `  [${where ? where.role : 'NOT IN PAYLOAD'}`
+          + `${where?.label ? ` "${where.label.slice(0, 40)}"` : ''}]`);
+      }
+    }
 
     const norm = (x: string) => x.replace(/[\s\-()]/g, '').toLowerCase();
     const nw = norm(wire);
@@ -102,6 +141,7 @@ for (const file of files) {
       `${Math.round(extractMs + sanitizeMs)}ms`);
     check('payload bounded', bytes < 400_000, `${(bytes / 1024).toFixed(0)}KB`);
     check('found something to act on', interactive > 0, `${interactive} controls`);
+    if (listing.length) console.log(listing.join('\n'));
   } catch (e) {
     crashed = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     console.log(`  ${file}`);

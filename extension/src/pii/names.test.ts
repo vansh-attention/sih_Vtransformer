@@ -119,5 +119,59 @@ console.log('\n--- government reference vocabulary ---');
   void verhoeffValid;
 }
 
+/**
+ * TRANSLITERATED INDIC VOCABULARY IS NOT A PERSON.
+ *
+ * The dictionary-absence rule is backed by an ENGLISH word list, so an ordinary Hindi
+ * word in Latin script looks exactly like an uncatalogued surname. Measured on
+ * `bench/realpages/`: "Seva Kendra", "Bharat Mandapam", "Bharat Ka" and "Meri Pehchaan"
+ * were all withheld as people, and transliterated scheme names are what Indian
+ * government portals are built out of.
+ *
+ * Each case is asserted SEPARATELY, and each is followed by its own control, because a
+ * suppression list that also eats real names buys precision with recall — the expensive
+ * direction, and the exact trade this project has already paid for once.
+ */
+console.log('\n--- transliterated Indic vocabulary ---');
+{
+  const notPeople = [
+    'Seva Kendra', 'Bharat Mandapam', 'Meri Pehchaan', 'Gram Sadan',
+    'Jan Seva Kendra', 'Rashtriya Swasthya Bima', 'Digital Seva',
+    'Shiksha Kosh', 'Nagrik Sahayata', 'Shikayat Nivaran',
+  ];
+  for (const phrase of notPeople) {
+    const f = detectNames(phrase).filter((s) => s.confidence >= 0.6);
+    check(`"${phrase}" is not a person`, f.length === 0,
+      f.length ? `redacted as ${JSON.stringify(f[0].text)}` : '');
+  }
+
+  /**
+   * THE CONTROLS. Every one of these shares a token with the vocabulary above or sits in
+   * the same Indic-name space, and every one must still be caught — otherwise the list
+   * above is not a precision fix, it is a recall regression wearing one.
+   */
+  const stillPeople = [
+    'Saurabh Vijay',        // the honorific "Shri" used to swallow the real name
+    'Lakshmi Narayanan',    // gazetteer path, contains a dictionary word
+    'Ananya Krishnan',      // dictionary-absence path — in none of the three name lists
+    'Sudipto Chatterjee',   // unknown given token + known surname
+    'Vikram Sharma',        // both halves known
+  ];
+  for (const name of stillPeople) {
+    const f = detectNames(name).filter((s) => s.confidence >= 0.6);
+    check(`"${name}" is STILL detected`, f.length > 0, f.length ? '' : 'MISSED');
+  }
+
+  /**
+   * A title is not part of the name. Stripping "Shri" is what turned the mis-span
+   * "Shri Saurabh" into the actual name "Saurabh Vijay" on the Aadhaar article — so this
+   * asserts the SPAN, not merely that something was found.
+   */
+  const withTitle = detectNames('Shri Saurabh Vijay').filter((s) => s.confidence >= 0.6);
+  check('an honorific is excluded from the span',
+    withTitle.length === 1 && withTitle[0].text === 'Saurabh Vijay',
+    withTitle.length ? JSON.stringify(withTitle.map((s) => s.text)) : 'nothing found');
+}
+
 console.log(fail ? `\n${fail} FAILURES` : '\nall name-detection cases pass');
 process.exit(fail ? 1 : 0);

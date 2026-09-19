@@ -94,6 +94,64 @@ const NOT_NAMES = new Set([
 ]);
 
 /**
+ * TRANSLITERATED INDIC COMMON WORDS — the other half of the dictionary.
+ *
+ * The dictionary-absence rule reads "two adjacent Title-Case tokens where NEITHER is an
+ * ordinary word" as a person. The word list behind it is ENGLISH, so every ordinary
+ * Hindi or Sanskrit word written in Latin script is, to that rule, an unknown name-like
+ * token. Measured on `bench/realpages/`, that is where the remaining false positives
+ * were and they are all the same shape:
+ *
+ *   "Seva Kendra"      (service centre)   uidai.org.in, and again in the PAN article
+ *   "Bharat Mandapam"  (a venue)          sebi.gov.in
+ *   "Bharat Ka"        (of India)         sebi.gov.in, from a tagline
+ *   "Meri Pehchaan"    (my identity)      the Aadhaar article
+ *   "Shri Saurabh"     (an honorific)     the Aadhaar article
+ *
+ * This matters far past those five, because **transliterated scheme names are what
+ * Indian government portals are made of** — and those are the sites the finale will use.
+ * A detector that reads "Jan Suraksha", "Gram Sadan" or "Digital Seva" as people redacts
+ * the page's own navigation.
+ *
+ * Kept to words that are NOT plausible person names. Deliberately excluded even though
+ * they appear constantly in this vocabulary: `pradhan`, `mantri`, `adhikari`, `kaushal`,
+ * `nidhi`, `vidya`, `kiran`, `suraksha` — every one is a real given name or surname, and
+ * suppressing a token here removes it from the stream entirely, so a wrong entry costs
+ * RECALL, which is the expensive direction. When in doubt the word was left out.
+ *
+ * This is the same category as the place words in NOT_NAMES above (`nagar`, `delhi`),
+ * and the same method as the English list: a general vocabulary, not a page-specific
+ * patch. It WAS motivated by false positives on `bench/realpages/` — which is allowed
+ * and is exactly what that corpus is for. Nothing here came from `bench/holdout/`.
+ */
+const INDIC_COMMON = new Set([
+  // honorifics and titles — a title is not part of the name it precedes
+  'shri', 'shree', 'sri', 'smt', 'shrimati', 'kumari', 'sahib', 'sahab', 'saheb',
+  'thiru', 'thirumathi', 'mr', 'mrs', 'ms', 'dr', 'prof', 'adv',
+  // particles, pronouns and postpositions
+  'ka', 'ki', 'ke', 'ko', 'se', 'mein', 'par', 'aur', 'ya', 'hai', 'hain',
+  'tha', 'thi', 'yeh', 'ye', 'woh', 'nahi', 'nahin', 'kya', 'bhi', 'tak',
+  'liye', 'saath', 'bina', 'jab', 'tab', 'sab', 'kuch', 'koi',
+  'apna', 'apni', 'apne', 'mera', 'meri', 'mere', 'hamara', 'hamari',
+  // civic and administrative vocabulary
+  'seva', 'kendra', 'kendriya', 'mandapam', 'mandap', 'pehchaan', 'pehchan',
+  'nagrik', 'nagarik', 'praman', 'patra', 'panjikaran', 'aavedan', 'avedan',
+  'sthiti', 'vivaran', 'suchna', 'soochna', 'jankari', 'sarkar', 'sarkari',
+  'vibhag', 'karyalaya', 'ayog', 'aayog', 'samiti', 'sammelan', 'abhiyan',
+  'parishad', 'prashasan', 'prabandhan', 'nyayalaya', 'adalat', 'mantralaya',
+  'nideshalaya', 'zila', 'zilla', 'tehsil', 'taluka', 'mandal', 'kshetra',
+  'rajya', 'rashtriya', 'palika', 'samaj', 'sangh', 'sangathan',
+  // services people actually navigate to
+  'bima', 'swasthya', 'shiksha', 'gramin', 'gram', 'sadan', 'bhavan', 'bhawan',
+  'awas', 'vidyalaya', 'mahavidyalaya', 'vishwavidyalaya', 'pathshala',
+  'chhatravriti', 'shulk', 'anudan', 'kosh', 'khata', 'pariyojana', 'yojna',
+  'samman', 'puraskar', 'sahayata', 'shikayat', 'nivaran', 'samadhan',
+  'sujhav', 'sampark', 'samvad', 'pravesh', 'mukhya', 'sahayak',
+  'karmchari', 'adhyaksh', 'sachiv', 'paryatan', 'parivahan', 'sanchar',
+  'prasaran', 'kalyan', 'udyan', 'urja', 'vidyut', 'krishi', 'pashu',
+]);
+
+/**
  * Words that mark the surrounding phrase as an ORGANISATION, not a person.
  *
  * Many surnames are also company names — measured on the tuned corpus, "Kotak Mahindra
@@ -162,7 +220,8 @@ const norm = (s: string) => s.toLowerCase().replace(/[’]/g, "'");
 export function detectNames(text: string): NameSpan[] {
   if (!loaded || !text || text.length > 2000) return [];
 
-  const tokens = tokenize(text).filter((t) => !NOT_NAMES.has(norm(t.text)));
+  const tokens = tokenize(text)
+    .filter((t) => !NOT_NAMES.has(norm(t.text)) && !INDIC_COMMON.has(norm(t.text)));
   const spans: NameSpan[] = [];
   const push = (span: NameSpan) => {
     // An organisation marker nearby demotes the match below the redaction threshold

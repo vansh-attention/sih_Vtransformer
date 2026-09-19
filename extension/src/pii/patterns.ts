@@ -127,6 +127,40 @@ const RULES: Rule[] = [
   },
 ];
 
+/**
+ * Is this digit run part of a DECIMAL NUMBER?
+ *
+ * Found on python.org, which withheld a "card number" of `666666666666667` — the tail of
+ * `5.666666666666667` in a code sample. `\b` sits happily between a full stop and a
+ * digit, so the run matched, and 15 arbitrary digits pass Luhn one time in ten.
+ *
+ * A card number is never written with a decimal point against it, in any locale: the
+ * group separators are spaces and hyphens, both of which the rule already allows. So a
+ * digit immediately across a `.` from the match is positive evidence this is arithmetic,
+ * not an account. Checked on BOTH sides, because `5.6666…` and `666….5` are equally
+ * arithmetic and only one of them was the case that showed up.
+ *
+ * Deliberately narrow: only the fully-numeric kinds, and only a `.` flanked by digits.
+ * An Aadhaar at the end of a sentence is followed by a full stop with no digit after it,
+ * and must keep matching — that is why `text[end] === '.'` alone is not the test.
+ */
+function insideDecimal(text: string, start: number, end: number): boolean {
+  const before = text.slice(Math.max(0, start - 2), start);
+  const after = text.slice(end, end + 2);
+  if (/\d\.$/.test(before)) return true;
+  if (/^\.\d/.test(after)) return true;
+  return false;
+}
+
+/**
+ * Kinds that are pure digits, and so can be confused with ordinary arithmetic.
+ *
+ * Only the three that HAVE a rule in `RULES`. `BANK_ACCOUNT` is also pure digits but is
+ * raised by the DOM layer from a labelled field, never by a pattern scan over free text,
+ * so listing it here would be a guard no test could ever fail.
+ */
+const NUMERIC_KINDS = new Set<PiiKind>(['CARD', 'AADHAAR', 'PHONE']);
+
 /** Emit every candidate each rule proposes, checksum-gated. */
 function collect(text: string): Array<Detection & { priority: number }> {
   const out: Array<Detection & { priority: number }> = [];
@@ -138,6 +172,10 @@ function collect(text: string): Array<Detection & { priority: number }> {
       // Zero-length match guard: without this a bad regex spins forever.
       if (raw.length === 0) {
         rule.re.lastIndex++;
+        continue;
+      }
+      if (NUMERIC_KINDS.has(rule.kind)
+          && insideDecimal(text, m.index, m.index + raw.length)) {
         continue;
       }
       const verified = verify(rule.kind, raw);
