@@ -224,7 +224,27 @@ export function validateAction(
   const nodeHasIt = (node.value ?? null) === (action.value ?? null);
 
   if (repeats > 0 && nodeHasIt) {
-    return deny(`${action.target} already has that value; this action would change nothing`);
+    /**
+     * SAY WHAT TO DO INSTEAD, OR IT WILL BE RETRIED.
+     *
+     * This refusal used to stop at "would change nothing" — a statement about the
+     * model's mistake with no way forward in it — and the model re-proposed the same
+     * action until the loop gave up. Measured: teaching the model to fill every empty
+     * field in one reply took the multi-step task from 6 turns to 4, and task success
+     * from 3/3 to 1/3, because once the form was full in a single turn the ONLY thing
+     * left to do was finish, and this was the sentence standing in the way. Both failures
+     * ended here, on the dropdown, twice each.
+     *
+     * The client is entitled to say more than "no". A field that already holds the value
+     * the model wanted to put in it is a field that is done, and the two things that come
+     * after "done" are submitting and saying so.
+     *
+     * Same lesson as the invented-token refusal, reached from the opposite direction: a
+     * refusal a model cannot act on is a refusal it will repeat.
+     */
+    return deny(`${action.target} already holds that value, so this would change nothing `
+      + '— that field is finished; submit the form if it is complete, or return '
+      + '{"kind":"done","reasoning":"..."}');
   }
   /**
    * Tried twice and the page still does not show it. Refuse — but say what is actually

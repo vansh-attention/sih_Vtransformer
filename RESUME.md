@@ -18,7 +18,7 @@ He picked 15 of 17 offered. **Not chosen: the demo video, and integrating the re
 | D1 | invented tokens / actionable refusals | ✅ **DONE** |
 | D3 | resume after `ask_user` | ✅ **DONE** — same piece of work as D1 |
 | B1 | 3B-vs-7B tradeoff study | ⏳ next — both models now pulled |
-| B2 | batch fields per turn | open |
+| B2 | batch fields per turn | ⛔ **TRIED AND REJECTED — it costs the task, see below** |
 | B3 | overlap vision with the model call | open |
 | B4 | memory: lazy ViT + per-stage heap profile | open |
 | C1 | grow the real-page corpus to 30+ | open — best task for the team |
@@ -138,6 +138,48 @@ read at server start, and ollama loads a model on its first REQUEST. The 7B row 
 carried a number because that model happened to be resident already. Fixed to read after
 the first run. **A measurement that silently returns empty for the case you are studying
 is worse than no measurement.**
+
+### ⛔ B2 — BATCHING FIELDS PER TURN: MEASURED, AND IT COSTS THE TASK
+
+**I offered this as "the biggest latency lever that cannot cost accuracy". That was wrong
+and the measurement says so.** Three Spike E runs per variant:
+
+| | turns | task | verified |
+|---|---|---|---|
+| **one action per turn (what ships)** | 6 | 33.8 s | **3/3** |
+| batched, example with real values | 4 | 26.8 s | 1/3 |
+| batched, example with placeholders | 3 | — | 0/3 |
+
+Batching is **already supported end to end** — the schema takes an array, the executor
+runs them in order, the loop allows them. The model simply never did it, and once told
+to, it does: turn 1 fills three or four fields. **The task then does not finish.** Having
+filled the form in one turn, the model spends every remaining turn re-proposing a field
+that is already correct and never submits — *the same place the 3B model fails*. Making
+the no-op refusal name the remedy did not help either: still 0/3.
+
+⭐ **Two findings that outlast this experiment, both about `server/prompt.py`:**
+
+1. **THE EXAMPLE'S VALUES GET TYPED.** My first example used `"GRV-100234"` — which is
+   the reference number **in `bench/pages/multistep.html`**, the Spike E fixture. The
+   prompt was handing the model the test's own answer and the measurement was invalid.
+   Rewritten with `"<from the goal>"` as a placeholder, **the model typed the literal
+   string `<from the goal>` into the field.** A 7B copies what it is shown. Any
+   concrete-looking value in an example is a liability on every page that is not the
+   example.
+2. **A BATCH IS VALIDATED AGAINST THE PAGE AS IT WAS BEFORE THE BATCH RAN.** So an action
+   whose precondition is created by an *earlier action in the same batch* is unsound:
+   Submit is disabled until the form is complete, and it is still disabled in the
+   observation the validator checks (`element el_9 is disabled`, seen). **Submitting is
+   the step that completes the task, so the one action worth batching is the one that
+   cannot be.**
+
+⚠ And the note recording all this was first written **inside `SYSTEM_PROMPT`**, where it
+would have been sent to the model every turn. It lives in a comment now. The finding is
+in the file so the next person does not spend the afternoon again.
+
+**KEPT from the experiment:** the no-op refusal now names the remedy —
+*"that field is finished; submit the form if it is complete, or return done"*. It did not
+rescue batching, but it is strictly more informative and the baseline is still 3/3 with it.
 
 ### 🏪 STORE SUBMISSIONS — WRITTEN, WAITING ON HIS ACCOUNTS
 

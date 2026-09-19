@@ -75,6 +75,42 @@ completed action can submit a form twice.
 Otherwise take the fewest actions that make real progress. If you cannot see enough,
 return one "wait" or "scroll" and set needsMoreContext."""
 
+# ⛔ DO NOT ADD A "FILL EVERY FIELD IN ONE REPLY" INSTRUCTION TO THE PROMPT ABOVE.
+#
+# This note lives in a COMMENT and not in the prompt, which is the second thing this
+# experiment taught: the first draft of it was written inside SYSTEM_PROMPT, where it
+# would have been sent to the model on every single turn.
+#
+# It was tried on 19 Sep 2026, in two forms, each measured over three Spike E runs:
+#
+#     one action per turn (this prompt)   6 turns   33.8s   task verified 3/3
+#     batched, example with real values   4 turns   26.8s   task verified 1/3
+#     batched, example with placeholders  3 turns     —     task verified 0/3
+#
+# Batching works — the model does return three or four actions and the turn count drops.
+# The task then does not finish. Having filled the form in one turn, the model spends every
+# remaining turn re-proposing a field that is already correct and never submits, which is
+# the same place the 3B model fails. Making the no-op refusal name the remedy did not help
+# either: 0/3.
+#
+# Two things were learned the expensive way and both are about this file:
+#
+# 1. THE EXAMPLE'S VALUES GET TYPED. The first version used "GRV-100234", which is the
+#    reference number in bench/pages/multistep.html — so the prompt was handing the model
+#    the fixture's own answer, and the measurement was invalid. The second used
+#    "<from the goal>" as a placeholder and the model typed the literal string
+#    "<from the goal>" into the field. A 7B copies what it is shown. Any concrete-looking
+#    value in an example here is a liability on every page that is not the example.
+#
+# 2. A BATCH IS VALIDATED AGAINST THE PAGE AS IT WAS BEFORE THE BATCH RAN. So an action
+#    whose precondition is created by an EARLIER action in the same batch is unsound:
+#    Submit is disabled until the form is complete, and it is still disabled in the
+#    observation the validator checks. Submitting is the step that completes the task, so
+#    the one action worth batching is the one that cannot be.
+#
+# Latency is 15% of the grade and this is the obvious way to spend it. It costs task
+# completion, which is the demo.
+
 
 def _describe(node: dict[str, Any], depth: int = 0, lines: list[str] | None = None) -> list[str]:
     """
