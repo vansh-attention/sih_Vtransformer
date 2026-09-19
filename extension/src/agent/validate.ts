@@ -299,6 +299,17 @@ export function validateAction(
    * `normalised` is recorded so the Privacy Ledger shows the rewrite. A correction the
    * user cannot see is indistinguishable from the agent doing something it was not
    * asked to do.
+   *
+   * ⚠ RE-MEASURED 19 Sep, AND THE CLAIM ABOVE IS NO LONGER TRUE. The model emits
+   * `{"kind":"select",…}` natively — 3 runs of 3, with this rule never firing and no
+   * click-on-a-dropdown refusals either. "It simply would not emit the word select" was
+   * accurate when written and is not accurate now.
+   *
+   * ⛔ IT IS STILL NOT DEAD CODE, and the evidence for that arrived the same day: under
+   * the batched-actions prompt tried on 19 Sep, the model opened turn 1 with
+   * `click(el_5)` on the same dropdown. The behaviour is a property of the prompt, not of
+   * the model, and this project changes that prompt. A dormant guard that costs one
+   * comparison is the right price for a failure that ends the task three turns in.
    */
   if (action.kind === 'type' && node.role === 'select' && typeof action.value === 'string') {
     const match = (node.options ?? []).find(

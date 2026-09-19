@@ -25,8 +25,8 @@ He picked 15 of 17 offered. **Not chosen: the demo video, and integrating the re
 | C2 | read inside iframes | open — needs a design, not a flag |
 | C3 | Indic names in prose | ✅ **DONE** — Devanagari; Bengali/Tamil knowingly left |
 | C4 | adversarial injection suite | ✅ **DONE** — found a 6th leak and a real boundary |
-| D2 | proper dropdown handling | open |
-| D4 | run history in the ledger | open |
+| D2 | dropdown handling | ✅ **RE-MEASURED** — the claim was stale; no code change needed |
+| D4 | run history in the ledger | ⛔ **NEEDS HIS DECISION** — it writes browsing history to disk |
 | S1 | Chrome Web Store, Unlisted | open — needs HIS Google account |
 | S2 | Firefox signed unlisted XPI | open — needs HIS AMO account |
 
@@ -138,6 +138,30 @@ read at server start, and ollama loads a model on its first REQUEST. The 7B row 
 carried a number because that model happened to be resident already. Fixed to read after
 the first run. **A measurement that silently returns empty for the case you are studying
 is worse than no measurement.**
+
+### ✅ D2 — THE DROPDOWN CLAIM WAS STALE. NO CODE CHANGE NEEDED
+
+RESUME said *"the 7B model will not emit `kind:"select"` however it is prompted"*, and
+`validate.ts` normalised a `type` on a dropdown as a workaround. **Re-measured: the model
+emits `select` natively, 3 runs of 3, the normalisation never fires, and there are no
+click-on-a-dropdown refusals either.** The claim was true when written and is not now.
+
+⛔ **The workaround is NOT dead code, and the evidence arrived the same day:** under the
+batched-actions prompt tried this morning, the model opened turn 1 with `click(el_5)` on
+that same dropdown. **The behaviour is a property of the prompt, not of the model**, and
+this project changes the prompt. Both guards stay, documented as dormant with the
+measurement beside them.
+
+### ⛔ D4 — RUN HISTORY IS HIS CALL, NOT MINE
+
+Not built, deliberately. Keeping a list of past runs means writing **which sites you ran
+the agent on** to disk — that is browsing history, in a product whose entire claim is that
+your data stays put. `outreach/PRIVACY-POLICY.md`, drafted today, says in as many words:
+*"No page content, no personal data and no history is written to disk."*
+
+⇒ **Three options, his choice:** counts only and no origins or goals; full history but
+opt-in and off by default; or don't build it. Whichever he picks, **the privacy policy has
+to change with it** — and a policy that stops being true is worse than no feature.
 
 ### 🟡 C1 — GROWING THE CORPUS IS NOW A COMMAND, AND IT IMMEDIATELY FOUND TWO BUGS
 
